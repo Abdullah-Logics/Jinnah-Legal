@@ -1,0 +1,157 @@
+import 'dotenv/config';
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import morgan from 'morgan';
+import compression from 'compression';
+import rateLimit from 'express-rate-limit';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { existsSync } from 'fs';
+import { getAdapter, closeAdapter } from './db/adapter.js';
+import { validateEnv, getCorsOrigin } from './config/env.js';
+import { errorHandler, notFound } from './middleware/errorHandler.js';
+import { authRouter } from './routes/auth.js';
+import { casesRouter } from './routes/cases.js';
+import { apiRouter } from './routes/api.js';
+import { aiRouter } from './routes/ai.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const PORT = process.env.PORT || 3001;
+
+async function main() {
+  validateEnv();
+
+  await getAdapter();
+
+  const app = express();
+
+  app.use(helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    contentSecurityPolicy: process.env.NODE_ENV === 'production' ? undefined : false,
+  }));
+
+  app.use(compression());
+
+  if (process.env.NODE_ENV === 'production') {
+    app.use(morgan('combined'));
+  } else {
+    app.use(morgan('dev'));
+  }
+
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: process.env.NODE_ENV === 'production' ? 200 : 1000,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests, please try again later.' },
+  });
+  app.use('/api/', limiter);
+  const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many login attempts, please try again later.' },
+  });
+  app.use('/api/auth/login', authLimiter);
+
+  const corsOrigins = getCorsOrigin();
+  app.use(cors({
+    origin: corsOrigins,
+    credentials: true,
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    maxAge: 86400,
+  }));
+
+  app.use(express.json({ limit: '10mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+  app.use((_req, res, next) => {
+    res.setTimeout(30000, () => {
+      res.status(503).json({ error: 'Request timeout' });
+    });
+    next();
+  });
+
+  if (process.env.NODE_ENV === 'production') {
+    app.set('trust proxy', 1);
+  }
+
+  app.get('/api/health', (_req, res) => res.json({
+    status: 'ok',
+    db: process.env.MSSQL_SERVER ? 'mssql' : 'sqlite',
+    ai: process.env.GEMINI_API_KEY ? 'gemini' : 'unavailable',
+    environment: process.env.NODE_ENV || 'development',
+    time: new Date().toISOString(),
+    uptime: process.uptime(),
+  }));
+
+  app.use('/api/auth',  authRouter);
+  app.use('/api/cases', casesRouter);
+  app.use('/api/ai',    aiRouter);
+  app.use('/api',       apiRouter);
+
+  app.use('/api/*', notFound);
+
+  const dist = path.join(__dirname, '../../dist');
+  if (existsSync(dist)) {
+    app.use(express.static(dist, {
+      maxAge: '1y',
+      immutable: true,
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.html')) {
+          res.setHeader('Cache-Control', 'no-cache');
+        }
+      },
+    }));
+    app.get('*', (_req, res) => res.sendFile(path.join(dist, 'index.html')));
+  }
+
+  app.use(errorHandler);
+
+  const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log(' 🏛️  Jinnah Legal Backend');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log(` ✅  Server   → http://localhost:${PORT}`);
+    console.log(` ✅  Health   → http://localhost:${PORT}/api/health`);
+    console.log(` 🗄️  DB       → ${process.env.MSSQL_SERVER ? 'MSSQL: ' + process.env.MSSQL_SERVER : 'SQLite (local file)'}`);
+    console.log(` 🤖  AI       → ${process.env.GEMINI_API_KEY ? 'Gemini ' + (process.env.GEMINI_MODEL || 'gemini-2.5-flash') : 'Mock (add GEMINI_API_KEY for real AI)'}`);
+    console.log(` 🌐  Mode     → ${process.env.NODE_ENV || 'development'}`);
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+  });
+
+  function shutdown(signal) {
+    console.log(`\n📡 Received ${signal}. Shutting down gracefully...`);
+    server.close(async () => {
+      console.log('✅ HTTP server closed');
+      await closeAdapter();
+      process.exit(0);
+    });
+    setTimeout(() => {
+      console.error('⚠️ Forced shutdown after 10s timeout');
+      process.exit(1);
+    }, 10000);
+  }
+
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
+
+  process.on('unhandledRejection', (reason) => {
+    console.error('❌ Unhandled Promise Rejection:', reason);
+  });
+
+  process.on('uncaughtException', (err) => {
+    console.error('❌ Uncaught Exception:', err.message);
+    console.error(err.stack);
+    shutdown('UNCAUGHT_EXCEPTION');
+  });
+}
+
+main().catch(err => {
+  console.error('\n❌ Startup failed:', err.message);
+  console.error(err.stack);
+  process.exit(1);
+});

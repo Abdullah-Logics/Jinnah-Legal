@@ -1,0 +1,218 @@
+import { useState } from 'react';
+import { motion } from 'framer-motion';
+import { Search, Brain, FileText, Clock, BookOpen, Sparkles, Send, Lightbulb } from 'lucide-react';
+import api from '../../utils/api';
+
+interface SearchResult {
+  id: string;
+  title: string;
+  summary: string;
+  type: string;
+}
+
+export default function LawyerResearch() {
+  const [query, setQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [error, setError] = useState('');
+  const [activeTab, setActiveTab] = useState<'search' | 'history' | 'memos'>('search');
+
+  const handleSearch = async () => {
+    if (!query.trim()) return;
+    setIsSearching(true);
+    setError('');
+    try {
+      const data = await api.post('/api/ai/chat', {
+        message: `Legal research: ${query}. Provide a structured response with relevant Pakistani laws, statutes, and case precedents. Format as a list of findings with title, summary, and type (statute/case/law).`,
+        history: [],
+      });
+      const lines = data.response.split('\n').filter((l: string) => l.trim());
+      const parsed: SearchResult[] = lines
+        .filter((l: string) => l.startsWith('**') || l.startsWith('- **'))
+        .map((l: string, i: number) => ({
+          id: String(i + 1),
+          title: l.replace(/[*#]/g, '').trim().split(':')[0] || 'Finding',
+          summary: l.replace(/[*#]/g, '').trim(),
+          type: l.includes('Case') || l.includes('case') ? 'Case Precedent' : 'Legal Principle',
+        }));
+      setResults(parsed.length > 0 ? parsed : [{
+        id: '1',
+        title: 'Research Results',
+        summary: data.response.replace(/[*#]/g, '').trim(),
+        type: 'Analysis',
+      }]);
+    } catch {
+      setError('Research service unavailable. Please try again later.');
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const recentSearches: string[] = [];
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold text-slate-900">AI Legal Research</h1>
+        <p className="text-slate-500">Search past cases, get AI-powered insights</p>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-2 border-b border-slate-200 overflow-x-auto pb-px">
+        {[
+          { id: 'search', label: 'Research', icon: Search },
+          { id: 'history', label: 'History', icon: Clock },
+          { id: 'memos', label: 'Memos', icon: FileText },
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as typeof activeTab)}
+            className={`flex items-center gap-2 px-4 py-3 font-medium border-b-2 transition whitespace-nowrap ${
+              activeTab === tab.id
+                ? 'border-emerald-600 text-emerald-600'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <tab.icon size={18} />
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'search' && (
+        <div className="space-y-6">
+          {/* Search Box */}
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+            <div className="flex items-center gap-2 mb-4">
+              <Brain className="text-emerald-600" size={24} />
+              <h2 className="text-lg font-bold text-slate-900">AI-Powered Research</h2>
+            </div>
+            <div className="relative">
+              <textarea
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Describe what you're looking for... e.g., 'Find precedents for property disputes involving government land acquisition in Punjab'"
+                className="w-full h-32 p-4 pr-12 bg-slate-50 border border-slate-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+              <button
+                onClick={handleSearch}
+                disabled={isSearching}
+                className="absolute bottom-4 right-4 p-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {isSearching ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Send size={20} />
+                )}
+              </button>
+            </div>
+            {recentSearches.length > 0 && (
+              <div className="mt-4">
+                <p className="text-sm text-slate-500 mb-2">Recent searches:</p>
+                <div className="flex flex-wrap gap-2">
+                  {recentSearches.map((search, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setQuery(search)}
+                      className="px-3 py-1.5 bg-slate-100 text-slate-600 text-sm rounded-lg hover:bg-slate-200 transition"
+                    >
+                      {search}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Results */}
+          {isSearching && (
+            <div className="bg-white rounded-2xl p-12 shadow-sm border border-slate-100 text-center">
+              <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Sparkles className="text-emerald-600 animate-pulse" size={32} />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900 mb-2">AI is researching...</h3>
+              <p className="text-slate-500">Searching through thousands of cases and legal documents</p>
+            </div>
+          )}
+
+          {results.length > 0 && !isSearching && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-slate-900">Found {results.length} relevant cases</h3>
+                <button className="text-emerald-600 font-medium text-sm">Export Results</button>
+              </div>
+              {results.map((result, i) => (
+                <motion.div
+                  key={result.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.1 }}
+                  className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 hover:shadow-md hover:border-emerald-200 transition"
+                >
+                  <div className="flex items-start gap-4 mb-3">
+                    <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Lightbulb size={16} className="text-emerald-600" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-slate-900">{result.title}</h4>
+                      <p className="text-sm text-emerald-600">{result.type}</p>
+                    </div>
+                  </div>
+                  <p className="text-slate-600 ml-12">{result.summary}</p>
+                </motion.div>
+              ))}
+            </div>
+          )}
+
+          {results.length === 0 && !isSearching && (
+            <div className="bg-white rounded-2xl p-12 shadow-sm border border-slate-100 text-center">
+              <BookOpen size={48} className="mx-auto text-slate-300 mb-4" />
+              <h3 className="text-lg font-bold text-slate-900 mb-2">Start Your Research</h3>
+              <p className="text-slate-500">Enter a query above to search through legal precedents and cases</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'history' && (
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+          <h3 className="font-bold text-slate-900 mb-4">Search History</h3>
+          {recentSearches.length > 0 ? (
+            <div className="space-y-3">
+              {recentSearches.map((search, i) => (
+                <div key={i} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <Clock size={18} className="text-slate-400" />
+                    <span className="text-slate-700">{search}</span>
+                  </div>
+                  <button className="text-emerald-600 font-medium text-sm">Search Again</button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 text-slate-400">
+              <Clock size={48} className="mx-auto mb-4 opacity-50" />
+              <p>No research history yet</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'memos' && (
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-bold text-slate-900">Research Memos</h3>
+            <button className="flex items-center gap-1 text-emerald-600 font-medium text-sm">
+              <FileText size={16} /> New Memo
+            </button>
+          </div>
+          <div className="text-center py-12 text-slate-400">
+            <FileText size={48} className="mx-auto mb-4 opacity-50" />
+            <p>No memos created yet</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

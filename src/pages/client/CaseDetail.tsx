@@ -1,0 +1,176 @@
+import { useParams, Link } from 'react-router-dom';
+import { useStore } from '../../store/useStore';
+import { motion } from 'framer-motion';
+import { ArrowLeft, Briefcase, User, Calendar, FileText, MessageSquare, Clock, Download } from 'lucide-react';
+import { format } from 'date-fns';
+
+export default function ClientCaseDetail() {
+  const { id } = useParams();
+  const { cases, users } = useStore();
+  
+  const caseData = cases.find(c => c.id === id);
+  const lawyer = users.find(u => u.id === caseData?.lawyerId);
+
+  if (!caseData) {
+    return (
+      <div className="text-center py-16">
+        <Briefcase size={48} className="mx-auto text-slate-300 mb-4" />
+        <h2 className="text-xl font-bold text-slate-900 mb-2">Case Not Found</h2>
+        <Link to="/client/cases" className="text-blue-600 font-medium">Back to Cases</Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <Link to="/client/cases" className="p-2 hover:bg-slate-100 rounded-lg transition">
+          <ArrowLeft size={24} />
+        </Link>
+        <div className="flex-1">
+          <h1 className="text-xl md:text-2xl font-bold text-slate-900">{caseData.title}</h1>
+          <div className="flex items-center gap-3 mt-1">
+            <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+              caseData.status === 'active' ? 'bg-emerald-100 text-emerald-700' :
+              caseData.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+              'bg-slate-100 text-slate-700'
+            }`}>
+              {caseData.status}
+            </span>
+            <span className="text-sm text-slate-500">{caseData.type}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { label: 'Timeline Events', value: caseData.timeline.length, icon: Clock },
+          { label: 'Documents', value: caseData.documents.length, icon: FileText },
+          { label: 'Court Dates', value: caseData.courtDates.length, icon: Calendar },
+          { label: 'Started', value: format(new Date(caseData.createdAt), 'MMM d'), icon: Calendar },
+        ].map((stat, i) => (
+          <motion.div
+            key={stat.label}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.1 }}
+            className="bg-white rounded-xl p-4 shadow-sm border border-slate-100"
+          >
+            <stat.icon className="text-blue-600 mb-2" size={20} />
+            <p className="text-lg font-bold text-slate-900">{stat.value}</p>
+            <p className="text-sm text-slate-500">{stat.label}</p>
+          </motion.div>
+        ))}
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-6">
+        {/* Main Content */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Description */}
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+            <h2 className="text-lg font-bold text-slate-900 mb-4">Case Description</h2>
+            <p className="text-slate-600">{caseData.description}</p>
+          </div>
+
+          {/* Timeline */}
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+            <h2 className="text-lg font-bold text-slate-900 mb-4">Case Timeline</h2>
+            <div className="space-y-4">
+              {caseData.timeline.length > 0 ? caseData.timeline.map((event, i) => (
+                <div key={i} className="flex gap-4">
+                  <div className="flex flex-col items-center">
+                    <div className="w-3 h-3 bg-blue-500 rounded-full" />
+                    {i < caseData.timeline.length - 1 && <div className="w-0.5 flex-1 bg-blue-200" />}
+                  </div>
+                  <div className="pb-4">
+                    <p className="text-xs text-slate-400 mb-1">{format(new Date(event.date), 'MMM d, yyyy')}</p>
+                    <h3 className="font-medium text-slate-900">{event.event}</h3>
+                    <p className="text-sm text-slate-500">{event.description}</p>
+                  </div>
+                </div>
+              )) : (
+                <p className="text-center text-slate-400 py-4">No timeline events yet</p>
+              )}
+            </div>
+          </div>
+
+          {/* Documents */}
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+            <h2 className="text-lg font-bold text-slate-900 mb-4">Documents</h2>
+            <div className="space-y-3">
+              {caseData.documents.length > 0 ? caseData.documents.map(doc => (
+                <div key={doc.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
+                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <FileText className="text-blue-600" size={20} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-medium text-slate-900 truncate">{doc.name}</h3>
+                    <p className="text-xs text-slate-400">{format(new Date(doc.uploadedAt), 'MMM d, yyyy')}</p>
+                  </div>
+                  <button className="p-2 hover:bg-slate-200 rounded-lg transition">
+                    <Download size={18} className="text-slate-500" />
+                  </button>
+                </div>
+              )) : (
+                <p className="text-center text-slate-400 py-4">No documents yet</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Sidebar */}
+        <div className="space-y-6">
+          {/* Lawyer Info */}
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+            <h2 className="text-lg font-bold text-slate-900 mb-4">Your Lawyer</h2>
+            {lawyer ? (
+              <div>
+                <div className="flex items-center gap-3 mb-4">
+                  <img
+                    src={lawyer.avatar || `https://ui-avatars.com/api/?name=${lawyer.name}`}
+                    alt={lawyer.name}
+                    className="w-14 h-14 rounded-full object-cover"
+                  />
+                  <div>
+                    <h3 className="font-medium text-slate-900">{lawyer.name}</h3>
+                    <p className="text-sm text-slate-500">{lawyer.city}</p>
+                  </div>
+                </div>
+                <Link
+                  to="/client/messages"
+                  className="flex items-center justify-center gap-2 w-full bg-blue-600 text-white py-2.5 rounded-xl font-medium hover:bg-blue-700 transition"
+                >
+                  <MessageSquare size={18} />
+                  Message Lawyer
+                </Link>
+              </div>
+            ) : (
+              <p className="text-slate-400">No lawyer assigned</p>
+            )}
+          </div>
+
+          {/* Court Dates */}
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+            <h2 className="text-lg font-bold text-slate-900 mb-4">Upcoming Court Dates</h2>
+            <div className="space-y-3">
+              {caseData.courtDates.length > 0 ? caseData.courtDates.map((date, i) => (
+                <div key={i} className="p-3 bg-slate-50 rounded-xl">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Calendar size={16} className="text-blue-600" />
+                    <span className="font-medium text-slate-900">{format(new Date(date.date), 'MMM d, yyyy')}</span>
+                  </div>
+                  <p className="text-sm text-slate-600">{date.court}</p>
+                  <p className="text-xs text-slate-400">{date.notes}</p>
+                </div>
+              )) : (
+                <p className="text-center text-slate-400 py-4">No court dates scheduled</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

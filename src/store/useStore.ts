@@ -218,10 +218,11 @@ export const useStore = create<AppState>()(
             city: userData.city || null,
             firmId: (userData as any).firmId || undefined,
             subscriptionPlan: (userData as any).subscriptionPlan || 'free',
-            specialization: userData.credentials?.specialization?.join(',') || null,
-            barNumber: userData.credentials?.barNumber || null,
-            experience: userData.credentials?.experience ?? null,
-            education: userData.credentials?.education || null,
+            specialization: (userData as any).specialization || (userData as any).credentials?.specialization?.join(',') || null,
+            barNumber: (userData as any).barNumber || (userData as any).credentials?.barNumber || null,
+            licenseNumber: (userData as any).licenseNumber || (userData as any).credentials?.licenseNumber || null,
+            experience: (userData as any).experience ?? (userData as any).credentials?.experience ?? null,
+            education: (userData as any).education || (userData as any).credentials?.education || null,
           }),
         });
         set({ currentUser: data.user, isAuthenticated: true, token: data.token });

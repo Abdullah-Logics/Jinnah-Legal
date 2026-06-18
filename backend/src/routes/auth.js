@@ -53,7 +53,7 @@ authRouter.post('/login', validate(loginSchema), asyncHandler(async (req, res) =
 }));
 
 authRouter.post('/register', validate(registerSchema), asyncHandler(async (req, res) => {
-  const { email, password, name, role, phone, city, specialization, barNumber, experience, education, firmId, subscriptionPlan } = req.body;
+  const { email, password, name, role, phone, city, specialization, barNumber, licenseNumber, experience, education, firmId, subscriptionPlan } = req.body;
 
   const exists = await queryOne('SELECT id FROM users WHERE email = ?', [email]);
   if (exists) {
@@ -69,10 +69,10 @@ authRouter.post('/register', validate(registerSchema), asyncHandler(async (req, 
 
   await run(
     `INSERT INTO users (id,email,password_hash,name,role,phone,city,firm_id,subscription_plan,
-      is_verified,verification_status,specialization,bar_number,experience,education)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      is_verified,verification_status,specialization,bar_number,license_number,experience,education)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     [id, email, hash, name, role, phone||null, city||null, firmId||null, plan, isVerified, verStatus,
-     specialization||null, barNumber||null, experience||null, education||null]
+     specialization||null, barNumber||null, licenseNumber||null, experience||null, education||null]
   );
 
   const user = await queryOne('SELECT * FROM users WHERE id = ?', [id]);

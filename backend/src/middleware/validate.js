@@ -40,6 +40,7 @@ export const registerSchema = z.object({
   city: z.preprocess(emptyToNull, z.string().max(100).nullable()),
   specialization: z.preprocess(emptyToNull, z.string().max(500).nullable()),
   barNumber: z.preprocess(emptyToNull, z.string().max(100).nullable()),
+  licenseNumber: z.preprocess(emptyToNull, z.string().max(100).nullable()),
   experience: z.preprocess(toNum, z.number().int().min(0).max(100).nullable()),
   education: z.preprocess(emptyToNull, z.string().max(1000).nullable()),
   firmId: z.string().optional().nullable(),

@@ -95,16 +95,15 @@ export default function Register() {
           role,
           phone: formData.phone,
           city: formData.city,
-          address: formData.address,
           subscriptionPlan: formData.plan,
           firmId: affiliation === 'firm' ? formData.firmId : undefined,
-          credentials: role === 'lawyer' ? {
-            barNumber: formData.barNumber,
-            licenseNumber: formData.licenseNumber,
-            specialization: formData.specialization,
-            experience: parseInt(formData.experience) || 0,
-            education: formData.education,
-          } : undefined
+          ...(role === 'lawyer' ? {
+            barNumber: formData.barNumber || undefined,
+            licenseNumber: formData.licenseNumber || undefined,
+            specialization: formData.specialization.join(', ') || undefined,
+            experience: parseInt(formData.experience) || undefined,
+            education: formData.education || undefined,
+          } : {})
         };
         const success = await register(payload);
 

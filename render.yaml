@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: jinnah-legal
+    env: node
+    region: singapore
+    buildCommand: npm run render-build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "10000"
+      - key: VITE_API_URL
+        value: https://jinnah-legal.onrender.com
+      - key: MSSQL_SERVER
+        sync: false
+      - key: MSSQL_USER
+        sync: false
+      - key: MSSQL_PASSWORD
+        sync: false
+      - key: MSSQL_DATABASE
+        sync: false

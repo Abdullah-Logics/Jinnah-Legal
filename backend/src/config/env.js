@@ -56,5 +56,6 @@ export function getCorsOrigin() {
   if (process.env.NODE_ENV !== 'production') {
     origins.push('http://localhost:5173', 'http://localhost:3001');
   }
+  origins.push('https://ai-lawyer-blush.vercel.app', 'https://ai-lawyer.vercel.app');
   return origins;
 }

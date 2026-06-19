@@ -62,8 +62,8 @@ authRouter.post('/register', validate(registerSchema), asyncHandler(async (req, 
 
   const id = uuid();
   const hash = await bcrypt.hash(password, 10);
-  const isVerified = 1;
-  const verStatus = 'approved';
+  const isVerified = (role === 'lawyer' || role === 'firm_admin') ? 0 : 1;
+  const verStatus = (role === 'lawyer' || role === 'firm_admin') ? 'pending' : 'approved';
 
   const plan = ['free','student','starter','pro','firm'].includes(subscriptionPlan) ? subscriptionPlan : (role === 'lawyer' ? 'starter' : 'free');
 

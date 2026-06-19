@@ -113,9 +113,20 @@ export class SqliteAdapter {
         hours REAL NOT NULL, description TEXT, date TEXT NOT NULL, rate REAL,
         created_at TEXT DEFAULT (datetime('now'))
       );
+      CREATE TABLE IF NOT EXISTS documents (
+        id TEXT PRIMARY KEY, user_id TEXT NOT NULL,
+        name TEXT NOT NULL, url TEXT NOT NULL, size INTEGER NOT NULL,
+        created_at TEXT DEFAULT (datetime('now'))
+      );
+      CREATE TABLE IF NOT EXISTS ai_sessions (
+        id TEXT PRIMARY KEY, user_id TEXT NOT NULL,
+        title TEXT NOT NULL DEFAULT 'New Chat',
+        created_at TEXT DEFAULT (datetime('now'))
+      );
       CREATE TABLE IF NOT EXISTS ai_chat_history (
         id TEXT PRIMARY KEY, user_id TEXT, role TEXT NOT NULL,
-        content TEXT NOT NULL, created_at TEXT DEFAULT (datetime('now'))
+        content TEXT NOT NULL, session_id TEXT,
+        created_at TEXT DEFAULT (datetime('now'))
       );
     `);
     this._save();

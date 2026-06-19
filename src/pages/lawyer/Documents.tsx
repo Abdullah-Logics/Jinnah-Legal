@@ -8,7 +8,7 @@ interface Doc {
   name: string;
   url: string;
   size: number;
-  uploadedAt: string;
+  created_at: string;
 }
 
 export default function LawyerDocuments() {
@@ -17,18 +17,22 @@ export default function LawyerDocuments() {
   const [docs, setDocs] = useState<Doc[]>([]);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const API = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
+  const headers = (): Record<string, string> => {
+    const h: Record<string, string> = {};
+    if (token) h['Authorization'] = `Bearer ${token}`;
+    return h;
+  };
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem('jinnah-legal-docs');
-      if (stored) setDocs(JSON.parse(stored));
-    } catch {}
+    (async () => {
+      try {
+        const res = await fetch(`${API}/api/upload`, { headers: headers() });
+        if (res.ok) setDocs(await res.json());
+      } catch {}
+    })();
   }, []);
-
-  const saveDocs = (updated: Doc[]) => {
-    setDocs(updated);
-    localStorage.setItem('jinnah-legal-docs', JSON.stringify(updated));
-  };
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -37,22 +41,25 @@ export default function LawyerDocuments() {
     try {
       const form = new FormData();
       form.append('file', file);
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/upload`, {
+      const res = await fetch(`${API}/api/upload`, {
         method: 'POST',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: { ...headers() },
         body: form,
       });
       if (res.ok) {
         const doc = await res.json();
-        saveDocs([doc, ...docs]);
+        setDocs(prev => [doc, ...prev]);
       }
     } catch {}
     setUploading(false);
     if (fileRef.current) fileRef.current.value = '';
   };
 
-  const handleDelete = (id: string) => {
-    saveDocs(docs.filter(d => d.id !== id));
+  const handleDelete = async (id: string) => {
+    try {
+      await fetch(`${API}/api/upload/${id}`, { method: 'DELETE', headers: headers() });
+      setDocs(prev => prev.filter(d => d.id !== id));
+    } catch {}
   };
 
   const filtered = docs.filter(d => d.name.toLowerCase().includes(search.toLowerCase()));
@@ -68,12 +75,8 @@ export default function LawyerDocuments() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Document Drafting</h1>
-          <p className="text-slate-500">AI-powered document creation and management</p>
+          <p className="text-slate-500">Upload and manage your legal documents</p>
         </div>
-        <button className="flex items-center justify-center gap-2 bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-emerald-700 transition">
-          <Plus size={20} />
-          <span>New Document</span>
-        </button>
       </div>
 
       <div className="relative">
@@ -129,7 +132,7 @@ export default function LawyerDocuments() {
                   <span className="text-sm font-medium text-slate-700 truncate">{doc.name}</span>
                 </div>
                 <div className="col-span-2 text-sm text-slate-500">{doc.name.split('.').pop()?.toUpperCase()}</div>
-                <div className="col-span-2 text-sm text-slate-500">{new Date(doc.uploadedAt).toLocaleDateString()}</div>
+                <div className="col-span-2 text-sm text-slate-500">{new Date(doc.created_at).toLocaleDateString()}</div>
                 <div className="col-span-1 text-sm text-slate-500">{formatSize(doc.size)}</div>
                 <div className="col-span-2 flex items-center gap-2">
                   <a href={doc.url} target="_blank" rel="noopener noreferrer" className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-emerald-600 transition">

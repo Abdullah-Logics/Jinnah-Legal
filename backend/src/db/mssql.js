@@ -150,10 +150,17 @@ export class MssqlAdapter {
         date NVARCHAR(20) NOT NULL, rate FLOAT,
         created_at DATETIME2 DEFAULT GETDATE()
       )`,
+      `IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='ai_sessions' AND xtype='U')
+      CREATE TABLE ai_sessions (
+        id NVARCHAR(36) PRIMARY KEY, user_id NVARCHAR(36) NOT NULL,
+        title NVARCHAR(500) NOT NULL DEFAULT 'New Chat',
+        created_at DATETIME2 DEFAULT GETDATE()
+      )`,
       `IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='ai_chat_history' AND xtype='U')
       CREATE TABLE ai_chat_history (
         id NVARCHAR(36) PRIMARY KEY, user_id NVARCHAR(36),
         role NVARCHAR(20) NOT NULL, content NVARCHAR(MAX) NOT NULL,
+        session_id NVARCHAR(36),
         created_at DATETIME2 DEFAULT GETDATE()
       )`,
     ];

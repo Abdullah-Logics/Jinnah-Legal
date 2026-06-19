@@ -120,11 +120,17 @@ export class PostgresAdapter {
           hours DOUBLE PRECISION NOT NULL, description TEXT, date TEXT NOT NULL, rate DOUBLE PRECISION,
           created_at TIMESTAMP DEFAULT NOW()
         );
-        CREATE TABLE IF NOT EXISTS ai_chat_history (
-          id TEXT PRIMARY KEY, user_id TEXT,
-          role TEXT NOT NULL, content TEXT NOT NULL,
-          created_at TIMESTAMP DEFAULT NOW()
-        );
+      CREATE TABLE IF NOT EXISTS ai_sessions (
+        id TEXT PRIMARY KEY, user_id TEXT NOT NULL,
+        title TEXT NOT NULL DEFAULT 'New Chat',
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS ai_chat_history (
+        id TEXT PRIMARY KEY, user_id TEXT,
+        role TEXT NOT NULL, content TEXT NOT NULL,
+        session_id TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
       `);
       console.log(' PostgreSQL schema ready');
     } finally {

@@ -473,7 +473,8 @@ export default function Register() {
                   form.append('file', file);
                   const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/upload/public`, { method: 'POST', body: form });
                   if (res.ok) {
-                    setLawyerDocs(prev => [...prev, await res.json()]);
+                    const doc = await res.json();
+                    setLawyerDocs(prev => [...prev, doc]);
                   }
                   if (lawyerFileRef.current) lawyerFileRef.current.value = '';
                 }} />
@@ -629,7 +630,8 @@ export default function Register() {
                   form.append('file', file);
                   const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/upload/public`, { method: 'POST', body: form });
                   if (res.ok) {
-                    setFirmDocs(prev => [...prev, await res.json()]);
+                    const doc = await res.json();
+                    setFirmDocs(prev => [...prev, doc]);
                   }
                   if (firmFileRef.current) firmFileRef.current.value = '';
                 }} />

@@ -499,14 +499,14 @@ export default function Register() {
             <div className="flex gap-3 mt-6">
               <button
                 type="button"
-                onClick={() => setStep(2)}
-                className="flex-1 border-2 border-slate-200 text-slate-700 py-3 rounded-xl font-semibold hover:bg-slate-50"
+                onClick={() => setStep(3)}
+                className="flex-1 bg-slate-700 text-slate-300 py-3 rounded-xl font-semibold flex items-center justify-center gap-2"
               >
                 Back
               </button>
               <button
                 type="button"
-                onClick={() => setStep(4)}
+                onClick={() => setStep(5)}
                 className="flex-1 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2"
               >
                 Continue <ArrowRight size={20} />

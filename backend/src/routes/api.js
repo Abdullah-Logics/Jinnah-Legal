@@ -12,7 +12,10 @@ import bcrypt from 'bcryptjs';
 import { AppError, asyncHandler } from '../middleware/errorHandler.js';
 
 export const apiRouter = Router();
-apiRouter.use(auth);
+apiRouter.use((req, res, next) => {
+  if (req.path === '/firms') return next();
+  auth(req, res, next);
+});
 
 function safeJson(v, def) {
   try { return v ? JSON.parse(v) : def; } catch { return def; }
@@ -187,6 +190,9 @@ apiRouter.post('/firms/register', validate(firmRegisterSchema), asyncHandler(asy
 
 apiRouter.get('/firms', asyncHandler(async (req, res) => {
   const user = req.user;
+  if (!user) {
+    return res.json(await query("SELECT id,name,city FROM firms WHERE is_verified = 1 ORDER BY name"));
+  }
   if (user.role === 'admin') {
     res.json(await query('SELECT * FROM firms ORDER BY created_at DESC'));
   } else if (user.role === 'firm_admin') {

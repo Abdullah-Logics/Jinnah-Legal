@@ -53,7 +53,7 @@ authRouter.post('/login', validate(loginSchema), asyncHandler(async (req, res) =
 }));
 
 authRouter.post('/register', validate(registerSchema), asyncHandler(async (req, res) => {
-  const { email, password, name, role, phone, city, specialization, barNumber, licenseNumber, experience, education, firmId, subscriptionPlan } = req.body;
+  const { email, password, name, role, phone, city, specialization, barNumber, licenseNumber, experience, education, firmId, subscriptionPlan, documentIds } = req.body;
 
   const exists = await queryOne('SELECT id FROM users WHERE email = ?', [email]);
   if (exists) {
@@ -74,6 +74,15 @@ authRouter.post('/register', validate(registerSchema), asyncHandler(async (req, 
     [id, email, hash, name, role, phone||null, city||null, firmId||null, plan, isVerified, verStatus,
      specialization||null, barNumber||null, licenseNumber||null, experience||null, education||null]
   );
+
+  if (documentIds?.length) {
+    const placeholders = documentIds.map(() => '?').join(',');
+    const rows = await query(`SELECT id FROM documents WHERE id IN (${placeholders}) AND user_id IS NULL`, documentIds);
+    if (rows.length !== documentIds.length) throw new AppError('One or more documents not found or already claimed', 400);
+    for (const docId of documentIds) {
+      await run('UPDATE documents SET user_id=? WHERE id=?', [id, docId]);
+    }
+  }
 
   const user = await queryOne('SELECT * FROM users WHERE id = ?', [id]);
   if (!user) {

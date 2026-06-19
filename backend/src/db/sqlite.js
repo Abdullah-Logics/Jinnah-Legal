@@ -114,7 +114,7 @@ export class SqliteAdapter {
         created_at TEXT DEFAULT (datetime('now'))
       );
       CREATE TABLE IF NOT EXISTS documents (
-        id TEXT PRIMARY KEY, user_id TEXT NOT NULL,
+        id TEXT PRIMARY KEY, user_id TEXT,
         name TEXT NOT NULL, url TEXT NOT NULL, size INTEGER NOT NULL,
         created_at TEXT DEFAULT (datetime('now'))
       );

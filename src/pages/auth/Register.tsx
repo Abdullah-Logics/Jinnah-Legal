@@ -34,6 +34,11 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [lawyerDocs, setLawyerDocs] = useState<{ id: string; name: string }[]>([]);
+  const [firmDocs, setFirmDocs] = useState<{ id: string; name: string }[]>([]);
+
+  const lawyerFileRef = useRef<HTMLInputElement>(null);
+  const firmFileRef = useRef<HTMLInputElement>(null);
 
   const { register, registerFirm, firms, loadFirms } = useStore();
   const navigate = useNavigate();
@@ -85,6 +90,7 @@ export default function Register() {
           description: formData.firmDescription,
           adminName: formData.name,
           adminPhone: formData.phone,
+          documentIds: firmDocs.map(d => d.id),
         });
         navigate('/login');
       } else {
@@ -97,6 +103,7 @@ export default function Register() {
           city: formData.city,
           subscriptionPlan: formData.plan,
           firmId: affiliation === 'firm' ? formData.firmId : undefined,
+          documentIds: lawyerDocs.map(d => d.id),
           ...(role === 'lawyer' ? {
             barNumber: formData.barNumber || undefined,
             licenseNumber: formData.licenseNumber || undefined,
@@ -459,11 +466,32 @@ export default function Register() {
 
               <div className="sm:col-span-2">
                 <label className="block text-sm font-medium text-slate-700 mb-2">Upload Documents</label>
-                <div className="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center hover:border-emerald-500 transition cursor-pointer">
+                <input ref={lawyerFileRef} type="file" className="hidden" onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const form = new FormData();
+                  form.append('file', file);
+                  const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/upload/public`, { method: 'POST', body: form });
+                  if (res.ok) {
+                    setLawyerDocs(prev => [...prev, await res.json()]);
+                  }
+                  if (lawyerFileRef.current) lawyerFileRef.current.value = '';
+                }} />
+                <div onClick={() => lawyerFileRef.current?.click()} className="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center hover:border-emerald-500 transition cursor-pointer">
                   <Upload className="mx-auto text-slate-400 mb-2" size={32} />
                   <p className="text-slate-600">Upload your credentials</p>
                   <p className="text-xs text-slate-400">Bar Council card, Degree certificates (PDF, JPG)</p>
                 </div>
+                {lawyerDocs.length > 0 && (
+                  <div className="mt-3 space-y-1">
+                    {lawyerDocs.map(doc => (
+                      <div key={doc.id} className="flex items-center gap-2 text-sm text-emerald-700 bg-emerald-50 px-3 py-2 rounded-lg">
+                        <CheckCircle size={14} />
+                        <span className="truncate">{doc.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -594,11 +622,32 @@ export default function Register() {
               </div>
               <div className="sm:col-span-2">
                 <label className="block text-sm font-medium text-slate-700 mb-2">Upload Firm Documents</label>
-                <div className="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center hover:border-emerald-500 transition cursor-pointer">
+                <input ref={firmFileRef} type="file" className="hidden" onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const form = new FormData();
+                  form.append('file', file);
+                  const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/upload/public`, { method: 'POST', body: form });
+                  if (res.ok) {
+                    setFirmDocs(prev => [...prev, await res.json()]);
+                  }
+                  if (firmFileRef.current) firmFileRef.current.value = '';
+                }} />
+                <div onClick={() => firmFileRef.current?.click()} className="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center hover:border-emerald-500 transition cursor-pointer">
                   <Upload className="mx-auto text-slate-400 mb-2" size={32} />
                   <p className="text-slate-600">Upload firm registration documents</p>
                   <p className="text-xs text-slate-400">Practice license, Bar association certificate (PDF, JPG)</p>
                 </div>
+                {firmDocs.length > 0 && (
+                  <div className="mt-3 space-y-1">
+                    {firmDocs.map(doc => (
+                      <div key={doc.id} className="flex items-center gap-2 text-sm text-emerald-700 bg-emerald-50 px-3 py-2 rounded-lg">
+                        <CheckCircle size={14} />
+                        <span className="truncate">{doc.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 

@@ -58,6 +58,7 @@ export const firmRegisterSchema = z.object({
   registrationNumber: z.preprocess(emptyToNull, z.string().max(100).nullable()),
   adminName: z.preprocess(emptyToNull, z.string().max(255).nullable()),
   adminPhone: z.preprocess(emptyToNull, z.string().max(50).nullable()),
+  documentIds: z.array(z.string()).optional(),
 });
 
 export const caseCreateSchema = z.object({

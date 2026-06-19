@@ -92,8 +92,8 @@ async function main() {
   app.use('/api/auth',  authRouter);
   app.use('/api/cases', casesRouter);
   app.use('/api/ai',    aiRouter);
-  app.use('/api',       apiRouter);
   app.use('/api/upload', uploadRouter);
+  app.use('/api',       apiRouter);
 
   app.use('/uploads', express.static(path.join(__dirname, '../../uploads')));
 

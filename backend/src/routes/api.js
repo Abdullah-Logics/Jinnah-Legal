@@ -150,7 +150,7 @@ apiRouter.patch('/journal/:id', validate(journalUpdateSchema), asyncHandler(asyn
 
 // ── FIRMS ──────────────────────────────────────────────────
 apiRouter.post('/firms/register', validate(firmRegisterSchema), asyncHandler(async (req, res) => {
-  const { name, email, password, phone, city, address, description, registrationNumber, adminName, adminPhone } = req.body;
+  const { name, email, password, phone, city, address, description, registrationNumber, adminName, adminPhone, documentIds } = req.body;
 
   const exists = await queryOne('SELECT id FROM firms WHERE email = ?', [email]);
   if (exists) throw new AppError('A firm with this email already exists', 409);
@@ -170,6 +170,15 @@ apiRouter.post('/firms/register', validate(firmRegisterSchema), asyncHandler(asy
      VALUES (?,?,?,?,?,?,?,?,'pending',0)`,
     [adminId, email, hash, adminName || name, 'firm_admin', adminPhone||phone||null, city||null, firmId]
   );
+
+  if (documentIds?.length) {
+    const placeholders = documentIds.map(() => '?').join(',');
+    const rows = await query(`SELECT id FROM documents WHERE id IN (${placeholders}) AND user_id IS NULL`, documentIds);
+    if (rows.length !== documentIds.length) throw new AppError('One or more documents not found or already claimed', 400);
+    for (const docId of documentIds) {
+      await run('UPDATE documents SET user_id=? WHERE id=?', [adminId, docId]);
+    }
+  }
 
   const firm = await queryOne('SELECT * FROM firms WHERE id = ?', [firmId]);
   const admin = await queryOne('SELECT * FROM users WHERE id = ?', [adminId]);

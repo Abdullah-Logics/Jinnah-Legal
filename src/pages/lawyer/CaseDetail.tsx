@@ -171,7 +171,7 @@ export default function LawyerCaseDetail() {
                   <div className="flex-1 min-w-0">
                     <h3 className="font-medium text-slate-900 truncate">{doc.name}</h3>
                     <p className="text-xs text-slate-400">
-                      Uploaded {format(new Date(doc.uploadedAt), 'MMM d, yyyy')}
+                      Uploaded {format(new Date(doc.created_at || doc.uploadedAt), 'MMM d, yyyy')}
                     </p>
                   </div>
                   <a href={doc.url} target="_blank" rel="noopener noreferrer" className="p-2 hover:bg-slate-200 rounded-lg transition">

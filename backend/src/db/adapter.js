@@ -23,7 +23,11 @@ async function seedDefaultAdmin() {
 
 export async function getAdapter() {
   if (_adapter) return _adapter;
-  if (process.env.MSSQL_SERVER) {
+  if (process.env.SUPABASE_URL || process.env.DATABASE_URL) {
+    const { PostgresAdapter } = await import('./postgres.js');
+    _adapter = new PostgresAdapter();
+    await _adapter.connect();
+  } else if (process.env.MSSQL_SERVER) {
     const { MssqlAdapter } = await import('./mssql.js');
     _adapter = new MssqlAdapter();
     await _adapter.connect();

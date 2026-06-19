@@ -81,7 +81,7 @@ async function main() {
 
   app.get('/api/health', (_req, res) => res.json({
     status: 'ok',
-    db: process.env.MSSQL_SERVER ? 'mssql' : 'sqlite',
+    db: process.env.SUPABASE_URL || process.env.DATABASE_URL ? 'postgres' : process.env.MSSQL_SERVER ? 'mssql' : 'sqlite',
     ai: process.env.GEMINI_API_KEY ? 'gemini' : 'unavailable',
     environment: process.env.NODE_ENV || 'development',
     time: new Date().toISOString(),

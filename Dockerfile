@@ -4,6 +4,7 @@ COPY package*.json ./
 COPY backend/package*.json backend/
 RUN npm install && cd backend && npm install
 COPY . .
+ENV VITE_API_URL=
 RUN npm run build
 
 FROM node:20-slim

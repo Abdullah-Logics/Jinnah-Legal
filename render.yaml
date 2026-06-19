@@ -12,11 +12,9 @@ services:
         value: "10000"
       - key: VITE_API_URL
         value: https://jinnah-legal.onrender.com
-      - key: MSSQL_SERVER
+      - key: JWT_SECRET
         sync: false
-      - key: MSSQL_USER
+      - key: SUPABASE_URL
         sync: false
-      - key: MSSQL_PASSWORD
-        sync: false
-      - key: MSSQL_DATABASE
+      - key: GEMINI_API_KEY
         sync: false

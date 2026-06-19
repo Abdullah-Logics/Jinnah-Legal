@@ -14,6 +14,24 @@ export default function ClientAIAssistant() {
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/ai/history`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (res.ok) {
+          const history = await res.json();
+          setMessages(history.map((h: { role: string; content: string; id: string }) => ({
+            id: h.id,
+            role: h.role === 'assistant' ? 'ai' : 'user',
+            content: h.content,
+          })));
+        }
+      } catch {}
+    })();
+  }, []);
+
   const buildHistory = () => messages.map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.content }));
 
   const handleSend = async (text?: string) => {

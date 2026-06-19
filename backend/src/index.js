@@ -15,6 +15,7 @@ import { authRouter } from './routes/auth.js';
 import { casesRouter } from './routes/cases.js';
 import { apiRouter } from './routes/api.js';
 import { aiRouter } from './routes/ai.js';
+import { uploadRouter } from './routes/upload.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3001;
@@ -92,6 +93,9 @@ async function main() {
   app.use('/api/cases', casesRouter);
   app.use('/api/ai',    aiRouter);
   app.use('/api',       apiRouter);
+  app.use('/api/upload', uploadRouter);
+
+  app.use('/uploads', express.static(path.join(__dirname, '../../uploads')));
 
   app.use('/api/*', notFound);
 

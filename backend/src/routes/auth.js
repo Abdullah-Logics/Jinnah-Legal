@@ -62,10 +62,10 @@ authRouter.post('/register', validate(registerSchema), asyncHandler(async (req, 
 
   const id = uuid();
   const hash = await bcrypt.hash(password, 10);
-  const isVerified = role !== 'lawyer' ? 1 : 0;
-  const verStatus = role === 'lawyer' ? 'pending' : 'approved';
+  const isVerified = 1;
+  const verStatus = 'approved';
 
-  const plan = ['free','student','starter','pro','firm'].includes(subscriptionPlan) ? subscriptionPlan : 'free';
+  const plan = ['free','student','starter','pro','firm'].includes(subscriptionPlan) ? subscriptionPlan : (role === 'lawyer' ? 'starter' : 'free');
 
   await run(
     `INSERT INTO users (id,email,password_hash,name,role,phone,city,firm_id,subscription_plan,

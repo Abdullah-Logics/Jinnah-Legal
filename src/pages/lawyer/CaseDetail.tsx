@@ -12,13 +12,17 @@ import {
   Plus,
   Download,
   Edit,
-  Trash2
+  Trash2,
+  Loader
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { useState, useRef } from 'react';
 
 export default function LawyerCaseDetail() {
   const { id } = useParams();
-  const { cases, users } = useStore();
+  const { cases, users, token, updateCase } = useStore();
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
   
   const caseData = cases.find(c => c.id === id);
   const client = users.find(u => u.id === caseData?.clientId);
@@ -123,10 +127,41 @@ export default function LawyerCaseDetail() {
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-slate-900">Documents</h2>
-              <button className="flex items-center gap-1 text-emerald-600 font-medium text-sm hover:text-emerald-700">
-                <Plus size={16} /> Upload
+              <button
+                onClick={() => fileRef.current?.click()}
+                disabled={uploading}
+                className="flex items-center gap-1 text-emerald-600 font-medium text-sm hover:text-emerald-700 disabled:opacity-50"
+              >
+                {uploading ? <Loader className="animate-spin" size={16} /> : <Plus size={16} />} Upload
               </button>
             </div>
+            <input
+              ref={fileRef}
+              type="file"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                setUploading(true);
+                try {
+                  const form = new FormData();
+                  form.append('file', file);
+                  const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/upload`, {
+                    method: 'POST',
+                    headers: token ? { Authorization: `Bearer ${token}` } : {},
+                    body: form,
+                  });
+                  if (res.ok) {
+                    const uploaded = await res.json();
+                    await updateCase(caseData.id, {
+                      documents: [...caseData.documents, uploaded],
+                    });
+                  }
+                } catch {}
+                setUploading(false);
+                if (fileRef.current) fileRef.current.value = '';
+              }}
+            />
             <div className="space-y-3">
               {caseData.documents.length > 0 ? caseData.documents.map(doc => (
                 <div key={doc.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
@@ -139,9 +174,9 @@ export default function LawyerCaseDetail() {
                       Uploaded {format(new Date(doc.uploadedAt), 'MMM d, yyyy')}
                     </p>
                   </div>
-                  <button className="p-2 hover:bg-slate-200 rounded-lg transition">
+                  <a href={doc.url} target="_blank" rel="noopener noreferrer" className="p-2 hover:bg-slate-200 rounded-lg transition">
                     <Download size={18} className="text-slate-500" />
-                  </button>
+                  </a>
                 </div>
               )) : (
                 <p className="text-center text-slate-400 py-4">No documents uploaded</p>

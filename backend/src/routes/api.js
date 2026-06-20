@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { v4 as uuid } from 'uuid';
 import { run, query, queryOne } from '../db/adapter.js';
-import { auth } from '../middleware/auth.js';
+import { auth, optionalAuth } from '../middleware/auth.js';
 import { toPublic } from './auth.js';
 import {
   validate, messageSchema, invoiceSchema, timeEntrySchema,
@@ -13,7 +13,7 @@ import { AppError, asyncHandler } from '../middleware/errorHandler.js';
 
 export const apiRouter = Router();
 apiRouter.use((req, res, next) => {
-  if (req.path === '/firms' || req.path === '/firms/register') return next();
+  if (req.path === '/firms' || req.path === '/firms/register') return optionalAuth(req, res, next);
   auth(req, res, next);
 });
 

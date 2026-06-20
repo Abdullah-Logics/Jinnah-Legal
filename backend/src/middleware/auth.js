@@ -23,3 +23,12 @@ export function auth(req, _res, next) {
     next(new AppError('Invalid or expired token', 401));
   }
 }
+
+export function optionalAuth(req, _res, next) {
+  const h = req.headers.authorization;
+  if (!h?.startsWith('Bearer ')) return next();
+  try {
+    req.user = jwt.verify(h.slice(7), SECRET, { algorithms: ['HS256'] });
+  } catch {}
+  next();
+}

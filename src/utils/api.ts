@@ -1,7 +1,9 @@
 // src/utils/api.ts
 // Thin API client — wraps fetch, handles auth headers + errors
 
-const BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const BASE = import.meta.env.DEV
+  ? 'http://localhost:3001'
+  : 'https://eminem-ensemble-rebecca-blocked.trycloudflare.com';
 
 function getToken(): string | null {
   try {

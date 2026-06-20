@@ -104,7 +104,9 @@ export interface TimeEntry {
   rate: number;
 }
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const API = import.meta.env.DEV
+  ? 'http://localhost:3001'
+  : 'https://eminem-ensemble-rebecca-blocked.trycloudflare.com';
 
 async function apiFetch(path: string, opts: RequestInit = {}, token?: string | null) {
   const res = await fetch(`${API}${path}`, {

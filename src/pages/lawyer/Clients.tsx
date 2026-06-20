@@ -47,9 +47,9 @@ export default function LawyerClients() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: 'Total Clients', value: myClients.length, color: 'emerald' },
-          { label: 'Active Cases', value: myCases.filter(c => c.status === 'active').length, color: 'blue' },
+          { label: 'Active Cases', value: myCases.filter(c => c.status === 'active').length, color: 'teal' },
           { label: 'Closed Cases', value: myCases.filter(c => c.status === 'closed').length, color: 'slate' },
-          { label: 'Won Cases', value: myCases.filter(c => c.status === 'won').length, color: 'amber' },
+          { label: 'Won Cases', value: myCases.filter(c => c.status === 'won').length, color: 'emerald' },
         ].map((stat, i) => (
           <motion.div
             key={stat.label}
@@ -60,8 +60,8 @@ export default function LawyerClients() {
           >
             <p className={`text-2xl font-bold ${
               stat.color === 'emerald' ? 'text-emerald-600' :
-              stat.color === 'blue' ? 'text-blue-600' :
-              stat.color === 'amber' ? 'text-amber-600' :
+              stat.color === 'teal' ? 'text-teal-600' :
+              stat.color === 'emerald' ? 'text-emerald-600' :
               'text-slate-600'
             }`}>{stat.value}</p>
             <p className="text-sm text-slate-500">{stat.label}</p>

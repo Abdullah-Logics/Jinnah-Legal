@@ -54,13 +54,13 @@ export default function AdminLayout() {
   return (
     <div className="min-h-screen bg-slate-100">
       {/* Mobile Header */}
-      <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-gradient-to-r from-slate-800 to-slate-900 text-white z-50 flex items-center justify-between px-4 shadow-lg">
+      <header className={`lg:hidden fixed top-0 left-0 right-0 h-16 text-white z-50 flex items-center justify-between px-4 shadow-lg ${isFirmAdmin ? 'bg-gradient-to-r from-emerald-900 to-emerald-800' : 'bg-gradient-to-r from-emerald-950 to-emerald-900'}`}>
         <button onClick={() => setSidebarOpen(true)} className="p-2 hover:bg-white/10 rounded-lg transition">
           <Menu size={24} />
         </button>
         <div className="flex items-center gap-2">
-          <Scale size={24} className="text-amber-400" />
-          <span className="font-serif font-bold text-lg">Jinnah Admin</span>
+          <Scale size={24} className="text-emerald-400" />
+          <span className="font-serif font-bold text-lg">{isFirmAdmin ? 'Firm Admin' : 'Jinnah Admin'}</span>
         </div>
         <div className="flex items-center gap-2">
           <button className="p-2 hover:bg-white/10 rounded-lg relative transition">
@@ -89,18 +89,19 @@ export default function AdminLayout() {
 
       {/* Sidebar */}
       <aside className={`
-        fixed top-0 left-0 h-full w-72 bg-gradient-to-b from-slate-800 via-slate-900 to-black text-white z-50
+        fixed top-0 left-0 h-full w-72 text-white z-50
         transform transition-transform duration-300 ease-in-out
         lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        ${isFirmAdmin ? 'bg-gradient-to-b from-emerald-900 via-emerald-800 to-slate-900' : 'bg-gradient-to-b from-emerald-950 via-emerald-900 to-black'}
       `}>
         <div className="p-4 flex items-center justify-between border-b border-white/10">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-amber-500 rounded-lg flex items-center justify-center">
+            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${isFirmAdmin ? 'bg-emerald-600' : 'bg-emerald-800'}`}>
               <Scale size={24} className="text-white" />
             </div>
             <div>
               <h1 className="font-serif font-bold text-lg">Jinnah Legal</h1>
-              <p className="text-xs text-slate-300">Admin Portal</p>
+              <p className={`text-xs ${isFirmAdmin ? 'text-emerald-200' : 'text-slate-300'}`}>{isFirmAdmin ? 'Firm Admin Portal' : 'Admin Portal'}</p>
             </div>
           </div>
           <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-2 hover:bg-white/10 rounded-lg">
@@ -111,18 +112,18 @@ export default function AdminLayout() {
         {/* User Info */}
         <div className="p-4 border-b border-white/10">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full flex items-center justify-center">
-              <span className="text-white font-bold text-lg">
-                {currentUser?.name?.charAt(0) || 'A'}
-              </span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="font-medium truncate">{currentUser?.name || 'Admin'}</h3>
-              <p className="text-xs text-slate-300 truncate">{currentUser?.email}</p>
-              <span className="inline-block mt-1 px-2 py-0.5 text-xs rounded-full bg-amber-500/30 text-amber-200">
-                {currentUser?.role === 'firm_admin' ? 'Firm Admin' : 'System Admin'}
-              </span>
-            </div>
+          <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isFirmAdmin ? 'bg-gradient-to-br from-emerald-400 to-emerald-600' : 'bg-gradient-to-br from-emerald-700 to-emerald-900'}`}>
+            <span className="text-white font-bold text-lg">
+              {currentUser?.name?.charAt(0) || 'A'}
+            </span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-medium truncate">{currentUser?.name || 'Admin'}</h3>
+            <p className={`text-xs truncate ${isFirmAdmin ? 'text-emerald-200' : 'text-slate-300'}`}>{currentUser?.email}</p>
+            <span className={`inline-block mt-1 px-2 py-0.5 text-xs rounded-full ${isFirmAdmin ? 'bg-emerald-500/30 text-emerald-200' : 'bg-emerald-700/30 text-emerald-200'}`}>
+              {isFirmAdmin ? 'Firm Admin' : 'System Admin'}
+            </span>
+          </div>
           </div>
         </div>
 

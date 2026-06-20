@@ -1,11 +1,14 @@
 import { Link } from 'react-router-dom';
+import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useStore } from '../../store/useStore';
 import { Briefcase, Calendar, User, ChevronRight, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function ClientCases() {
-  const { currentUser, cases, users } = useStore();
+  const { currentUser, cases, users, loadCases } = useStore();
+
+  useEffect(() => { loadCases(); }, [loadCases]);
 
   const myCases = cases.filter(c => c.clientId === currentUser?.id);
 
@@ -19,7 +22,7 @@ export default function ClientCases() {
         </div>
         <Link
           to="/client/find-lawyer"
-          className="flex items-center justify-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-blue-700 transition"
+          className="flex items-center justify-center gap-2 bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-emerald-700 transition"
         >
           <Plus size={20} />
           <span>New Case</span>
@@ -39,13 +42,13 @@ export default function ClientCases() {
             >
               <Link
                 to={`/client/cases/${c.id}`}
-                className="block bg-white rounded-2xl p-5 shadow-sm border border-slate-100 hover:shadow-md hover:border-blue-200 transition"
+                className="block bg-white rounded-2xl p-5 shadow-sm border border-slate-100 hover:shadow-md hover:border-emerald-200 transition"
               >
                 <div className="flex items-start gap-4">
                   <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
                     c.status === 'active' ? 'bg-emerald-100 text-emerald-600' :
                     c.status === 'pending' ? 'bg-amber-100 text-amber-600' :
-                    c.status === 'won' ? 'bg-blue-100 text-blue-600' :
+                    c.status === 'won' ? 'bg-emerald-100 text-emerald-600' :
                     'bg-slate-100 text-slate-600'
                   }`}>
                     <Briefcase size={24} />
@@ -56,7 +59,7 @@ export default function ClientCases() {
                       <span className={`flex-shrink-0 px-2 py-1 text-xs font-medium rounded-full ${
                         c.status === 'active' ? 'bg-emerald-100 text-emerald-700' :
                         c.status === 'pending' ? 'bg-amber-100 text-amber-700' :
-                        c.status === 'won' ? 'bg-blue-100 text-blue-700' :
+                        c.status === 'won' ? 'bg-emerald-100 text-emerald-700' :
                         'bg-slate-100 text-slate-700'
                       }`}>
                         {c.status}
@@ -92,7 +95,7 @@ export default function ClientCases() {
             <p className="text-slate-500 mb-4">Find a lawyer to start your first case</p>
             <Link
               to="/client/find-lawyer"
-              className="inline-flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-blue-700 transition"
+              className="inline-flex items-center gap-2 bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-emerald-700 transition"
             >
               Find a Lawyer
             </Link>

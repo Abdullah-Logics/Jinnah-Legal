@@ -1,4 +1,5 @@
 import { useParams, Link } from 'react-router-dom';
+import { useEffect } from 'react';
 import { useStore } from '../../store/useStore';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Briefcase, User, Calendar, FileText, MessageSquare, Clock, Download, CheckCircle, XCircle } from 'lucide-react';
@@ -6,7 +7,9 @@ import { format } from 'date-fns';
 
 export default function ClientCaseDetail() {
   const { id } = useParams();
-  const { cases, users, respondToCase } = useStore();
+  const { cases, users, respondToCase, loadCases } = useStore();
+
+  useEffect(() => { loadCases(); }, [loadCases]);
   
   const caseData = cases.find(c => c.id === id);
   const lawyer = users.find(u => u.id === caseData?.lawyerId);
@@ -23,7 +26,7 @@ export default function ClientCaseDetail() {
       <div className="text-center py-16">
         <Briefcase size={48} className="mx-auto text-slate-300 mb-4" />
         <h2 className="text-xl font-bold text-slate-900 mb-2">Case Not Found</h2>
-        <Link to="/client/cases" className="text-blue-600 font-medium">Back to Cases</Link>
+        <Link to="/client/cases" className="text-emerald-600 font-medium">Back to Cases</Link>
       </div>
     );
   }
@@ -65,7 +68,7 @@ export default function ClientCaseDetail() {
             transition={{ delay: i * 0.1 }}
             className="bg-white rounded-xl p-4 shadow-sm border border-slate-100"
           >
-            <stat.icon className="text-blue-600 mb-2" size={20} />
+            <stat.icon className="text-emerald-600 mb-2" size={20} />
             <p className="text-lg font-bold text-slate-900">{stat.value}</p>
             <p className="text-sm text-slate-500">{stat.label}</p>
           </motion.div>
@@ -88,8 +91,8 @@ export default function ClientCaseDetail() {
               {caseData.timeline.length > 0 ? caseData.timeline.map((event, i) => (
                 <div key={i} className="flex gap-4">
                   <div className="flex flex-col items-center">
-                    <div className="w-3 h-3 bg-blue-500 rounded-full" />
-                    {i < caseData.timeline.length - 1 && <div className="w-0.5 flex-1 bg-blue-200" />}
+                    <div className="w-3 h-3 bg-emerald-500 rounded-full" />
+                    {i < caseData.timeline.length - 1 && <div className="w-0.5 flex-1 bg-emerald-200" />}
                   </div>
                   <div className="pb-4">
                     <p className="text-xs text-slate-400 mb-1">{format(new Date(event.date), 'MMM d, yyyy')}</p>
@@ -109,8 +112,8 @@ export default function ClientCaseDetail() {
             <div className="space-y-3">
               {caseData.documents.length > 0 ? caseData.documents.map(doc => (
                 <div key={doc.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
-                  <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <FileText className="text-blue-600" size={20} />
+                  <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
+                    <FileText className="text-emerald-600" size={20} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-medium text-slate-900 truncate">{doc.name}</h3>
@@ -147,7 +150,7 @@ export default function ClientCaseDetail() {
                 </div>
                 <Link
                   to="/client/messages"
-                  className="flex items-center justify-center gap-2 w-full bg-blue-600 text-white py-2.5 rounded-xl font-medium hover:bg-blue-700 transition"
+                  className="flex items-center justify-center gap-2 w-full bg-emerald-600 text-white py-2.5 rounded-xl font-medium hover:bg-emerald-700 transition"
                 >
                   <MessageSquare size={18} />
                   Message Lawyer
@@ -209,7 +212,7 @@ export default function ClientCaseDetail() {
               {caseData.courtDates.length > 0 ? caseData.courtDates.map((date, i) => (
                 <div key={i} className="p-3 bg-slate-50 rounded-xl">
                   <div className="flex items-center gap-2 mb-1">
-                    <Calendar size={16} className="text-blue-600" />
+                    <Calendar size={16} className="text-emerald-600" />
                     <span className="font-medium text-slate-900">{format(new Date(date.date), 'MMM d, yyyy')}</span>
                   </div>
                   <p className="text-sm text-slate-600">{date.court}</p>

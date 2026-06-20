@@ -18,7 +18,7 @@ export default function AdminSettings() {
       <div className="space-y-6">
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
           <div className="flex items-center gap-3 mb-4">
-            <Globe className="text-blue-600" size={24} />
+            <Globe className="text-emerald-600" size={24} />
             <h2 className="text-lg font-bold text-slate-900">General</h2>
           </div>
           <div className="space-y-4">
@@ -35,7 +35,7 @@ export default function AdminSettings() {
 
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
           <div className="flex items-center gap-3 mb-4">
-            <Bell className="text-amber-600" size={24} />
+            <Bell className="text-emerald-600" size={24} />
             <h2 className="text-lg font-bold text-slate-900">Notifications</h2>
           </div>
           <div className="space-y-4">

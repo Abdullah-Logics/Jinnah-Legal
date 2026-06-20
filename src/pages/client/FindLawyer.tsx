@@ -41,7 +41,7 @@ export default function ClientFindLawyer() {
               placeholder="Search by name or specialization..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
           </div>
           <div className="flex gap-2">
@@ -50,7 +50,7 @@ export default function ClientFindLawyer() {
               <select
                 value={selectedCity}
                 onChange={(e) => setSelectedCity(e.target.value)}
-                className="pl-10 pr-8 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
+                className="pl-10 pr-8 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 appearance-none"
               >
                 <option value="">All Cities</option>
                 {cities.map(city => <option key={city} value={city}>{city}</option>)}
@@ -61,7 +61,7 @@ export default function ClientFindLawyer() {
               <select
                 value={selectedSpec}
                 onChange={(e) => setSelectedSpec(e.target.value)}
-                className="pl-10 pr-8 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
+                className="pl-10 pr-8 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 appearance-none"
               >
                 <option value="">All Specializations</option>
                 {specializations.map(spec => <option key={spec} value={spec}>{spec}</option>)}
@@ -87,7 +87,7 @@ export default function ClientFindLawyer() {
           >
             <Link
               to={`/client/lawyer/${lawyer.id}`}
-              className="block bg-white rounded-2xl p-5 shadow-sm border border-slate-100 hover:shadow-md hover:border-blue-200 transition"
+              className="block bg-white rounded-2xl p-5 shadow-sm border border-slate-100 hover:shadow-md hover:border-emerald-200 transition"
             >
               <div className="flex items-start gap-4 mb-4">
                 <img
@@ -98,7 +98,7 @@ export default function ClientFindLawyer() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <h3 className="font-bold text-slate-900 truncate">{lawyer.name}</h3>
-                    <CheckCircle className="text-blue-600 flex-shrink-0" size={16} />
+                    <CheckCircle className="text-emerald-600 flex-shrink-0" size={16} />
                   </div>
                   <p className="text-sm text-slate-500 flex items-center gap-1">
                     <MapPin size={14} /> {lawyer.city}
@@ -108,7 +108,7 @@ export default function ClientFindLawyer() {
 
               <div className="flex flex-wrap gap-1.5 mb-4">
                 {lawyer.credentials?.specialization?.slice(0, 3).map((spec, j) => (
-                  <span key={j} className="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-lg">
+                  <span key={j} className="px-2 py-1 bg-emerald-50 text-emerald-700 text-xs rounded-lg">
                     {spec}
                   </span>
                 ))}
@@ -119,7 +119,7 @@ export default function ClientFindLawyer() {
                   <Award size={16} />
                   <span>{lawyer.credentials?.experience || 0} years exp.</span>
                 </div>
-                <span className="flex items-center gap-1 text-blue-600 font-medium text-sm">
+                <span className="flex items-center gap-1 text-emerald-600 font-medium text-sm">
                   View Profile <ChevronRight size={16} />
                 </span>
               </div>

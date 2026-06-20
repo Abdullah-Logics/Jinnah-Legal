@@ -19,12 +19,12 @@ export default function ClientDashboard() {
   return (
     <div className="space-y-6">
       {/* Welcome Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-2xl p-6 text-white">
+      <div className="bg-gradient-to-r from-emerald-600 to-emerald-800 rounded-2xl p-6 text-white">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <p className="text-blue-200 mb-1">Welcome back,</p>
+            <p className="text-emerald-200 mb-1">Welcome back,</p>
             <h1 className="text-2xl md:text-3xl font-bold">{currentUser?.name}</h1>
-            <p className="text-blue-100 mt-1">
+            <p className="text-emerald-100 mt-1">
               {format(new Date(), 'EEEE, MMMM d, yyyy')}
             </p>
           </div>
@@ -51,7 +51,7 @@ export default function ClientDashboard() {
       {/* Quick Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Active Cases', value: activeCases.length, icon: Briefcase, color: 'blue', href: '/client/cases' },
+          { label: 'Active Cases', value: activeCases.length, icon: Briefcase, color: 'emerald', href: '/client/cases' },
           { label: 'Court Dates', value: upcomingDates.length, icon: Calendar, color: 'emerald', href: '/client/calendar' },
           { label: 'Messages', value: unreadMessages.length, icon: MessageSquare, color: 'purple', href: '/client/messages' },
           { label: 'Pending Bills', value: pendingBills, icon: CreditCard, color: 'amber', href: '/client/billing' },
@@ -64,10 +64,9 @@ export default function ClientDashboard() {
           >
             <Link
               to={stat.href}
-              className="block bg-white rounded-2xl p-5 shadow-sm border border-slate-100 hover:shadow-md hover:border-blue-200 transition"
+              className="block bg-white rounded-2xl p-5 shadow-sm border border-slate-100 hover:shadow-md hover:border-emerald-200 transition"
             >
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${
-                stat.color === 'blue' ? 'bg-blue-100 text-blue-600' :
                 stat.color === 'emerald' ? 'bg-emerald-100 text-emerald-600' :
                 stat.color === 'purple' ? 'bg-purple-100 text-purple-600' :
                 'bg-amber-100 text-amber-600'
@@ -85,7 +84,7 @@ export default function ClientDashboard() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-r from-emerald-50 to-blue-50 rounded-2xl p-6 border border-emerald-200"
+        className="bg-gradient-to-r from-emerald-50 to-emerald-100 rounded-2xl p-6 border border-emerald-200"
       >
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center gap-4">
@@ -115,7 +114,7 @@ export default function ClientDashboard() {
         >
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-slate-900">My Cases</h2>
-            <Link to="/client/cases" className="text-blue-600 text-sm font-medium flex items-center gap-1">
+            <Link to="/client/cases" className="text-emerald-600 text-sm font-medium flex items-center gap-1">
               View All <ArrowRight size={16} />
             </Link>
           </div>
@@ -162,16 +161,16 @@ export default function ClientDashboard() {
         >
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-slate-900">Upcoming Dates</h2>
-            <Link to="/client/calendar" className="text-blue-600 text-sm font-medium flex items-center gap-1">
+            <Link to="/client/calendar" className="text-emerald-600 text-sm font-medium flex items-center gap-1">
               View All <ArrowRight size={16} />
             </Link>
           </div>
           <div className="space-y-3">
             {upcomingDates.map((date, i) => (
               <div key={i} className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl">
-                <div className="w-12 h-12 bg-blue-100 rounded-xl flex flex-col items-center justify-center">
-                  <span className="text-xs text-blue-600">{format(new Date(date.date), 'MMM')}</span>
-                  <span className="text-lg font-bold text-blue-700">{format(new Date(date.date), 'd')}</span>
+                <div className="w-12 h-12 bg-emerald-100 rounded-xl flex flex-col items-center justify-center">
+                  <span className="text-xs text-emerald-600">{format(new Date(date.date), 'MMM')}</span>
+                  <span className="text-lg font-bold text-emerald-700">{format(new Date(date.date), 'd')}</span>
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-medium text-slate-900 truncate">{date.caseTitle}</h3>

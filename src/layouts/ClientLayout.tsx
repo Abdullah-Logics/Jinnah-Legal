@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useStore } from '../store/useStore';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -31,8 +31,10 @@ const navItems = [
 
 export default function ClientLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { currentUser, logout, messages } = useStore();
+  const { currentUser, logout, messages, loadUsers } = useStore();
   const navigate = useNavigate();
+
+  useEffect(() => { loadUsers(); }, [loadUsers]);
   
   const unreadCount = messages.filter(m => m.receiverId === currentUser?.id && !m.read).length;
   const handleLogout = () => {
@@ -43,12 +45,12 @@ export default function ClientLayout() {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Mobile Header */}
-      <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-gradient-to-r from-blue-800 to-blue-900 text-white z-50 flex items-center justify-between px-4 shadow-lg">
+      <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white z-50 flex items-center justify-between px-4 shadow-lg">
         <button onClick={() => setSidebarOpen(true)} className="p-2 hover:bg-white/10 rounded-lg transition">
           <Menu size={24} />
         </button>
         <div className="flex items-center gap-2">
-          <Scale size={24} className="text-amber-400" />
+          <Scale size={24} className="text-emerald-200" />
           <span className="font-serif font-bold text-lg">Jinnah Legal</span>
         </div>
         <div className="flex items-center gap-2">
@@ -78,18 +80,18 @@ export default function ClientLayout() {
 
       {/* Sidebar */}
       <aside className={`
-        fixed top-0 left-0 h-full w-72 bg-gradient-to-b from-blue-800 via-blue-900 to-slate-900 text-white z-50
+        fixed top-0 left-0 h-full w-72 bg-gradient-to-b from-emerald-600 via-emerald-700 to-slate-900 text-white z-50
         transform transition-transform duration-300 ease-in-out
         lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         <div className="p-4 flex items-center justify-between border-b border-white/10">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-amber-500 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center">
               <Scale size={24} className="text-white" />
             </div>
             <div>
               <h1 className="font-serif font-bold text-lg">Jinnah Legal</h1>
-              <p className="text-xs text-blue-200">Client Portal</p>
+              <p className="text-xs text-emerald-200">Client Portal</p>
             </div>
           </div>
           <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-2 hover:bg-white/10 rounded-lg">
@@ -103,12 +105,12 @@ export default function ClientLayout() {
             <img
               src={currentUser?.avatar || `https://ui-avatars.com/api/?name=${currentUser?.name}&background=random`}
               alt={currentUser?.name}
-              className="w-12 h-12 rounded-full object-cover border-2 border-amber-400"
+              className="w-12 h-12 rounded-full object-cover border-2 border-emerald-300"
             />
             <div className="flex-1 min-w-0">
               <h3 className="font-medium truncate">{currentUser?.name}</h3>
-              <p className="text-xs text-blue-200 truncate">{currentUser?.email}</p>
-              <span className="inline-block mt-1 px-2 py-0.5 text-xs rounded-full bg-blue-500/30 text-blue-200 capitalize">
+              <p className="text-xs text-emerald-200 truncate">{currentUser?.email}</p>
+              <span className="inline-block mt-1 px-2 py-0.5 text-xs rounded-full bg-emerald-500/30 text-emerald-200 capitalize">
                 {currentUser?.subscriptionPlan} Plan
               </span>
             </div>
@@ -128,7 +130,7 @@ export default function ClientLayout() {
                     flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200
                     ${isActive 
                       ? 'bg-white/20 text-white shadow-lg' 
-                      : 'text-blue-100 hover:bg-white/10 hover:text-white'
+                      : 'text-emerald-100 hover:bg-white/10 hover:text-white'
                     }
                   `}
                 >

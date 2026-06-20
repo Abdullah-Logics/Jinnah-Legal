@@ -25,13 +25,13 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: 'Total Lawyers', value: lawyers.length, icon: Gavel, color: 'emerald' },
-          { label: 'Total Clients', value: clients.length, icon: Users, color: 'blue' },
+          { label: 'Total Clients', value: clients.length, icon: Users, color: 'teal' },
           { label: 'Pending Verifications', value: pendingVerifications.length, icon: UserCheck, color: 'amber', href: '/admin/verification' as const },
           { label: 'Monthly Revenue', value: '—', icon: TrendingUp, color: 'purple' }
         ].map((stat: any, i: number) => (
           <motion.div key={stat.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
             <div className="flex items-start justify-between mb-3">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${stat.color === 'emerald' ? 'bg-emerald-100 text-emerald-600' : stat.color === 'blue' ? 'bg-blue-100 text-blue-600' : stat.color === 'amber' ? 'bg-amber-100 text-amber-600' : 'bg-purple-100 text-purple-600'}`}>
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${stat.color === 'emerald' ? 'bg-emerald-100 text-emerald-600' : stat.color === 'teal' ? 'bg-teal-100 text-teal-600' : stat.color === 'amber' ? 'bg-amber-100 text-amber-600' : 'bg-purple-100 text-purple-600'}`}>
                 <stat.icon size={20} />
               </div>
               {stat.change && <span className="text-xs font-medium px-2 py-1 rounded-full bg-emerald-100 text-emerald-600">{stat.change}</span>}

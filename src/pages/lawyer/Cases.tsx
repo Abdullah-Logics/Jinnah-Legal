@@ -22,7 +22,7 @@ import { format } from 'date-fns';
 type NewCaseTab = 'existing' | 'browse' | 'new-client';
 
 export default function LawyerCases() {
-  const { currentUser, cases, users, clients, addCase, createCaseWithClient, loadClients } = useStore();
+  const { currentUser, cases, users, clients, addCase, createCaseWithClient, loadCases, loadClients } = useStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [showNewCase, setShowNewCase] = useState(false);
@@ -52,6 +52,8 @@ export default function LawyerCases() {
   });
   const [newClientLoading, setNewClientLoading] = useState(false);
   const [newClientError, setNewClientError] = useState('');
+
+  useEffect(() => { loadCases(); }, [loadCases]);
 
   useEffect(() => {
     if (showNewCase && newCaseTab === 'browse') loadClients();
@@ -197,7 +199,7 @@ export default function LawyerCases() {
                   <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
                     c.status === 'active' ? 'bg-emerald-100 text-emerald-600' :
                     c.status === 'pending' ? 'bg-amber-100 text-amber-600' :
-                    c.status === 'won' ? 'bg-blue-100 text-blue-600' :
+                     c.status === 'won' ? 'bg-emerald-100 text-emerald-600' :
                     c.status === 'lost' ? 'bg-red-100 text-red-600' :
                     'bg-slate-100 text-slate-600'
                   }`}>
@@ -209,7 +211,7 @@ export default function LawyerCases() {
                       <span className={`flex-shrink-0 px-2 py-1 text-xs font-medium rounded-full ${
                         c.status === 'active' ? 'bg-emerald-100 text-emerald-700' :
                         c.status === 'pending' ? 'bg-amber-100 text-amber-700' :
-                        c.status === 'won' ? 'bg-blue-100 text-blue-700' :
+                        c.status === 'won' ? 'bg-emerald-100 text-emerald-700' :
                         c.status === 'lost' ? 'bg-red-100 text-red-700' :
                         'bg-slate-100 text-slate-700'
                       }`}>

@@ -23,9 +23,9 @@ export default function ClientCalendar() {
             const lawyer = users.find(u => u.id === date.lawyerId);
             return (
               <div key={i} className="flex items-start gap-4 p-4 bg-slate-50 rounded-xl">
-                <div className="w-14 h-14 bg-blue-100 rounded-xl flex flex-col items-center justify-center">
-                  <span className="text-xs text-blue-600">{format(new Date(date.date), 'MMM')}</span>
-                  <span className="text-xl font-bold text-blue-700">{format(new Date(date.date), 'd')}</span>
+                <div className="w-14 h-14 bg-emerald-100 rounded-xl flex flex-col items-center justify-center">
+                  <span className="text-xs text-emerald-600">{format(new Date(date.date), 'MMM')}</span>
+                  <span className="text-xl font-bold text-emerald-700">{format(new Date(date.date), 'd')}</span>
                 </div>
                 <div className="flex-1">
                   <h3 className="font-medium text-slate-900">{date.caseTitle}</h3>

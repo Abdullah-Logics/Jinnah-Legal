@@ -34,8 +34,8 @@ export default function LawyerDashboard() {
 
   const stats = [
     { label: 'Active Cases', value: activeCases.length, icon: Briefcase, color: 'emerald' },
-    { label: 'Total Clients', value: myClients.length, icon: Users, color: 'blue' },
-    { label: 'This Month', value: totalBilled > 0 ? `Rs ${(totalBilled / 1000).toFixed(0)}K` : '\u2014', icon: TrendingUp, color: 'amber' },
+    { label: 'Total Clients', value: myClients.length, icon: Users, color: 'teal' },
+    { label: 'This Month', value: totalBilled > 0 ? `Rs ${(totalBilled / 1000).toFixed(0)}K` : '\u2014', icon: TrendingUp, color: 'green' },
     { label: 'Pending Tasks', value: unreadMessages.length, icon: CheckCircle, color: 'purple' },
   ];
 
@@ -84,8 +84,8 @@ export default function LawyerDashboard() {
             <div className="flex items-start justify-between mb-3">
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
                 stat.color === 'emerald' ? 'bg-emerald-100 text-emerald-600' :
-                stat.color === 'blue' ? 'bg-blue-100 text-blue-600' :
-                stat.color === 'amber' ? 'bg-amber-100 text-amber-600' :
+                stat.color === 'teal' ? 'bg-teal-100 text-teal-600' :
+                stat.color === 'green' ? 'bg-green-100 text-green-600' :
                 'bg-purple-100 text-purple-600'
               }`}>
                 <stat.icon size={20} />
@@ -167,7 +167,7 @@ export default function LawyerDashboard() {
                 <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                   c.status === 'active' ? 'bg-emerald-100 text-emerald-700' :
                   c.status === 'pending' ? 'bg-amber-100 text-amber-700' :
-                  c.status === 'won' ? 'bg-blue-100 text-blue-700' :
+                  c.status === 'won' ? 'bg-emerald-100 text-emerald-700' :
                   'bg-slate-100 text-slate-700'
                 }`}>
                   {c.status}
@@ -238,8 +238,8 @@ export default function LawyerDashboard() {
             {[
               { label: 'New Case', icon: Briefcase, href: '/lawyer/cases', color: 'emerald' },
               { label: 'AI Research', icon: Brain, href: '/lawyer/research', color: 'purple' },
-              { label: 'Draft Document', icon: FileText, href: '/lawyer/documents', color: 'blue' },
-              { label: 'Log Time', icon: Clock, href: '/lawyer/time-tracking', color: 'amber' },
+              { label: 'Draft Document', icon: FileText, href: '/lawyer/documents', color: 'teal' },
+              { label: 'Log Time', icon: Clock, href: '/lawyer/time-tracking', color: 'green' },
             ].map(action => (
               <Link
                 key={action.label}
@@ -247,8 +247,8 @@ export default function LawyerDashboard() {
                 className={`flex items-center gap-3 p-4 rounded-xl transition hover:shadow-md ${
                   action.color === 'emerald' ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700' :
                   action.color === 'purple' ? 'bg-purple-50 hover:bg-purple-100 text-purple-700' :
-                  action.color === 'blue' ? 'bg-blue-50 hover:bg-blue-100 text-blue-700' :
-                  'bg-amber-50 hover:bg-amber-100 text-amber-700'
+                  action.color === 'teal' ? 'bg-teal-50 hover:bg-teal-100 text-teal-700' :
+                  'bg-green-50 hover:bg-green-100 text-green-700'
                 }`}
               >
                 <action.icon size={24} />

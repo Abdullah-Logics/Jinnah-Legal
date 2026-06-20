@@ -5,11 +5,13 @@ import { Search, Send, Paperclip, Phone, Video, MoreVertical, Check, CheckCheck 
 import { format } from 'date-fns';
 
 export default function ClientMessages() {
-  const { currentUser, users, messages, sendMessage, markAsRead } = useStore();
+  const { currentUser, users, messages, loadMessages, sendMessage, markAsRead } = useStore();
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { loadMessages(); }, [loadMessages]);
 
   const myContacts = users.filter(u => u.role === 'lawyer');
   const filteredContacts = myContacts.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -50,7 +52,7 @@ export default function ClientMessages() {
           <div className="p-4 border-b border-slate-100">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <input type="text" placeholder="Search lawyers..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+              <input type="text" placeholder="Search lawyers..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm" />
             </div>
           </div>
           <div className="flex-1 overflow-y-auto">
@@ -58,7 +60,7 @@ export default function ClientMessages() {
               const lastMsg = getLastMessage(contact.id);
               const unread = getUnreadCount(contact.id);
               return (
-                <button key={contact.id} onClick={() => setSelectedUser(contact.id)} className={`w-full flex items-center gap-3 p-4 hover:bg-slate-50 transition ${selectedUser === contact.id ? 'bg-blue-50' : ''}`}>
+                <button key={contact.id} onClick={() => setSelectedUser(contact.id)} className={`w-full flex items-center gap-3 p-4 hover:bg-slate-50 transition ${selectedUser === contact.id ? 'bg-emerald-50' : ''}`}>
                   <div className="relative">
                     <img src={contact.avatar || `https://ui-avatars.com/api/?name=${contact.name}`} alt={contact.name} className="w-12 h-12 rounded-full object-cover" />
                     <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white" />
@@ -70,7 +72,7 @@ export default function ClientMessages() {
                     </div>
                     <div className="flex items-center justify-between">
                       <p className="text-sm text-slate-500 truncate">{lastMsg?.content || 'No messages yet'}</p>
-                      {unread > 0 && <span className="w-5 h-5 bg-blue-500 text-white text-xs rounded-full flex items-center justify-center">{unread}</span>}
+                      {unread > 0 && <span className="w-5 h-5 bg-emerald-500 text-white text-xs rounded-full flex items-center justify-center">{unread}</span>}
                     </div>
                   </div>
                 </button>
@@ -101,12 +103,12 @@ export default function ClientMessages() {
                 return (
                   <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-[80%]`}>
-                      <div className={`px-4 py-2 rounded-2xl ${isMine ? 'bg-blue-600 text-white rounded-br-none' : 'bg-slate-100 text-slate-900 rounded-bl-none'}`}>
+                      <div className={`px-4 py-2 rounded-2xl ${isMine ? 'bg-emerald-600 text-white rounded-br-none' : 'bg-slate-100 text-slate-900 rounded-bl-none'}`}>
                         <p>{msg.content}</p>
                       </div>
                       <div className={`flex items-center gap-1 mt-1 ${isMine ? 'justify-end' : ''}`}>
                         <span className="text-xs text-slate-400">{format(new Date(msg.timestamp), 'HH:mm')}</span>
-                        {isMine && (msg.read ? <CheckCheck size={14} className="text-blue-500" /> : <Check size={14} className="text-slate-400" />)}
+                        {isMine && (msg.read ? <CheckCheck size={14} className="text-emerald-500" /> : <Check size={14} className="text-slate-400" />)}
                       </div>
                     </div>
                   </motion.div>
@@ -117,8 +119,8 @@ export default function ClientMessages() {
             <div className="p-4 border-t border-slate-100">
               <div className="flex items-center gap-2">
                 <button className="p-2 hover:bg-slate-100 rounded-lg"><Paperclip size={20} className="text-slate-500" /></button>
-                <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSend()} placeholder="Type a message..." className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                <button onClick={handleSend} disabled={!newMessage.trim()} className="p-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50"><Send size={20} /></button>
+                <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSend()} placeholder="Type a message..." className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                <button onClick={handleSend} disabled={!newMessage.trim()} className="p-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-50"><Send size={20} /></button>
               </div>
             </div>
           </div>

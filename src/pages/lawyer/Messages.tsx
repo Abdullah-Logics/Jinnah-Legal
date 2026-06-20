@@ -5,11 +5,13 @@ import { Search, Send, Paperclip, Phone, Video, MoreVertical, Check, CheckCheck 
 import { format } from 'date-fns';
 
 export default function LawyerMessages() {
-  const { currentUser, users, messages, sendMessage, markAsRead } = useStore();
+  const { currentUser, users, messages, loadMessages, sendMessage, markAsRead } = useStore();
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { loadMessages(); }, [loadMessages]);
 
   const myContacts = users.filter(u => u.role === 'client');
   

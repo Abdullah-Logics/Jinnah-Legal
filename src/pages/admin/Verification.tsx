@@ -33,10 +33,10 @@ export default function AdminVerification() {
 
       {isPlatformAdmin && (
         <div className="flex gap-2 border-b border-slate-200">
-          <button onClick={() => setTab('lawyers')} className={`px-4 py-2 font-medium text-sm border-b-2 transition ${tab === 'lawyers' ? 'border-amber-500 text-amber-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+          <button onClick={() => setTab('lawyers')} className={`px-4 py-2 font-medium text-sm border-b-2 transition ${tab === 'lawyers' ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
             Lawyers {pendingLawyers.length > 0 && <span className="ml-1 px-1.5 py-0.5 bg-red-500 text-white text-xs rounded-full">{pendingLawyers.length}</span>}
           </button>
-          <button onClick={() => setTab('firms')} className={`px-4 py-2 font-medium text-sm border-b-2 transition ${tab === 'firms' ? 'border-amber-500 text-amber-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+          <button onClick={() => setTab('firms')} className={`px-4 py-2 font-medium text-sm border-b-2 transition ${tab === 'firms' ? 'border-emerald-500 text-emerald-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
             Firms {pendingFirms.length > 0 && <span className="ml-1 px-1.5 py-0.5 bg-red-500 text-white text-xs rounded-full">{pendingFirms.length}</span>}
           </button>
         </div>
@@ -48,7 +48,7 @@ export default function AdminVerification() {
           <h2 className="font-bold text-slate-900 mb-4">Pending ({pendingLawyers.length})</h2>
           <div className="space-y-2">
             {pendingLawyers.map(lawyer => (
-              <button key={lawyer.id} onClick={() => setSelectedLawyer(lawyer.id)} className={`w-full flex items-center gap-3 p-3 rounded-xl transition ${selectedLawyer === lawyer.id ? 'bg-amber-50 border border-amber-200' : 'hover:bg-slate-50'}`}>
+              <button key={lawyer.id} onClick={() => setSelectedLawyer(lawyer.id)} className={`w-full flex items-center gap-3 p-3 rounded-xl transition ${selectedLawyer === lawyer.id ? 'bg-emerald-50 border border-emerald-200' : 'hover:bg-slate-50'}`}>
                 <img src={lawyer.avatar || `https://ui-avatars.com/api/?name=${lawyer.name}`} alt="" className="w-10 h-10 rounded-full" />
                 <div className="text-left flex-1">
                   <p className="font-medium text-slate-900">{lawyer.name}</p>
@@ -110,7 +110,7 @@ export default function AdminVerification() {
                     <div key={i} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
                       <FileText className="text-slate-400" size={20} />
                       <span className="flex-1 text-slate-700">{doc}</span>
-                      <button className="text-blue-600 text-sm font-medium flex items-center gap-1">View <ExternalLink size={14} /></button>
+                      <button className="text-emerald-600 text-sm font-medium flex items-center gap-1">View <ExternalLink size={14} /></button>
                     </div>
                   )) : (
                     <p className="text-sm text-slate-400 py-2">No documents uploaded</p>
@@ -142,8 +142,8 @@ export default function AdminVerification() {
           <div className="space-y-4">
             {pendingFirms.map(firm => (
               <div key={firm.id} className="flex items-start gap-4 p-4 border border-slate-200 rounded-xl">
-                <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <Building size={24} className="text-amber-600" />
+                <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Building size={24} className="text-emerald-600" />
                 </div>
                 <div className="flex-1">
                   <h3 className="font-bold text-slate-900">{firm.name}</h3>

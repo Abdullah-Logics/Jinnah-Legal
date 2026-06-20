@@ -19,10 +19,10 @@ export default function AdminSubscriptions() {
           <p className="text-3xl font-bold">—</p>
           <p className="text-emerald-200">Monthly Revenue</p>
         </div>
-        <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-2xl p-6 text-white">
+        <div className="bg-gradient-to-r from-teal-600 to-teal-800 rounded-2xl p-6 text-white">
           <Users size={32} className="mb-4" />
           <p className="text-3xl font-bold">{lawyers.length + clients.length}</p>
-          <p className="text-blue-200">Active Subscribers</p>
+          <p className="text-teal-200">Active Subscribers</p>
         </div>
         <div className="bg-gradient-to-r from-purple-600 to-purple-800 rounded-2xl p-6 text-white">
           <CreditCard size={32} className="mb-4" />
@@ -37,13 +37,13 @@ export default function AdminSubscriptions() {
           <div className="space-y-4">
             {[
               { name: 'Student (Free)', count: lawyerPlans.student, color: 'slate' },
-              { name: 'Starter (Rs 2.5K)', count: lawyerPlans.starter, color: 'blue' },
+              { name: 'Starter (Rs 2.5K)', count: lawyerPlans.starter, color: 'teal' },
               { name: 'Pro (Rs 6K)', count: lawyerPlans.pro, color: 'emerald' },
               { name: 'Firm (Rs 18K)', count: lawyerPlans.firm, color: 'purple' }
             ].map(plan => (
               <div key={plan.name} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
                 <span className="font-medium text-slate-900">{plan.name}</span>
-                <span className={`px-3 py-1 rounded-lg text-sm font-medium ${plan.color === 'emerald' ? 'bg-emerald-100 text-emerald-700' : plan.color === 'blue' ? 'bg-blue-100 text-blue-700' : plan.color === 'purple' ? 'bg-purple-100 text-purple-700' : 'bg-slate-200 text-slate-700'}`}>{plan.count} users</span>
+                <span className={`px-3 py-1 rounded-lg text-sm font-medium ${plan.color === 'emerald' ? 'bg-emerald-100 text-emerald-700' : plan.color === 'teal' ? 'bg-teal-100 text-teal-700' : plan.color === 'purple' ? 'bg-purple-100 text-purple-700' : 'bg-slate-200 text-slate-700'}`}>{plan.count} users</span>
               </div>
             ))}
           </div>
@@ -54,11 +54,11 @@ export default function AdminSubscriptions() {
           <div className="space-y-4">
             {[
               { name: 'Free Trial', count: clientPlans.free, color: 'slate' },
-              { name: 'Pro (Rs 5K)', count: clientPlans.pro, color: 'blue' }
+              { name: 'Pro (Rs 5K)', count: clientPlans.pro, color: 'teal' }
             ].map(plan => (
               <div key={plan.name} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
                 <span className="font-medium text-slate-900">{plan.name}</span>
-                <span className={`px-3 py-1 rounded-lg text-sm font-medium ${plan.color === 'blue' ? 'bg-blue-100 text-blue-700' : 'bg-slate-200 text-slate-700'}`}>{plan.count} users</span>
+                <span className={`px-3 py-1 rounded-lg text-sm font-medium ${plan.color === 'teal' ? 'bg-teal-100 text-teal-700' : 'bg-slate-200 text-slate-700'}`}>{plan.count} users</span>
               </div>
             ))}
           </div>

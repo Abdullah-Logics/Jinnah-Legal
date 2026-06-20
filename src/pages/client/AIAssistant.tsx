@@ -119,14 +119,14 @@ export default function ClientAIAssistant() {
       <div className={`${showSidebar ? 'w-72' : 'w-0'} transition-all overflow-hidden flex-shrink-0`}>
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 h-full flex flex-col">
           <div className="p-3 border-b border-slate-100 flex items-center gap-2">
-            <button onClick={newSession} className="flex-1 flex items-center justify-center gap-2 bg-blue-600 text-white py-2 rounded-xl text-sm font-medium hover:bg-blue-700 transition">
+            <button onClick={newSession} className="flex-1 flex items-center justify-center gap-2 bg-emerald-600 text-white py-2 rounded-xl text-sm font-medium hover:bg-emerald-700 transition">
               <Plus size={16} /> New Chat
             </button>
             <button onClick={() => setShowSidebar(false)} className="p-2 hover:bg-slate-100 rounded-lg text-slate-400"><PanelLeftClose size={18} /></button>
           </div>
           <div className="flex-1 overflow-y-auto p-2 space-y-1">
             {sessions.map(s => (
-              <div key={s.id} className={`flex items-center gap-2 p-2 rounded-xl cursor-pointer group ${activeSession === s.id ? 'bg-blue-50 border border-blue-200' : 'hover:bg-slate-50'}`} onClick={() => setActiveSession(s.id)}>
+              <div key={s.id} className={`flex items-center gap-2 p-2 rounded-xl cursor-pointer group ${activeSession === s.id ? 'bg-emerald-50 border border-emerald-200' : 'hover:bg-slate-50'}`} onClick={() => setActiveSession(s.id)}>
                 <MessageSquare size={16} className="text-slate-400 flex-shrink-0" />
                 <span className="flex-1 text-sm truncate text-slate-700">{s.title}</span>
                 <button onClick={(e) => { e.stopPropagation(); deleteSession(s.id); }} className="p-1 hover:bg-red-50 rounded-lg text-slate-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition">
@@ -143,12 +143,12 @@ export default function ClientAIAssistant() {
           <button onClick={() => setShowSidebar(true)} className="mb-2 p-2 hover:bg-slate-100 rounded-lg text-slate-400 w-fit"><PanelLeft size={18} /></button>
         )}
 
-        <div className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-2xl p-6 text-white mb-4">
+        <div className="bg-gradient-to-r from-emerald-600 to-emerald-800 rounded-2xl p-6 text-white mb-4">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center"><Bot size={28} /></div>
             <div>
               <h1 className="text-2xl font-bold">AI Legal Assistant</h1>
-              <p className="text-blue-200">Powered by Gemini — Get answers to your legal questions</p>
+              <p className="text-emerald-200">Powered by Gemini — Get answers to your legal questions</p>
             </div>
           </div>
         </div>
@@ -166,10 +166,10 @@ export default function ClientAIAssistant() {
               messages.map(msg => (
                 <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   <div className={`flex gap-3 max-w-[85%] ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                    <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center ${msg.role === 'ai' ? 'bg-blue-100' : 'bg-slate-100'}`}>
-                      {msg.role === 'ai' ? <Bot className="text-blue-600" size={20} /> : <span className="text-slate-600 font-bold">Y</span>}
+                    <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center ${msg.role === 'ai' ? 'bg-emerald-100' : 'bg-slate-100'}`}>
+                      {msg.role === 'ai' ? <Bot className="text-emerald-600" size={20} /> : <span className="text-slate-600 font-bold">Y</span>}
                     </div>
-                  <div className={`px-4 py-3 rounded-2xl ${msg.role === 'user' ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-slate-100 text-slate-900 rounded-tl-none'}`}>
+                  <div className={`px-4 py-3 rounded-2xl ${msg.role === 'user' ? 'bg-emerald-600 text-white rounded-tr-none' : 'bg-slate-100 text-slate-900 rounded-tl-none'}`}>
                     <div className="whitespace-pre-wrap text-sm">{msg.content}</div>
                     {msg.role === 'ai' && (
                       <button onClick={async () => {
@@ -180,7 +180,7 @@ export default function ClientAIAssistant() {
                           headers: { 'Content-Type': 'application/json', ...headers() },
                           body: JSON.stringify({ name, content: msg.content }),
                         });
-                      }} className="mt-2 flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium">
+                      }} className="mt-2 flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-700 font-medium">
                         <FileDown size={14} /> Save as Draft
                       </button>
                     )}
@@ -192,9 +192,9 @@ export default function ClientAIAssistant() {
             {isTyping && (
               <div className="flex justify-start">
                 <div className="flex gap-3">
-                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center"><Bot className="text-blue-600" size={20} /></div>
+                  <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center"><Bot className="text-emerald-600" size={20} /></div>
                   <div className="px-4 py-3 rounded-2xl bg-slate-100 rounded-tl-none flex items-center gap-2">
-                    <Loader className="animate-spin text-blue-600" size={16} />
+                    <Loader className="animate-spin text-emerald-600" size={16} />
                     <span className="text-sm text-slate-500">AI is thinking...</span>
                   </div>
                 </div>
@@ -206,8 +206,8 @@ export default function ClientAIAssistant() {
           <div className="border-t border-slate-100 p-4">
             <div className="flex gap-3">
               <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
-                placeholder="Ask your AI legal assistant..." className="flex-1 bg-slate-50 rounded-xl px-4 py-3 text-sm outline-none border border-slate-200 focus:border-blue-400" />
-              <button onClick={() => handleSend()} disabled={!input.trim() || isTyping} className="w-12 h-12 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl flex items-center justify-center transition-colors">
+                placeholder="Ask your AI legal assistant..." className="flex-1 bg-slate-50 rounded-xl px-4 py-3 text-sm outline-none border border-slate-200 focus:border-emerald-400" />
+              <button onClick={() => handleSend()} disabled={!input.trim() || isTyping} className="w-12 h-12 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl flex items-center justify-center transition-colors">
                 <Send size={18} />
               </button>
             </div>

@@ -16,11 +16,13 @@ import {
   Loader
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 export default function LawyerCaseDetail() {
   const { id } = useParams();
-  const { cases, users, token, updateCase } = useStore();
+  const { cases, users, token, updateCase, loadCases } = useStore();
+
+  useEffect(() => { loadCases(); }, [loadCases]);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   

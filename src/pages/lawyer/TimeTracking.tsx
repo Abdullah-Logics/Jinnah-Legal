@@ -61,9 +61,9 @@ export default function LawyerTimeTracking() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: 'Hours This Month', value: `${totalHours.toFixed(1)}h`, icon: Clock, color: 'emerald' },
-          { label: 'Total Billed', value: `Rs ${(totalBilled / 1000).toFixed(0)}K`, icon: DollarSign, color: 'blue' },
-          { label: 'Pending', value: `Rs ${(pendingAmount / 1000).toFixed(0)}K`, icon: FileText, color: 'amber' },
-          { label: 'Hourly Rate', value: `Rs ${hourlyRate}`, icon: Clock, color: 'purple' },
+          { label: 'Total Billed', value: `Rs ${(totalBilled / 1000).toFixed(0)}K`, icon: DollarSign, color: 'teal' },
+          { label: 'Pending', value: `Rs ${(pendingAmount / 1000).toFixed(0)}K`, icon: FileText, color: 'emerald' },
+          { label: 'Hourly Rate', value: `Rs ${hourlyRate}`, icon: Clock, color: 'teal' },
         ].map((stat, i) => (
           <motion.div
             key={stat.label}
@@ -74,9 +74,9 @@ export default function LawyerTimeTracking() {
           >
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${
               stat.color === 'emerald' ? 'bg-emerald-100 text-emerald-600' :
-              stat.color === 'blue' ? 'bg-blue-100 text-blue-600' :
-              stat.color === 'amber' ? 'bg-amber-100 text-amber-600' :
-              'bg-purple-100 text-purple-600'
+              stat.color === 'teal' ? 'bg-teal-100 text-teal-600' :
+              stat.color === 'emerald' ? 'bg-emerald-100 text-emerald-600' :
+              'bg-teal-100 text-teal-600'
             }`}>
               <stat.icon size={20} />
             </div>

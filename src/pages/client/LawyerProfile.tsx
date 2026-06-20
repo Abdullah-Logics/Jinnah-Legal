@@ -14,7 +14,7 @@ export default function ClientLawyerProfile() {
     return (
       <div className="text-center py-16">
         <h2 className="text-xl font-bold text-slate-900 mb-2">Lawyer Not Found</h2>
-        <Link to="/client/find-lawyer" className="text-blue-600 font-medium">Back to Search</Link>
+        <Link to="/client/find-lawyer" className="text-emerald-600 font-medium">Back to Search</Link>
       </div>
     );
   }
@@ -31,7 +31,7 @@ export default function ClientLawyerProfile() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-r from-blue-600 to-blue-800 rounded-2xl p-6 text-white"
+        className="bg-gradient-to-r from-emerald-600 to-emerald-800 rounded-2xl p-6 text-white"
       >
         <div className="flex flex-col md:flex-row items-center gap-6">
           <img
@@ -44,7 +44,7 @@ export default function ClientLawyerProfile() {
               <h1 className="text-2xl font-bold">{lawyer.name}</h1>
               <CheckCircle className="text-emerald-400" size={20} />
             </div>
-            <p className="text-blue-200 flex items-center justify-center md:justify-start gap-1">
+            <p className="text-emerald-200 flex items-center justify-center md:justify-start gap-1">
               <MapPin size={16} /> {lawyer.city}
             </p>
             <div className="flex items-center justify-center md:justify-start gap-4 mt-3">
@@ -57,7 +57,7 @@ export default function ClientLawyerProfile() {
           <div className="flex flex-col gap-2">
             <Link
               to="/client/messages"
-              className="flex items-center justify-center gap-2 bg-white text-blue-700 px-6 py-3 rounded-xl font-semibold hover:bg-blue-50 transition"
+              className="flex items-center justify-center gap-2 bg-white text-emerald-700 px-6 py-3 rounded-xl font-semibold hover:bg-emerald-50 transition"
             >
               <MessageSquare size={20} />
               Contact
@@ -98,7 +98,7 @@ export default function ClientLawyerProfile() {
             <h2 className="text-lg font-bold text-slate-900 mb-4">Specializations</h2>
             <div className="flex flex-wrap gap-2">
               {lawyer.credentials?.specialization?.map((spec, i) => (
-                <span key={i} className="px-4 py-2 bg-blue-50 text-blue-700 rounded-xl font-medium">
+                <span key={i} className="px-4 py-2 bg-emerald-50 text-emerald-700 rounded-xl font-medium">
                   {spec}
                 </span>
               ))}
@@ -113,7 +113,7 @@ export default function ClientLawyerProfile() {
             className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100"
           >
             <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-              <GraduationCap className="text-blue-600" size={20} />
+              <GraduationCap className="text-emerald-600" size={20} />
               Education
             </h2>
             <p className="text-slate-600">{lawyer.credentials?.education || 'Education details not provided'}</p>
@@ -180,7 +180,7 @@ export default function ClientLawyerProfile() {
             <h2 className="text-lg font-bold text-slate-900 mb-4">Statistics</h2>
             <div className="grid grid-cols-2 gap-4">
               <div className="text-center p-3 bg-slate-50 rounded-xl">
-                <p className="text-2xl font-bold text-blue-600">{lawyerCases.length}</p>
+                <p className="text-2xl font-bold text-emerald-600">{lawyerCases.length}</p>
                 <p className="text-xs text-slate-500">Cases Handled</p>
               </div>
               <div className="text-center p-3 bg-slate-50 rounded-xl">

@@ -38,7 +38,7 @@ export default function ClientBilling() {
               stat.color === 'emerald' ? 'bg-emerald-100 text-emerald-600' :
               stat.color === 'amber' ? 'bg-amber-100 text-amber-600' :
               stat.color === 'red' ? 'bg-red-100 text-red-600' :
-              'bg-blue-100 text-blue-600'
+              'bg-emerald-100 text-emerald-600'
             }`}>
               <stat.icon size={20} />
             </div>
@@ -52,7 +52,7 @@ export default function ClientBilling() {
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold text-slate-900">Payment Methods</h2>
-          <button className="flex items-center gap-1 text-blue-600 font-medium text-sm">
+          <button className="flex items-center gap-1 text-emerald-600 font-medium text-sm">
             <Plus size={16} /> Add New
           </button>
         </div>

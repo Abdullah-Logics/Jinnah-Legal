@@ -18,13 +18,13 @@ export default function AdminAnalytics() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Total Users', value: users.length, icon: Users, color: 'blue', growth: null },
+          { label: 'Total Users', value: users.length, icon: Users, color: 'teal', growth: null },
           { label: 'Total Cases', value: cases.length, icon: Briefcase, color: 'emerald', growth: null },
           { label: 'Revenue', value: '—', icon: CreditCard, color: 'purple', growth: null },
           { label: 'Growth Rate', value: '—', icon: TrendingUp, color: 'amber', growth: null }
         ].map((stat, i) => (
           <div key={i} className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${stat.color === 'blue' ? 'bg-blue-100 text-blue-600' : stat.color === 'emerald' ? 'bg-emerald-100 text-emerald-600' : stat.color === 'purple' ? 'bg-purple-100 text-purple-600' : 'bg-amber-100 text-amber-600'}`}>
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${stat.color === 'teal' ? 'bg-teal-100 text-teal-600' : stat.color === 'emerald' ? 'bg-emerald-100 text-emerald-600' : stat.color === 'purple' ? 'bg-purple-100 text-purple-600' : 'bg-amber-100 text-amber-600'}`}>
               <stat.icon size={20} />
             </div>
             <p className="text-2xl font-bold text-slate-900">{stat.value}</p>

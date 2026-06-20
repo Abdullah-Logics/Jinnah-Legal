@@ -1,17 +1,47 @@
 import initSqlJs from 'sql.js';
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, copyFileSync, readdirSync, unlinkSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DB_DIR  = join(__dirname, '../../../data');
 const DB_FILE = join(DB_DIR, 'jinnah_legal.db');
+const BACKUP_DIR = join(__dirname, '../../../backups');
+
+function timestamp() {
+  return new Date().toISOString().replace(/[:.]/g, '-');
+}
+
+function backup() {
+  if (!existsSync(DB_FILE)) return;
+  mkdirSync(BACKUP_DIR, { recursive: true });
+  const dest = join(BACKUP_DIR, `jinnah_legal_${timestamp()}.db`);
+  copyFileSync(DB_FILE, dest);
+  // Keep only last 50 backups
+  try {
+    const files = readdirSync(BACKUP_DIR)
+      .filter(f => f.startsWith('jinnah_legal_'))
+      .sort()
+      .reverse();
+    if (files.length > 50) {
+      files.slice(50).forEach(f => {
+        try { unlinkSync(join(BACKUP_DIR, f)); } catch {}
+      });
+    }
+  } catch {}
+}
 
 export class SqliteAdapter {
   constructor() { this.db = null; this.SQL = null; }
 
   async connect() {
     mkdirSync(DB_DIR, { recursive: true });
+
+    // Safety: backup existing DB before any operation
+    if (existsSync(DB_FILE)) {
+      backup();
+    }
+
     this.SQL = await initSqlJs();
     if (existsSync(DB_FILE)) {
       this.db = new this.SQL.Database(readFileSync(DB_FILE));

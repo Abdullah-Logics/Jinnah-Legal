@@ -17,7 +17,7 @@ export default function LawyerDocuments() {
   const [docs, setDocs] = useState<Doc[]>([]);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const API = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+  const API = import.meta.env.DEV ? 'http://localhost:3001' : 'https://eminem-ensemble-rebecca-blocked.trycloudflare.com';
 
   const headers = (): Record<string, string> => {
     const h: Record<string, string> = {};

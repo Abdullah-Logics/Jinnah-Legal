@@ -108,6 +108,23 @@ const API = import.meta.env.DEV
   ? 'http://localhost:3001'
   : 'https://eminem-ensemble-rebecca-blocked.trycloudflare.com';
 
+function normalizeFirm(f: Record<string, unknown>): Firm {
+  return {
+    id: f.id as string,
+    name: f.name as string,
+    email: f.email as string,
+    phone: f.phone as string | undefined,
+    address: f.address as string | undefined,
+    city: f.city as string | undefined,
+    description: f.description as string | undefined,
+    registrationNumber: (f.registration_number || f.registrationNumber) as string | undefined,
+    isVerified: !!(f.is_verified ?? f.isVerified),
+    verificationStatus: (f.verification_status || f.verificationStatus || 'pending') as VerificationStatus,
+    adminId: (f.admin_id || f.adminId) as string | undefined,
+    createdAt: (f.created_at || f.createdAt) as string,
+  };
+}
+
 async function apiFetch(path: string, opts: RequestInit = {}, token?: string | null) {
   const res = await fetch(`${API}${path}`, {
     ...opts,
@@ -409,7 +426,7 @@ export const useStore = create<AppState>()(
         const { token } = get();
         try {
           const firms = await apiFetch('/api/firms', {}, token);
-          set({ firms });
+          set({ firms: firms.map(normalizeFirm) });
         } catch {}
       },
 

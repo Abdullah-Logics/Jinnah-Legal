@@ -56,6 +56,15 @@ export default function LawyerCaseDetail() {
             }`}>
               {caseData.status}
             </span>
+            {caseData.clientStatus && (
+              <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                caseData.clientStatus === 'approved' ? 'bg-emerald-100 text-emerald-700' :
+                caseData.clientStatus === 'rejected' ? 'bg-red-100 text-red-700' :
+                'bg-amber-100 text-amber-700'
+              }`}>
+                Client: {caseData.clientStatus}
+              </span>
+            )}
             <span className="text-sm text-slate-500">{caseData.type}</span>
           </div>
         </div>

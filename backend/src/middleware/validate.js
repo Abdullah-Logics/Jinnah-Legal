@@ -93,6 +93,22 @@ export const caseUpdateSchema = z.object({
   })).optional(),
 });
 
+export const caseRespondSchema = z.object({
+  clientStatus: z.enum(['approved', 'rejected']),
+});
+
+export const caseWithClientSchema = z.object({
+  email: z.string().email('Valid email is required'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+  name: z.string().min(1, 'Name is required'),
+  phone: z.preprocess(emptyToNull, z.string().max(50).nullable()),
+  city: z.preprocess(emptyToNull, z.string().max(100).nullable()),
+  title: z.string().min(1, 'Case title is required').max(500),
+  description: z.string().max(10000).optional().default(''),
+  type: z.string().max(100).optional().default('General'),
+  lawyerId: z.string().min(1),
+});
+
 export const messageSchema = z.object({
   receiverId: z.string().min(1),
   content: z.string().min(1, 'Message content is required').max(10000),

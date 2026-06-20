@@ -54,6 +54,7 @@ export interface Case {
   lawyerId: string;
   status: CaseStatus;
   type: string;
+  clientStatus: string;
   timeline: { date: string; event: string; description: string }[];
   documents: { id: string; name: string; url: string; uploadedAt: string }[];
   createdAt: string;
@@ -135,6 +136,7 @@ interface AppState {
   users: User[];
   firms: Firm[];
   cases: Case[];
+  clients: User[];
   messages: Message[];
   journals: JournalEntry[];
   invoices: Invoice[];
@@ -150,6 +152,12 @@ interface AppState {
   loadCases: () => Promise<void>;
   addCase: (caseData: Omit<Case, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   updateCase: (caseId: string, updates: Partial<Case>) => Promise<void>;
+  createCaseWithClient: (data: {
+    email: string; password: string; name: string; phone?: string; city?: string;
+    title: string; description?: string; type?: string; lawyerId: string;
+  }) => Promise<any>;
+  respondToCase: (caseId: string, clientStatus: 'approved' | 'rejected') => Promise<void>;
+  loadClients: () => Promise<void>;
 
   // Message actions
   loadMessages: (withUserId?: string) => Promise<void>;
@@ -192,6 +200,7 @@ export const useStore = create<AppState>()(
       users: [],
       firms: [],
       cases: [],
+      clients: [],
       messages: [],
       journals: [],
       invoices: [],
@@ -258,6 +267,27 @@ export const useStore = create<AppState>()(
         const { token } = get();
         const updated = await apiFetch(`/api/cases/${caseId}`, { method: 'PATCH', body: JSON.stringify(updates) }, token);
         set(state => ({ cases: state.cases.map(c => c.id === caseId ? updated : c) }));
+      },
+
+      createCaseWithClient: async (data) => {
+        const { token } = get();
+        const result = await apiFetch('/api/cases/with-client', { method: 'POST', body: JSON.stringify(data) }, token);
+        set(state => ({ cases: [result.case, ...state.cases], users: [result.client, ...state.users] }));
+        return result;
+      },
+
+      respondToCase: async (caseId, clientStatus) => {
+        const { token } = get();
+        const updated = await apiFetch(`/api/cases/${caseId}/respond`, { method: 'PATCH', body: JSON.stringify({ clientStatus }) }, token);
+        set(state => ({ cases: state.cases.map(c => c.id === caseId ? updated : c) }));
+      },
+
+      loadClients: async () => {
+        const { token } = get();
+        try {
+          const clients = await apiFetch('/api/users/clients', {}, token);
+          set({ clients });
+        } catch {}
       },
 
       loadMessages: async (withUserId) => {

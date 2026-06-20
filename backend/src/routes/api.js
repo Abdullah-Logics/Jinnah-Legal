@@ -27,6 +27,12 @@ apiRouter.get('/users/lawyers', asyncHandler(async (_req, res) => {
   res.json(rows.map(toPublic));
 }));
 
+apiRouter.get('/users/clients', asyncHandler(async (req, res) => {
+  if (req.user.role !== 'lawyer') throw new AppError('Only lawyers can browse clients', 403);
+  const rows = await query(`SELECT id,name,email,phone,city,avatar FROM users WHERE role = 'client' ORDER BY name`);
+  res.json(rows);
+}));
+
 apiRouter.get('/users/:id', asyncHandler(async (req, res) => {
   const u = await queryOne('SELECT * FROM users WHERE id = ?', [req.params.id]);
   if (!u) throw new AppError('User not found', 404);

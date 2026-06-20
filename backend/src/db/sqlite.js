@@ -89,6 +89,7 @@ export class SqliteAdapter {
         id TEXT PRIMARY KEY, title TEXT NOT NULL, description TEXT,
         client_id TEXT, lawyer_id TEXT,
         status TEXT DEFAULT 'pending', type TEXT,
+        client_status TEXT DEFAULT 'pending',
         timeline TEXT DEFAULT '[]', documents TEXT DEFAULT '[]', court_dates TEXT DEFAULT '[]',
         created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now'))
       );
@@ -129,6 +130,7 @@ export class SqliteAdapter {
         created_at TEXT DEFAULT (datetime('now'))
       );
     `);
+    try { this.db.run("ALTER TABLE cases ADD COLUMN client_status TEXT DEFAULT 'pending'"); } catch {}
     this._save();
   }
 }

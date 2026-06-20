@@ -1,15 +1,22 @@
 import { useParams, Link } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Briefcase, User, Calendar, FileText, MessageSquare, Clock, Download } from 'lucide-react';
+import { ArrowLeft, Briefcase, User, Calendar, FileText, MessageSquare, Clock, Download, CheckCircle, XCircle } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function ClientCaseDetail() {
   const { id } = useParams();
-  const { cases, users } = useStore();
+  const { cases, users, respondToCase } = useStore();
   
   const caseData = cases.find(c => c.id === id);
   const lawyer = users.find(u => u.id === caseData?.lawyerId);
+
+  const handleRespond = async (clientStatus: 'approved' | 'rejected') => {
+    if (!id) return;
+    try {
+      await respondToCase(id, clientStatus);
+    } catch {}
+  };
 
   if (!caseData) {
     return (
@@ -150,6 +157,50 @@ export default function ClientCaseDetail() {
               <p className="text-slate-400">No lawyer assigned</p>
             )}
           </div>
+
+          {/* Client Approval */}
+          {caseData.clientStatus === 'pending' && (
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-amber-200">
+              <h2 className="text-lg font-bold text-slate-900 mb-2">Case Approval Required</h2>
+              <p className="text-sm text-slate-500 mb-4">
+                This case has been created by your lawyer. Please review and approve or reject it.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => handleRespond('approved')}
+                  className="flex-1 flex items-center justify-center gap-2 bg-emerald-600 text-white py-2.5 rounded-xl font-medium hover:bg-emerald-700 transition"
+                >
+                  <CheckCircle size={18} />
+                  Approve
+                </button>
+                <button
+                  onClick={() => handleRespond('rejected')}
+                  className="flex-1 flex items-center justify-center gap-2 bg-red-600 text-white py-2.5 rounded-xl font-medium hover:bg-red-700 transition"
+                >
+                  <XCircle size={18} />
+                  Reject
+                </button>
+              </div>
+            </div>
+          )}
+          {caseData.clientStatus === 'approved' && (
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-emerald-200">
+              <div className="flex items-center gap-2 text-emerald-700">
+                <CheckCircle size={20} />
+                <h2 className="text-lg font-bold">Approved</h2>
+              </div>
+              <p className="text-sm text-slate-500 mt-1">You have approved this case.</p>
+            </div>
+          )}
+          {caseData.clientStatus === 'rejected' && (
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-red-200">
+              <div className="flex items-center gap-2 text-red-700">
+                <XCircle size={20} />
+                <h2 className="text-lg font-bold">Rejected</h2>
+              </div>
+              <p className="text-sm text-slate-500 mt-1">You have rejected this case.</p>
+            </div>
+          )}
 
           {/* Court Dates */}
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">

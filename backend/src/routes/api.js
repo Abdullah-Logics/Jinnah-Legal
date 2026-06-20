@@ -197,7 +197,7 @@ apiRouter.post('/firms/register', validate(firmRegisterSchema), asyncHandler(asy
 apiRouter.get('/firms', asyncHandler(async (req, res) => {
   const user = req.user;
   if (!user) {
-    return res.json(await query("SELECT id,name,city FROM firms WHERE is_verified = 1 ORDER BY name"));
+    return res.json(await query("SELECT id,name,city,is_verified FROM firms WHERE is_verified = 1 ORDER BY name"));
   }
   if (user.role === 'admin') {
     res.json(await query('SELECT * FROM firms ORDER BY created_at DESC'));
@@ -205,7 +205,7 @@ apiRouter.get('/firms', asyncHandler(async (req, res) => {
     const firm = await queryOne('SELECT * FROM firms WHERE admin_id = ?', [user.id]);
     res.json(firm ? [firm] : []);
   } else {
-    res.json(await query("SELECT id,name,city FROM firms WHERE is_verified = 1 ORDER BY name"));
+    res.json(await query("SELECT id,name,city,is_verified FROM firms WHERE is_verified = 1 ORDER BY name"));
   }
 }));
 

@@ -13,7 +13,7 @@ import { AppError, asyncHandler } from '../middleware/errorHandler.js';
 
 export const apiRouter = Router();
 apiRouter.use((req, res, next) => {
-  if (req.path === '/firms') return next();
+  if (req.path === '/firms' || req.path === '/firms/register') return next();
   auth(req, res, next);
 });
 

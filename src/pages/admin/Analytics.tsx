@@ -9,7 +9,7 @@ export default function AdminAnalytics() {
   const casesByType = caseTypes.map(t => ({
     name: t,
     value: cases.filter(c => c.type === t).length,
-    color: '#3b82f6'
+    color: '#059669'
   }));
 
   return (

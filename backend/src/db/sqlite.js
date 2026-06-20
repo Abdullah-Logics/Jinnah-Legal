@@ -15,29 +15,22 @@ function timestamp() {
 function backup() {
   if (!existsSync(DB_FILE)) return;
   mkdirSync(BACKUP_DIR, { recursive: true });
-  const dest = join(BACKUP_DIR, `jinnah_legal_${timestamp()}.db`);
+  const date = new Date();
+  const folder = join(BACKUP_DIR, `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`);
+  mkdirSync(folder, { recursive: true });
+  const dest = join(folder, `jinnah_legal_${timestamp()}.db`);
   copyFileSync(DB_FILE, dest);
-  // Keep only last 50 backups
-  try {
-    const files = readdirSync(BACKUP_DIR)
-      .filter(f => f.startsWith('jinnah_legal_'))
-      .sort()
-      .reverse();
-    if (files.length > 50) {
-      files.slice(50).forEach(f => {
-        try { unlinkSync(join(BACKUP_DIR, f)); } catch {}
-      });
-    }
-  } catch {}
 }
 
+let lastBackup = 0;
+
 export class SqliteAdapter {
-  constructor() { this.db = null; this.SQL = null; }
+  constructor() { this.db = null; this.SQL = null; this._writeCount = 0; }
 
   async connect() {
     mkdirSync(DB_DIR, { recursive: true });
+    mkdirSync(BACKUP_DIR, { recursive: true });
 
-    // Safety: backup existing DB before any operation
     if (existsSync(DB_FILE)) {
       backup();
     }
@@ -51,9 +44,23 @@ export class SqliteAdapter {
     this._save();
     await this._createSchema();
     console.log('✅  SQLite (local) ready →', DB_FILE);
+    console.log('💾  Backups →', BACKUP_DIR);
+
+    // Hourly auto-backup
+    setInterval(() => {
+      if (this.db) {
+        backup();
+        console.log('⏰ Hourly backup saved');
+      }
+    }, 60 * 60 * 1000);
   }
 
   _save() {
+    // Backup before every 10th write (plus startup)
+    this._writeCount++;
+    if (this._writeCount % 10 === 0) {
+      backup();
+    }
     writeFileSync(DB_FILE, Buffer.from(this.db.export()));
   }
 

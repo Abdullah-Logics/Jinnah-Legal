@@ -50,6 +50,7 @@ export default function LawyerJournal() {
   const [scheduleLocation, setScheduleLocation] = useState('');
   const [scheduling, setScheduling] = useState(false);
   const [plans, setPlans] = useState('');
+  const [showHistory, setShowHistory] = useState(false);
 
   useEffect(() => { loadJournals(); loadCases(); }, [loadJournals, loadCases]);
 
@@ -496,6 +497,56 @@ export default function LawyerJournal() {
             <span>{todos.filter(t => t.completed).length} tasks done</span>
             {editor && <span>· {editor.storage.characterCount?.characters?.() || 0} chars</span>}
           </div>
+        </div>
+      </div>
+
+      {/* Journal History */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100">
+        <div className="p-5 md:p-6">
+          <button
+            onClick={() => setShowHistory(!showHistory)}
+            className="flex items-center gap-2 text-sm font-semibold text-slate-700 hover:text-emerald-700 transition w-full"
+          >
+            <BookOpen size={16} className="text-emerald-600" />
+            Journal History ({journals.filter(j => j.userId === currentUser?.id).length})
+            <span className="ml-auto text-slate-400">{showHistory ? '▲' : '▼'}</span>
+          </button>
+          {showHistory && (
+            <div className="mt-4 space-y-2 max-h-[500px] overflow-y-auto">
+              {journals
+                .filter(j => j.userId === currentUser?.id)
+                .sort((a, b) => b.date.localeCompare(a.date))
+                .map(j => (
+                  <button
+                    key={j.id}
+                    onClick={() => setSelectedDate(new Date(j.date))}
+                    className={`w-full text-left p-3 rounded-xl transition flex items-start gap-3 ${j.date === dateKey ? 'bg-emerald-50 border border-emerald-200' : 'hover:bg-slate-50 border border-transparent'}`}
+                  >
+                    <div className="w-12 h-12 bg-emerald-100 rounded-xl flex flex-col items-center justify-center flex-shrink-0">
+                      <span className="text-xs text-emerald-600 font-medium">{format(new Date(j.date), 'MMM')}</span>
+                      <span className="text-base font-bold text-emerald-800 leading-none">{format(new Date(j.date), 'd')}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-900">{format(new Date(j.date), 'EEEE, MMMM d, yyyy')}</p>
+                      <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-400">
+                        {j.createdAt && <span className="flex items-center gap-1"><Clock size={11} />{formatDistanceToNow(new Date(j.createdAt), { addSuffix: true })}</span>}
+                        {j.content && <span className="truncate">{j.content.replace(/<[^>]*>/g, '').slice(0, 80)}</span>}
+                        {!j.content && j.notes && <span className="truncate">{j.notes.slice(0, 80)}</span>}
+                        {!j.content && !j.notes && j.todos.length > 0 && <span>{j.todos.length} tasks</span>}
+                      </div>
+                    </div>
+                    <div className="flex gap-1 flex-shrink-0">
+                      {j.todos.filter(t => t.completed).length > 0 && (
+                        <span className="text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">{j.todos.filter(t => t.completed).length}/{j.todos.length}</span>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              {journals.filter(j => j.userId === currentUser?.id).length === 0 && (
+                <p className="text-center text-slate-400 py-8 text-sm">No journal entries yet. Start writing above!</p>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

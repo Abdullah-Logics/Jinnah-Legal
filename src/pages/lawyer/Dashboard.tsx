@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useStore } from '../../store/useStore';
 import { Link } from 'react-router-dom';
@@ -18,7 +19,9 @@ import {
 import { format } from 'date-fns';
 
 export default function LawyerDashboard() {
-  const { currentUser, cases, messages, users } = useStore();
+  const { currentUser, cases, messages, users, loadCases } = useStore();
+
+  useEffect(() => { loadCases(); }, [loadCases]);
 
   const myCases = cases.filter(c => c.lawyerId === currentUser?.id);
   const activeCases = myCases.filter(c => c.status === 'active');

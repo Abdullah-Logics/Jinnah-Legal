@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Brain, FileText, Clock, BookOpen, Sparkles, Send, Lightbulb } from 'lucide-react';
+import { Search, Brain, FileText, Clock, BookOpen, Sparkles, Send, Lightbulb, Save, Loader, Trash2 } from 'lucide-react';
 import api from '../../utils/api';
+import { useStore } from '../../store/useStore';
 
 interface SearchResult {
   id: string;
@@ -10,12 +11,25 @@ interface SearchResult {
   type: string;
 }
 
+interface Memo {
+  id: string;
+  title: string;
+  content: string;
+  createdAt: string;
+}
+
 export default function LawyerResearch() {
+  const { currentUser } = useStore();
   const [query, setQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [results, setResults] = useState<SearchResult[]>([]);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState<'search' | 'history' | 'memos'>('search');
+  const [recentSearches] = useState<string[]>([]);
+  const [memos, setMemos] = useState<Memo[]>([]);
+  const [memoTitle, setMemoTitle] = useState('');
+  const [memoContent, setMemoContent] = useState('');
+  const [savingMemo, setSavingMemo] = useState(false);
 
   const handleSearch = async () => {
     if (!query.trim()) return;
@@ -23,32 +37,49 @@ export default function LawyerResearch() {
     setError('');
     try {
       const data = await api.post('/api/ai/chat', {
-        message: `Legal research: ${query}. Provide a structured response with relevant Pakistani laws, statutes, and case precedents. Format as a list of findings with title, summary, and type (statute/case/law).`,
+        message: `You are a legal research assistant for Pakistani law. Research this topic and provide findings with relevant statutes, case precedents, and analysis:\n\nTopic: ${query}`,
         history: [],
+        sessionId: 'research-' + Date.now(),
+        noTools: true,
       });
-      const lines = data.response.split('\n').filter((l: string) => l.trim());
-      const parsed: SearchResult[] = lines
-        .filter((l: string) => l.startsWith('**') || l.startsWith('- **'))
-        .map((l: string, i: number) => ({
-          id: String(i + 1),
-          title: l.replace(/[*#]/g, '').trim().split(':')[0] || 'Finding',
-          summary: l.replace(/[*#]/g, '').trim(),
-          type: l.includes('Case') || l.includes('case') ? 'Case Precedent' : 'Legal Principle',
-        }));
-      setResults(parsed.length > 0 ? parsed : [{
-        id: '1',
-        title: 'Research Results',
-        summary: data.response.replace(/[*#]/g, '').trim(),
-        type: 'Analysis',
-      }]);
+      const raw = (data.response || '').replace(/\*\*/g, '').trim();
+      const sections = raw.split(/\n(?=\d+\.|\- |\* |[A-Z][A-Za-z\s]+\:)/).filter(Boolean);
+      const parsed: SearchResult[] = sections.length > 1
+        ? sections.map((s: string, i: number) => ({
+            id: String(i + 1),
+            title: s.split('\n')[0].replace(/^[\d\.\-\*\s]+/, '').trim() || 'Finding',
+            summary: s.trim(),
+            type: s.toLowerCase().includes('case') || s.toLowerCase().includes('precedent') ? 'Case Precedent' : 'Legal Analysis',
+          }))
+        : [{ id: '1', title: 'Research Results', summary: raw, type: 'Analysis' }];
+      setResults(parsed);
     } catch {
-      setError('Research service unavailable. Please try again later.');
+      setError('Research failed. Check your connection and try again.');
     } finally {
       setIsSearching(false);
     }
   };
 
-  const recentSearches: string[] = [];
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('legal-memos');
+      if (stored) setMemos(JSON.parse(stored));
+    } catch {}
+  }, []);
+
+  const saveAsMemo = () => {
+    const content = results.map(r => `${r.title}\n${r.summary}`).join('\n\n---\n\n');
+    const memo = { id: Date.now().toString(), title: query, content, createdAt: new Date().toISOString() };
+    const updated = [memo, ...memos];
+    setMemos(updated);
+    localStorage.setItem('legal-memos', JSON.stringify(updated));
+  };
+
+  const deleteMemo = (id: string) => {
+    const updated = memos.filter(m => m.id !== id);
+    setMemos(updated);
+    localStorage.setItem('legal-memos', JSON.stringify(updated));
+  };
 
   return (
     <div className="space-y-6">
@@ -136,11 +167,19 @@ export default function LawyerResearch() {
             </div>
           )}
 
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
           {results.length > 0 && !isSearching && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="font-bold text-slate-900">Found {results.length} relevant cases</h3>
-                <button className="text-emerald-600 font-medium text-sm">Export Results</button>
+                <h3 className="font-bold text-slate-900">Found {results.length} items</h3>
+                <button onClick={saveAsMemo} className="flex items-center gap-1 text-emerald-600 font-medium text-sm hover:text-emerald-700">
+                  <Save size={15} /> Save as Memo
+                </button>
               </div>
               {results.map((result, i) => (
                 <motion.div
@@ -203,14 +242,32 @@ export default function LawyerResearch() {
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-slate-900">Research Memos</h3>
-            <button className="flex items-center gap-1 text-emerald-600 font-medium text-sm">
-              <FileText size={16} /> New Memo
-            </button>
           </div>
-          <div className="text-center py-12 text-slate-400">
-            <FileText size={48} className="mx-auto mb-4 opacity-50" />
-            <p>No memos created yet</p>
-          </div>
+          {memos.length > 0 ? (
+            <div className="space-y-3">
+              {memos.map(memo => (
+                <div key={memo.id} className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <h4 className="font-semibold text-slate-900">{memo.title}</h4>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        {new Date(memo.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <button onClick={() => deleteMemo(memo.id)}
+                      className="p-1 text-slate-400 hover:text-red-500 transition flex-shrink-0"
+                    ><Trash2 size={15} /></button>
+                  </div>
+                  <p className="text-sm text-slate-600 mt-2 line-clamp-3 whitespace-pre-wrap">{memo.content.slice(0, 200)}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 text-slate-400">
+              <FileText size={48} className="mx-auto mb-4 opacity-50" />
+              <p>No memos saved yet. Search and save results as memos.</p>
+            </div>
+          )}
         </div>
       )}
     </div>

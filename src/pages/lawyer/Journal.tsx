@@ -1,19 +1,34 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useStore } from '../../store/useStore';
 import { format, addDays, startOfWeek } from 'date-fns';
-import { BookOpen, Plus, Check, Trash2, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { BookOpen, Plus, Check, Trash2, Calendar, ChevronLeft, ChevronRight, Loader } from 'lucide-react';
 
 export default function LawyerJournal() {
-  const { currentUser, journals, addJournalEntry, updateJournalEntry } = useStore();
+  const { currentUser, journals, addJournalEntry, updateJournalEntry, loadJournals } = useStore();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [notes, setNotes] = useState('');
   const [todos, setTodos] = useState<{ id: string; text: string; completed: boolean }[]>([]);
-  const [newTodo, setNewTodo] = useState('');
   const [plans, setPlans] = useState('');
+  const [newTodo, setNewTodo] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => { loadJournals(); }, [loadJournals]);
 
   const dateKey = format(selectedDate, 'yyyy-MM-dd');
   const todayEntry = journals.find(j => j.userId === currentUser?.id && j.date === dateKey);
+
+  useEffect(() => {
+    if (todayEntry) {
+      setNotes(todayEntry.notes || '');
+      setTodos(todayEntry.todos || []);
+      setPlans(todayEntry.plans || '');
+    } else {
+      setNotes('');
+      setTodos([]);
+      setPlans('');
+    }
+  }, [dateKey, todayEntry]);
 
   const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -32,7 +47,8 @@ export default function LawyerJournal() {
     setTodos(todos.filter(t => t.id !== id));
   };
 
-  const saveEntry = () => {
+  const saveEntry = async () => {
+    setSaving(true);
     const entry = {
       userId: currentUser?.id || '',
       date: dateKey,
@@ -42,10 +58,11 @@ export default function LawyerJournal() {
     };
     
     if (todayEntry) {
-      updateJournalEntry(todayEntry.id, entry);
+      await updateJournalEntry(todayEntry.id, entry);
     } else {
-      addJournalEntry(entry);
+      await addJournalEntry(entry);
     }
+    setSaving(false);
   };
 
   return (
@@ -211,9 +228,11 @@ export default function LawyerJournal() {
       <div className="flex justify-end">
         <button
           onClick={saveEntry}
-          className="flex items-center gap-2 bg-emerald-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-emerald-700 transition"
+          disabled={saving}
+          className="flex items-center gap-2 bg-emerald-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-emerald-700 transition disabled:opacity-50"
         >
-          Save Journal Entry
+          {saving ? <Loader className="animate-spin" size={18} /> : null}
+          {saving ? 'Saving...' : 'Save Journal Entry'}
         </button>
       </div>
     </div>

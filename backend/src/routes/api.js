@@ -28,8 +28,8 @@ apiRouter.get('/users/lawyers', asyncHandler(async (_req, res) => {
 }));
 
 apiRouter.get('/users/clients', asyncHandler(async (req, res) => {
-  if (req.user.role !== 'lawyer') throw new AppError('Only lawyers can browse clients', 403);
-  const rows = await query(`SELECT id,name,email,phone,city,avatar FROM users WHERE role = 'client' ORDER BY name`);
+  if (!['lawyer', 'firm_admin'].includes(req.user.role)) throw new AppError('Only lawyers can browse clients', 403);
+  const rows = await query(`SELECT id,name,email,phone,city,avatar,role FROM users WHERE role = 'client' ORDER BY name`);
   res.json(rows);
 }));
 

@@ -422,10 +422,15 @@ export const useStore = create<AppState>()(
       },
 
       loadUsers: async () => {
-        const { token } = get();
+        const { token, currentUser } = get();
         try {
-          const users = await apiFetch('/api/admin/users', {}, token);
-          set({ users });
+          if (currentUser?.role === 'admin') {
+            const users = await apiFetch('/api/admin/users', {}, token);
+            set({ users });
+          } else {
+            const users = await apiFetch('/api/users/clients', {}, token);
+            set({ users });
+          }
         } catch {}
       },
 

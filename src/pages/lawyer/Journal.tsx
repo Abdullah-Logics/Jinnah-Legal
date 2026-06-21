@@ -136,7 +136,7 @@ export default function LawyerJournal() {
     if (todayEntry) {
       setTodos(todayEntry.todos || []);
       setPlans(todayEntry.plans || '');
-      if (!entryCreated) setEntryCreated(new Date().toISOString());
+      if (!entryCreated) setEntryCreated(todayEntry.createdAt || new Date().toISOString());
       if (editor) {
         const current = editor.getHTML();
         if (current !== todayEntry.content && todayEntry.content) {
@@ -151,7 +151,7 @@ export default function LawyerJournal() {
       setEntryCreated(null);
       if (editor) editor.commands.setContent('');
     }
-  }, [dateKey]);
+  }, [dateKey, todayEntry]);
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -465,7 +465,7 @@ export default function LawyerJournal() {
                       {todo.completed && <Check size={12} />}
                     </button>
                     <span className={`flex-1 text-sm ${todo.completed ? 'line-through text-slate-400' : 'text-slate-700'}`}>{todo.text}</span>
-                    <button onClick={() => removeTodo(todo.id)} className="p-1 text-slate-400 hover:text-red-500 transition flex-shrink-0 opacity-0 group-hover:opacity-100"><Trash2 size={14} /></button>
+                    <button onClick={() => removeTodo(todo.id)} className="p-1 text-slate-400 hover:text-red-500 transition flex-shrink-0"><Trash2 size={14} /></button>
                   </div>
                 ))}
               </div>

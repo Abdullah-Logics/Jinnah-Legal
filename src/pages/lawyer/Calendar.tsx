@@ -170,32 +170,41 @@ export default function LawyerCalendar() {
               <h4 className="font-medium text-slate-900 mb-3 flex items-center gap-2">
                 <BookOpen size={16} className="text-emerald-600" /> Journal
               </h4>
-              {dayJournal.notes && (
-                <div className="mb-3">
-                  <p className="text-xs text-slate-500 mb-1 font-medium">Notes</p>
-                  <p className="text-sm text-slate-700 bg-slate-50 p-3 rounded-xl">{dayJournal.notes}</p>
-                </div>
-              )}
-              {dayJournal.todos && dayJournal.todos.length > 0 && (
-                <div className="mb-3">
-                  <p className="text-xs text-slate-500 mb-1 font-medium">Tasks</p>
-                  <div className="space-y-1">
-                    {dayJournal.todos.map(t => (
-                      <div key={t.id} className="flex items-center gap-2 text-sm text-slate-700">
-                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${t.completed ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300'}`}>
-                          {t.completed && <Check size={10} className="text-white" />}
-                        </div>
-                        <span className={t.completed ? 'line-through text-slate-400' : ''}>{t.text}</span>
+              {dayJournal.content ? (
+                <div
+                  className="prose prose-slate prose-sm max-w-none bg-slate-50 p-3 rounded-xl"
+                  dangerouslySetInnerHTML={{ __html: dayJournal.content }}
+                />
+              ) : (
+                <>
+                  {dayJournal.notes && (
+                    <div className="mb-3">
+                      <p className="text-xs text-slate-500 mb-1 font-medium">Notes</p>
+                      <p className="text-sm text-slate-700 bg-slate-50 p-3 rounded-xl">{dayJournal.notes}</p>
+                    </div>
+                  )}
+                  {dayJournal.todos && dayJournal.todos.length > 0 && (
+                    <div className="mb-3">
+                      <p className="text-xs text-slate-500 mb-1 font-medium">Tasks</p>
+                      <div className="space-y-1">
+                        {dayJournal.todos.map(t => (
+                          <div key={t.id} className="flex items-center gap-2 text-sm text-slate-700">
+                            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${t.completed ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300'}`}>
+                              {t.completed && <Check size={10} className="text-white" />}
+                            </div>
+                            <span className={t.completed ? 'line-through text-slate-400' : ''}>{t.text}</span>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {dayJournal.plans && (
-                <div>
-                  <p className="text-xs text-slate-500 mb-1 font-medium">Plans</p>
-                  <p className="text-sm text-slate-700 bg-slate-50 p-3 rounded-xl">{dayJournal.plans}</p>
-                </div>
+                    </div>
+                  )}
+                  {dayJournal.plans && (
+                    <div>
+                      <p className="text-xs text-slate-500 mb-1 font-medium">Plans</p>
+                      <p className="text-sm text-slate-700 bg-slate-50 p-3 rounded-xl">{dayJournal.plans}</p>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}

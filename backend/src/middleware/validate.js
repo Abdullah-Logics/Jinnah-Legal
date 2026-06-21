@@ -135,23 +135,25 @@ export const timeEntrySchema = z.object({
 
 export const journalSchema = z.object({
   date: z.string().min(1, 'Date is required'),
-  notes: z.string().max(10000).optional().default(''),
+  notes: z.string().max(100000).optional().default(''),
   todos: z.array(z.object({
     id: z.string(),
     text: z.string(),
     completed: z.boolean(),
   })).optional().default([]),
-  plans: z.string().max(10000).optional().default(''),
+  plans: z.string().max(100000).optional().default(''),
+  content: z.string().max(1000000).optional().default(''),
 });
 
 export const journalUpdateSchema = z.object({
-  notes: z.string().max(10000).optional(),
+  notes: z.string().max(100000).optional(),
   todos: z.array(z.object({
     id: z.string(),
     text: z.string(),
     completed: z.boolean(),
   })).optional(),
-  plans: z.string().max(10000).optional(),
+  plans: z.string().max(100000).optional(),
+  content: z.string().max(1000000).optional(),
 });
 
 export const aiChatSchema = z.object({

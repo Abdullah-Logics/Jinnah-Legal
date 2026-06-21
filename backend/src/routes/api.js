@@ -138,10 +138,10 @@ apiRouter.get('/journal', asyncHandler(async (req, res) => {
 }));
 
 apiRouter.post('/journal', validate(journalSchema), asyncHandler(async (req, res) => {
-  const { date, notes, todos, plans } = req.body;
+  const { date, notes, todos, plans, content } = req.body;
   const id = uuid();
-  await run('INSERT INTO journal_entries (id,user_id,date,notes,todos,plans) VALUES (?,?,?,?,?,?)',
-    [id, req.user.id, date, notes, JSON.stringify(todos), plans]);
+  await run('INSERT INTO journal_entries (id,user_id,date,notes,todos,plans,content) VALUES (?,?,?,?,?,?,?)',
+    [id, req.user.id, date, notes, JSON.stringify(todos), plans, content || '']);
   const entry = await queryOne('SELECT * FROM journal_entries WHERE id = ?', [id]);
   res.status(201).json({ ...entry, todos: safeJson(entry.todos, []) });
 }));
@@ -150,9 +150,9 @@ apiRouter.patch('/journal/:id', validate(journalUpdateSchema), asyncHandler(asyn
   const existing = await queryOne('SELECT * FROM journal_entries WHERE id=? AND user_id=?', [req.params.id, req.user.id]);
   if (!existing) throw new AppError('Journal entry not found', 404);
 
-  const { notes, todos, plans } = req.body;
-  await run('UPDATE journal_entries SET notes=?,todos=?,plans=? WHERE id=? AND user_id=?',
-    [notes??existing.notes, todos ? JSON.stringify(todos) : existing.todos, plans??existing.plans, req.params.id, req.user.id]);
+  const { notes, todos, plans, content } = req.body;
+  await run('UPDATE journal_entries SET notes=?,todos=?,plans=?,content=? WHERE id=? AND user_id=?',
+    [notes??existing.notes, todos ? JSON.stringify(todos) : existing.todos, plans??existing.plans, content ?? existing.content, req.params.id, req.user.id]);
   const entry = await queryOne('SELECT * FROM journal_entries WHERE id = ?', [req.params.id]);
   res.json({ ...entry, todos: safeJson(entry.todos, []) });
 }));

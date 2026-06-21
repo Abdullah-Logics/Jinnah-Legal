@@ -137,7 +137,7 @@ export class SqliteAdapter {
       );
       CREATE TABLE IF NOT EXISTS journal_entries (
         id TEXT PRIMARY KEY, user_id TEXT, date TEXT NOT NULL,
-        notes TEXT, todos TEXT DEFAULT '[]', plans TEXT,
+        notes TEXT, todos TEXT DEFAULT '[]', plans TEXT, content TEXT DEFAULT '',
         created_at TEXT DEFAULT (datetime('now'))
       );
       CREATE TABLE IF NOT EXISTS invoices (
@@ -172,6 +172,7 @@ export class SqliteAdapter {
     try { this.db.run("ALTER TABLE documents ADD COLUMN type TEXT DEFAULT 'draft'"); } catch {}
     try { this.db.run("ALTER TABLE documents ADD COLUMN case_id TEXT"); } catch {}
     try { this.db.run("ALTER TABLE documents ADD COLUMN updated_at TEXT DEFAULT (datetime('now'))"); } catch {}
+    try { this.db.run("ALTER TABLE journal_entries ADD COLUMN content TEXT DEFAULT ''"); } catch {}
     this._save();
   }
 }

@@ -79,6 +79,7 @@ export interface JournalEntry {
   notes: string;
   todos: { id: string; text: string; completed: boolean }[];
   plans: string;
+  content: string;
 }
 
 export interface Invoice {
@@ -116,6 +117,7 @@ function normalizeJournalEntry(e: Record<string, unknown>): JournalEntry {
     notes: e.notes as string,
     todos: e.todos as { id: string; text: string; completed: boolean }[] || [],
     plans: e.plans as string || '',
+    content: (e.content as string) || '',
   };
 }
 

@@ -132,7 +132,7 @@ export class MssqlAdapter {
       CREATE TABLE journal_entries (
         id NVARCHAR(36) PRIMARY KEY, user_id NVARCHAR(36),
         date NVARCHAR(20) NOT NULL, notes NVARCHAR(MAX),
-        todos NVARCHAR(MAX) DEFAULT '[]', plans NVARCHAR(MAX),
+        todos NVARCHAR(MAX) DEFAULT '[]', plans NVARCHAR(MAX), content NVARCHAR(MAX) DEFAULT '',
         created_at DATETIME2 DEFAULT GETDATE()
       )`,
       `IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='invoices' AND xtype='U')

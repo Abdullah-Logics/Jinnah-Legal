@@ -106,7 +106,7 @@ export class PostgresAdapter {
         CREATE TABLE IF NOT EXISTS journal_entries (
           id TEXT PRIMARY KEY, user_id TEXT,
           date TEXT NOT NULL, notes TEXT,
-          todos TEXT DEFAULT '[]', plans TEXT,
+          todos TEXT DEFAULT '[]', plans TEXT, content TEXT DEFAULT '',
           created_at TIMESTAMP DEFAULT NOW()
         );
         CREATE TABLE IF NOT EXISTS invoices (

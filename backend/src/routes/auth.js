@@ -2,7 +2,7 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { v4 as uuid } from 'uuid';
 import { run, query, queryOne } from '../db/adapter.js';
-import { signToken } from '../middleware/auth.js';
+import { signToken, auth } from '../middleware/auth.js';
 import { validate, loginSchema, registerSchema } from '../middleware/validate.js';
 import { AppError, asyncHandler } from '../middleware/errorHandler.js';
 
@@ -89,6 +89,19 @@ authRouter.post('/register', validate(registerSchema), asyncHandler(async (req, 
     throw new AppError('Failed to create user', 500);
   }
   res.status(201).json({ token: signToken(user), user: toPublic(user) });
+}));
+
+authRouter.patch('/password', auth, asyncHandler(async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword || !newPassword) throw new AppError('currentPassword and newPassword are required', 400);
+  if (newPassword.length < 6) throw new AppError('New password must be at least 6 characters', 400);
+  const user = await queryOne('SELECT * FROM users WHERE id = ?', [req.user.id]);
+  if (!user) throw new AppError('User not found', 404);
+  const match = await bcrypt.compare(currentPassword, user.password_hash);
+  if (!match) throw new AppError('Current password is incorrect', 401);
+  const hash = await bcrypt.hash(newPassword, 10);
+  await run('UPDATE users SET password_hash = ? WHERE id = ?', [hash, req.user.id]);
+  res.json({ ok: true, message: 'Password changed successfully' });
 }));
 
 authRouter.get('/me', asyncHandler(async (req, res) => {

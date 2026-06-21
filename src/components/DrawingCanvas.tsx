@@ -1,36 +1,30 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
+import { Canvas, Rect, Ellipse, Line, PencilBrush } from 'fabric';
 import { Pencil, Square, Circle, Minus, ArrowRight, Eraser, RotateCcw, Trash2 } from 'lucide-react';
-
-interface FabricClasses {
-  Canvas: any;
-  Rect: any;
-  Ellipse: any;
-  Line: any;
-  PencilBrush: any;
-}
 
 export default function DrawingCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [canvas, setCanvas] = useState<any>(null);
-  const [fabricClasses, setFabricClasses] = useState<FabricClasses | null>(null);
   const [tool, setTool] = useState<'pen' | 'rect' | 'circle' | 'line' | 'arrow' | 'eraser'>('pen');
   const [color, setColor] = useState('#1e293b');
   const [strokeWidth, setStrokeWidth] = useState(3);
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [isDrawing, setIsDrawing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const startPos = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const shapeRef = useRef<any>(null);
 
   useEffect(() => {
+    if (!canvasRef.current) return;
     let cancelled = false;
-    (async () => {
-      const fabricModule = await import('fabric');
-      if (cancelled || !canvasRef.current) return;
-      const { Canvas, Rect, Ellipse, Line, PencilBrush } = fabricModule;
-      setFabricClasses({ Canvas, Rect, Ellipse, Line, PencilBrush });
+    try {
+      const container = canvasRef.current.parentElement;
+      if (!container) {
+        if (!cancelled) setError('Canvas container not found');
+        return;
+      }
 
-      const container = canvasRef.current.parentElement!;
       const c = new Canvas(canvasRef.current, {
         width: container.clientWidth || 600,
         height: 450,
@@ -49,20 +43,22 @@ export default function DrawingCanvas() {
         setHistoryIndex(prev => prev + 1);
       });
 
-      setCanvas(c);
-    })();
+      if (!cancelled) setCanvas(c);
+    } catch (e) {
+      if (!cancelled) setError('Failed to initialize canvas');
+    }
     return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
-    if (!canvas || !fabricClasses) return;
+    if (!canvas) return;
     canvas.selection = false;
     canvas.isDrawingMode = false;
 
     if (tool === 'pen') {
       canvas.isDrawingMode = true;
       if (!canvas.freeDrawingBrush) {
-        canvas.freeDrawingBrush = new fabricClasses.PencilBrush(canvas);
+        canvas.freeDrawingBrush = new PencilBrush(canvas);
       }
       canvas.freeDrawingBrush.color = color;
       canvas.freeDrawingBrush.width = strokeWidth;
@@ -70,7 +66,7 @@ export default function DrawingCanvas() {
     } else if (tool === 'eraser') {
       canvas.isDrawingMode = true;
       if (!canvas.freeDrawingBrush) {
-        canvas.freeDrawingBrush = new fabricClasses.PencilBrush(canvas);
+        canvas.freeDrawingBrush = new PencilBrush(canvas);
       }
       canvas.freeDrawingBrush.color = '#ffffff';
       canvas.freeDrawingBrush.width = strokeWidth * 6;
@@ -80,7 +76,7 @@ export default function DrawingCanvas() {
       canvas.selection = false;
       canvas.defaultCursor = 'crosshair';
     }
-  }, [tool, color, strokeWidth, canvas, fabricClasses]);
+  }, [tool, color, strokeWidth, canvas]);
 
   const getPointer = useCallback((e: any) => {
     if (!canvas) return { x: 0, y: 0 };
@@ -88,24 +84,24 @@ export default function DrawingCanvas() {
   }, [canvas]);
 
   const handleMouseDown = useCallback((e: any) => {
-    if (tool === 'pen' || tool === 'eraser' || !canvas || !fabricClasses) return;
+    if (tool === 'pen' || tool === 'eraser' || !canvas) return;
     setIsDrawing(true);
     const pointer = getPointer(e);
     startPos.current = pointer;
 
     let shape: any = null;
     if (tool === 'rect') {
-      shape = new fabricClasses.Rect({
+      shape = new Rect({
         left: pointer.x, top: pointer.y, width: 0, height: 0,
         fill: 'transparent', stroke: color, strokeWidth,
       });
     } else if (tool === 'circle') {
-      shape = new fabricClasses.Ellipse({
+      shape = new Ellipse({
         left: pointer.x, top: pointer.y, rx: 0, ry: 0,
         fill: 'transparent', stroke: color, strokeWidth,
       });
     } else if (tool === 'line' || tool === 'arrow') {
-      shape = new fabricClasses.Line([pointer.x, pointer.y, pointer.x, pointer.y], {
+      shape = new Line([pointer.x, pointer.y, pointer.x, pointer.y], {
         stroke: color, strokeWidth,
       });
     }
@@ -114,7 +110,7 @@ export default function DrawingCanvas() {
       canvas.add(shape);
       canvas.renderAll();
     }
-  }, [tool, canvas, fabricClasses, color, strokeWidth, getPointer]);
+  }, [tool, canvas, color, strokeWidth, getPointer]);
 
   const handleMouseMove = useCallback((e: any) => {
     if (!isDrawing || !canvas || !shapeRef.current) return;
@@ -193,10 +189,21 @@ export default function DrawingCanvas() {
 
   const colors = ['#1e293b', '#dc2626', '#ea580c', '#ca8a04', '#16a34a', '#2563eb', '#7c3aed', '#ec4899', '#78716c', '#000000'];
 
-  if (!canvas || !fabricClasses) {
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-[300px] bg-red-50 rounded-xl border border-red-200 text-red-600 text-sm">
+        {error}
+      </div>
+    );
+  }
+
+  if (!canvas) {
     return (
       <div className="flex items-center justify-center h-[300px] bg-slate-50 rounded-xl border border-slate-200 text-slate-400 text-sm">
-        Loading drawing canvas...
+        <div className="flex flex-col items-center gap-2">
+          <div className="w-6 h-6 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+          <span>Loading drawing canvas...</span>
+        </div>
       </div>
     );
   }

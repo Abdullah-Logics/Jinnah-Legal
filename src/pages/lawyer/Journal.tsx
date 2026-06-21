@@ -15,7 +15,7 @@ import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough,
   List, ListOrdered, CheckSquare, Quote, Code, Pilcrow,
   Heading1, Heading2, Heading3, MapPin, Plus, Trash2, Image,
-  Clock,
+  Clock, Gavel, ArrowUpDown,
 } from 'lucide-react';
 
 const SLASH_COMMANDS = [
@@ -42,6 +42,13 @@ export default function LawyerJournal() {
   const [newTodo, setNewTodo] = useState('');
   const [tab, setTab] = useState<'notes' | 'sketch'>('notes');
   const [entryCreated, setEntryCreated] = useState<string | null>(null);
+  const [showScheduler, setShowScheduler] = useState(false);
+  const [scheduleCase, setScheduleCase] = useState('');
+  const [scheduleDate, setScheduleDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [scheduleType, setScheduleType] = useState<'hearing' | 'meeting' | 'deadline'>('hearing');
+  const [scheduleTitle, setScheduleTitle] = useState('');
+  const [scheduleLocation, setScheduleLocation] = useState('');
+  const [scheduling, setScheduling] = useState(false);
 
   useEffect(() => { loadJournals(); loadCases(); }, [loadJournals, loadCases]);
 
@@ -189,6 +196,36 @@ export default function LawyerJournal() {
     if (editor) saveEntry(editor.getHTML(), updated);
   };
 
+  const allUpcoming = myCases.flatMap(c => [
+    ...c.courtDates.map(d => ({ type: 'hearing' as const, caseTitle: c.title, caseId: c.id, date: d.date, court: d.court, notes: d.notes })),
+    ...c.timeline.filter(t => new Date(t.date) >= new Date()).map(t => ({ type: 'event' as const, caseTitle: c.title, caseId: c.id, date: t.date, event: t.event, description: t.description })),
+  ]).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(0, 10);
+
+  const handleSchedule = async () => {
+    if (!scheduleCase || !scheduleDate) return;
+    setScheduling(true);
+    try {
+      if (scheduleType === 'hearing') {
+        await fetch(`${import.meta.env.DEV ? 'http://localhost:3001' : 'https://headphones-june-exterior-performer.trycloudflare.com'}/api/cases/${scheduleCase}/court-dates`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+          body: JSON.stringify({ date: scheduleDate, court: scheduleLocation, notes: scheduleTitle }),
+        });
+      } else {
+        await fetch(`${import.meta.env.DEV ? 'http://localhost:3001' : 'https://headphones-june-exterior-performer.trycloudflare.com'}/api/cases/${scheduleCase}/timeline`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+          body: JSON.stringify({ date: scheduleDate, event: scheduleTitle, description: scheduleLocation }),
+        });
+      }
+      setShowScheduler(false);
+      setScheduleTitle('');
+      setScheduleLocation('');
+      loadCases();
+    } catch {}
+    setScheduling(false);
+  };
+
   if (!editor) return null;
 
   return (
@@ -239,6 +276,59 @@ export default function LawyerJournal() {
           </div>
         </div>
       )}
+
+      {/* Upcoming & Scheduler */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Upcoming Events */}
+        {allUpcoming.length > 0 && (
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 lg:col-span-2 max-h-48 overflow-y-auto">
+            <h3 className="font-semibold text-slate-900 mb-2 text-sm flex items-center gap-2">
+              <ArrowUpDown size={16} className="text-emerald-600" /> Upcoming
+            </h3>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {allUpcoming.map((ev, i) => (
+                <div key={i} className="flex-shrink-0 p-2.5 rounded-xl text-xs border-l-4 min-w-[160px] border-slate-200 bg-slate-50">
+                  <span className="text-emerald-700 font-semibold">{format(new Date(ev.date), 'MMM d')}</span>
+                  <p className="font-medium text-slate-900 truncate">{ev.type === 'hearing' ? `Court: ${ev.caseTitle}` : ev.event}</p>
+                  <p className="text-slate-400 truncate">{ev.caseTitle}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Quick Schedule */}
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+          <button
+            onClick={() => setShowScheduler(!showScheduler)}
+            className="flex items-center gap-2 text-sm font-medium text-slate-700 hover:text-emerald-700 transition w-full"
+          >
+            <Gavel size={16} className="text-emerald-600" />
+            {showScheduler ? 'Close Scheduler' : 'Schedule'}
+          </button>
+          {showScheduler && (
+            <div className="mt-3 space-y-2.5">
+              <select value={scheduleCase} onChange={e => setScheduleCase(e.target.value)} className="w-full text-sm px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                <option value="">Select case...</option>
+                {myCases.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+              </select>
+              <div className="flex gap-2">
+                {(['hearing', 'meeting', 'deadline'] as const).map(t => (
+                  <button key={t} onClick={() => setScheduleType(t)} className={`flex-1 py-1.5 rounded-lg text-xs font-medium capitalize transition ${scheduleType === t ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>{t}</button>
+                ))}
+              </div>
+              <input type="date" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)} className="w-full text-sm px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+              <input type="text" value={scheduleTitle} onChange={e => setScheduleTitle(e.target.value)} placeholder={scheduleType === 'hearing' ? 'Notes (optional)' : 'Title'} className="w-full text-sm px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+              {scheduleType === 'hearing' && (
+                <input type="text" value={scheduleLocation} onChange={e => setScheduleLocation(e.target.value)} placeholder="Court & location" className="w-full text-sm px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+              )}
+              <button onClick={handleSchedule} disabled={scheduling || !scheduleCase} className="w-full py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition disabled:opacity-50">
+                {scheduling ? 'Scheduling...' : `Schedule ${scheduleType}`}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Journal Page */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100">

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   FileText, Plus, Search, Download, Trash2, Upload, Loader,
   ArrowLeft, Save, Sparkles, Edit3, BookTemplate, FolderOpen,
-  X, Eye, ChevronDown
+  X, Eye, ChevronDown, Printer, CaseSensitive,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 
@@ -290,7 +290,7 @@ Through
 };
 
 export default function LawyerDocuments() {
-  const { currentUser, cases, token, loadCases } = useStore();
+  const { currentUser, cases, users, token, loadCases } = useStore();
   const [search, setSearch] = useState('');
   const [docs, setDocs] = useState<Doc[]>([]);
   const [view, setView] = useState<'list' | 'editor'>('list');
@@ -417,18 +417,46 @@ export default function LawyerDocuments() {
   };
 
   const applyTemplate = (name: string) => {
-    setDocContent(TEMPLATES[name] || '');
+    let content = TEMPLATES[name] || '';
+    if (docCaseId) {
+      const linkedCase = myCases.find(c => c.id === docCaseId);
+      if (linkedCase) {
+        const client = users.find(u => u.id === linkedCase.clientId);
+        content = content
+          .replace(/\[Client Name\]/g, client?.name || '[Client Name]')
+          .replace(/\[Your Name \/ Firm Name\]/g, currentUser?.name || '[Your Name / Firm Name]')
+          .replace(/\[Recipient Name\]/g, client?.name || '[Recipient Name]')
+          .replace(/\[Subject of Notice\]/g, `RE: ${linkedCase.title}`)
+          .replace(/\[Case Title\]/g, linkedCase.title)
+          .replace(/\[Case Number\]/g, linkedCase.id.slice(0, 8).toUpperCase());
+      }
+    }
+    setDocContent(content);
     setShowTemplates(false);
+  };
+
+  const linkedCase = docCaseId ? myCases.find(c => c.id === docCaseId) : null;
+  const linkedClient = linkedCase ? users.find(u => u.id === linkedCase.clientId) : null;
+
+  const buildAIContext = () => {
+    let ctx = '';
+    if (linkedCase) {
+      ctx += `\nCase: ${linkedCase.title}\nType: ${linkedCase.type}\nStatus: ${linkedCase.status}\n`;
+      if (linkedClient) ctx += `Client: ${linkedClient.name} (${linkedClient.email})\n`;
+    }
+    return ctx;
   };
 
   const generateWithAI = async () => {
     if (!aiPrompt.trim()) return;
     setAiLoading(true);
     try {
+      const caseCtx = buildAIContext();
+      const msg = caseCtx ? `Context:${caseCtx}\n\nTask: ${aiPrompt}` : aiPrompt;
       const res = await fetch(`${API}/api/ai/chat`, {
         method: 'POST',
         headers: headers(),
-        body: JSON.stringify({ message: aiPrompt, history: [], sessionId: 'doc-gen-' + Date.now() }),
+        body: JSON.stringify({ message: msg, history: [], sessionId: 'doc-gen-' + Date.now() }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -445,8 +473,11 @@ export default function LawyerDocuments() {
       const selected = textRef.current?.selectionStart !== undefined
         ? docContent.substring(textRef.current.selectionStart, textRef.current.selectionEnd)
         : '';
-      const context = selected || docContent.slice(0, 2000);
-      const fullPrompt = `Edit the following document text according to these instructions: "${aiPrompt}"\n\nDocument text:\n${context}`;
+      const docCtx = selected || docContent.slice(0, 2000);
+      const caseCtx = buildAIContext();
+      const fullPrompt = caseCtx
+        ? `Context:${caseCtx}\n\nEdit the following text: "${aiPrompt}"\n\nText:\n${docCtx}`
+        : `Edit the following document text according to these instructions: "${aiPrompt}"\n\nDocument text:\n${docCtx}`;
       const res = await fetch(`${API}/api/ai/chat`, {
         method: 'POST',
         headers: headers(),
@@ -466,6 +497,20 @@ export default function LawyerDocuments() {
     setAiLoading(false);
   };
 
+  const downloadPDF = () => {
+    const win = window.open('', '_blank');
+    if (!win) return;
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${docName}</title>
+<style>
+  @page { margin: 20mm; }
+  body { font-family: 'Georgia', serif; font-size: 12pt; line-height: 1.8; color: #000; padding: 0; margin: 0; }
+  .content { max-width: 210mm; margin: 0 auto; white-space: pre-wrap; }
+  @media print { body { padding: 0; } }
+</style></head><body><div class="content">${docContent.replace(/\n/g, '<br>')}</div>
+<script>window.print();<\/script></body></html>`);
+    win.document.close();
+  };
+
   const filtered = docs.filter(d =>
     d.name.toLowerCase().includes(search.toLowerCase())
   );
@@ -480,38 +525,36 @@ export default function LawyerDocuments() {
     return (
       <div className="h-full flex flex-col">
         {/* Toolbar */}
-        <div className="bg-white border-b border-slate-200 px-4 py-3 flex items-center gap-3 flex-shrink-0">
+        <div className="bg-white border-b border-slate-200 px-4 py-3 flex items-center gap-2 flex-shrink-0">
           <button onClick={() => setView('list')} className="p-2 hover:bg-slate-100 rounded-lg transition">
             <ArrowLeft size={20} className="text-slate-600" />
           </button>
-          <div className="flex-1 flex items-center gap-3 flex-wrap">
-            <input
-              value={docName}
-              onChange={e => setDocName(e.target.value)}
-              placeholder="Document name..."
-              className="text-lg font-semibold text-slate-900 bg-transparent border-none outline-none placeholder-slate-300 min-w-[200px] flex-1"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleSave}
-              disabled={saving || !docName.trim()}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 transition disabled:opacity-50 text-sm"
-            >
-              {saving ? <Loader className="animate-spin" size={16} /> : <Save size={16} />}
-              Save
-            </button>
-          </div>
+          <input
+            value={docName}
+            onChange={e => setDocName(e.target.value)}
+            placeholder="Document name..."
+            className="flex-1 text-lg font-semibold text-slate-900 bg-transparent border-none outline-none placeholder-slate-300 min-w-[120px]"
+          />
+          <button onClick={downloadPDF} disabled={!docContent.trim()}
+            className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-emerald-600 transition disabled:opacity-30"
+            title="Download as PDF"
+          >
+            <Printer size={18} />
+          </button>
+          <button onClick={handleSave} disabled={saving || !docName.trim()}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 transition disabled:opacity-50 text-sm"
+          >
+            {saving ? <Loader className="animate-spin" size={16} /> : <Save size={16} />}
+            Save
+          </button>
         </div>
 
         {/* Metadata Bar */}
-        <div className="bg-white border-b border-slate-100 px-4 py-2 flex items-center gap-4 flex-wrap text-sm flex-shrink-0">
-          <div className="flex items-center gap-2">
+        <div className="bg-white border-b border-slate-100 px-4 py-2 flex items-center gap-3 flex-wrap text-sm flex-shrink-0">
+          <div className="flex items-center gap-1.5">
             <FolderOpen size={14} className="text-slate-400" />
-            <select
-              value={docCaseId}
-              onChange={e => setDocCaseId(e.target.value)}
-              className="text-sm bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-emerald-500"
+            <select value={docCaseId} onChange={e => setDocCaseId(e.target.value)}
+              className="text-sm bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-emerald-500 max-w-[200px]"
             >
               <option value="">No case linked</option>
               {myCases.map(c => (
@@ -519,33 +562,27 @@ export default function LawyerDocuments() {
               ))}
             </select>
           </div>
+          {linkedCase && linkedClient && (
+            <span className="text-xs text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full flex items-center gap-1">
+              <CaseSensitive size={12} /> {linkedClient.name}
+            </span>
+          )}
 
-          {/* Templates Dropdown */}
           <div className="relative">
-            <button
-              onClick={() => setShowTemplates(!showTemplates)}
+            <button onClick={() => setShowTemplates(!showTemplates)}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 transition text-slate-600"
             >
-              <BookTemplate size={14} />
-              Templates
-              <ChevronDown size={14} />
+              <BookTemplate size={14} /> Templates <ChevronDown size={14} />
             </button>
             <AnimatePresence>
               {showTemplates && (
-                <motion.div
-                  initial={{ opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  className="absolute top-full left-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-20 w-56 max-h-80 overflow-y-auto"
+                <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
+                  className="absolute top-full left-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-20 w-56 max-h-72 overflow-y-auto"
                 >
                   {Object.keys(TEMPLATES).map(name => (
-                    <button
-                      key={name}
-                      onClick={() => applyTemplate(name)}
+                    <button key={name} onClick={() => applyTemplate(name)}
                       className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 transition"
-                    >
-                      {name}
-                    </button>
+                    >{name}</button>
                   ))}
                 </motion.div>
               )}
@@ -554,50 +591,44 @@ export default function LawyerDocuments() {
         </div>
 
         {/* Editor Area */}
-        <div className="flex-1 overflow-auto bg-slate-100 p-4 md:p-8">
-          <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 min-h-[500px] flex flex-col">
-            <textarea
-              ref={textRef}
-              value={docContent}
-              onChange={e => setDocContent(e.target.value)}
-              placeholder="Start typing your document here... or use a template above."
-              className="flex-1 w-full p-6 md:p-10 text-slate-800 text-base leading-relaxed resize-none outline-none font-serif rounded-2xl min-h-[500px]"
+        <div className="flex-1 overflow-auto bg-slate-100 p-4 md:p-8 min-h-0">
+          <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col min-h-[400px]">
+            <textarea ref={textRef} value={docContent} onChange={e => setDocContent(e.target.value)}
+              placeholder="Start typing your document here... or select a template above."
+              className="flex-1 w-full p-6 md:p-10 text-slate-800 text-base leading-relaxed resize-none outline-none font-serif rounded-2xl min-h-[300px]"
               style={{ lineHeight: '1.8' }}
             />
           </div>
         </div>
 
         {/* AI Panel */}
-        <div className="bg-white border-t border-slate-200 px-4 py-3 flex-shrink-0">
-          <div className="max-w-4xl mx-auto flex items-center gap-3">
-            <input
-              value={aiPrompt}
-              onChange={e => setAiPrompt(e.target.value)}
-              placeholder="Ask AI to generate or edit document content..."
-              className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
-              onKeyDown={e => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  if (aiPrompt.trim()) generateWithAI();
-                }
-              }}
-            />
-            <button
-              onClick={generateWithAI}
-              disabled={aiLoading || !aiPrompt.trim()}
-              className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 transition disabled:opacity-50 text-sm"
-            >
-              {aiLoading ? <Loader className="animate-spin" size={16} /> : <Sparkles size={16} />}
-              Generate
-            </button>
-            <button
-              onClick={editWithAI}
-              disabled={aiLoading || !aiPrompt.trim()}
-              className="flex items-center gap-2 px-4 py-2.5 bg-slate-700 text-white rounded-xl font-semibold hover:bg-slate-800 transition disabled:opacity-50 text-sm"
-            >
-              <Edit3 size={16} />
-              Edit
-            </button>
+        <div className="bg-white border-t-2 border-emerald-100 px-4 py-3 flex-shrink-0">
+          <div className="max-w-4xl mx-auto">
+            <div className="flex items-center gap-2 mb-2">
+              <Sparkles size={14} className="text-emerald-600" />
+              <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">AI Assistant</span>
+              {linkedCase && <span className="text-xs text-slate-400">· Context: {linkedCase.title}</span>}
+            </div>
+            <div className="flex items-center gap-2">
+              <input value={aiPrompt} onChange={e => setAiPrompt(e.target.value)}
+                placeholder="Ask AI to draft, rewrite, or improve this document..."
+                className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (aiPrompt.trim()) generateWithAI(); }
+                }}
+              />
+              <button onClick={generateWithAI} disabled={aiLoading || !aiPrompt.trim()}
+                className="flex items-center gap-1.5 px-4 py-2.5 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 transition disabled:opacity-50 text-sm whitespace-nowrap"
+              >
+                {aiLoading ? <Loader className="animate-spin" size={15} /> : <Sparkles size={15} />}
+                Generate
+              </button>
+              <button onClick={editWithAI} disabled={aiLoading || !aiPrompt.trim()}
+                className="flex items-center gap-1.5 px-4 py-2.5 bg-slate-700 text-white rounded-xl font-semibold hover:bg-slate-800 transition disabled:opacity-50 text-sm whitespace-nowrap"
+              >
+                <Edit3 size={15} /> Edit
+              </button>
+            </div>
           </div>
         </div>
       </div>

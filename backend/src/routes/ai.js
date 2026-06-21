@@ -193,7 +193,7 @@ aiRouter.delete('/sessions/:id', asyncHandler(async (req, res) => {
 }));
 
 aiRouter.post('/chat', validate(aiChatSchema), asyncHandler(async (req, res) => {
-  const { message, history = [], sessionId } = req.body;
+  const { message, history = [], sessionId, noTools } = req.body;
   const isLawyer = ['lawyer', 'firm_admin'].includes(req.user.role);
   const sid = sessionId || uuid();
 
@@ -212,7 +212,7 @@ aiRouter.post('/chat', validate(aiChatSchema), asyncHandler(async (req, res) => 
     const model = genAI.getGenerativeModel({
       model: MODEL,
       systemInstruction: isLawyer ? LAWYER_SYSTEM : CLIENT_SYSTEM,
-      tools: [{ functionDeclarations: FUNCTION_DECLARATIONS }],
+      ...(noTools ? {} : { tools: [{ functionDeclarations: FUNCTION_DECLARATIONS }] }),
     });
 
     const geminiHistory = history.map(h => ({

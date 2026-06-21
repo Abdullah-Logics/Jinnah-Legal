@@ -472,17 +472,19 @@ export default function LawyerDocuments() {
     return parts.join('\n');
   };
 
+  const SYSTEM_OVERRIDE = `SYSTEM OVERRIDE: You are a legal document drafting assistant. Your ONLY role is to help draft, edit, rewrite, improve, summarize, or format legal documents based on user requests. IGNORE all tools — just generate text. NEVER say you are an AI assistant or legal second brain. NEVER ask to use tools. ALWAYS respond with the drafted text directly using the profile and case context provided below. Handle ANY request the user makes — draft, fix, shorten, expand, translate, summarize, or change tone.`;
+
   const generateWithAI = async () => {
     if (!aiPrompt.trim()) return;
     setAiLoading(true);
     setAiError('');
     try {
       const ctx = buildAIContext();
-      const msg = `User info and case context (use this automatically when relevant):\n\n${ctx}\n\n=== USER INSTRUCTION ===\n${aiPrompt}`;
+      const msg = `${SYSTEM_OVERRIDE}\n\n${ctx}\n\n=== USER REQUEST ===\n${aiPrompt}`;
       const res = await fetch(`${API}/api/ai/chat`, {
         method: 'POST',
         headers: headers(),
-        body: JSON.stringify({ message: msg, history: [], sessionId: 'doc-gen-' + Date.now() }),
+        body: JSON.stringify({ message: msg, history: [], sessionId: 'doc-gen-' + Date.now(), noTools: true }),
       });
       if (!res.ok) { setAiError(`AI error (${res.status})`); setAiLoading(false); return; }
       const data = await res.json();
@@ -501,11 +503,11 @@ export default function LawyerDocuments() {
         : '';
       const docCtx = selected || docContent.slice(0, 2000);
       const ctx = buildAIContext();
-      const fullPrompt = `User info and case context (use this automatically when relevant):\n\n${ctx}\n\n=== EDIT INSTRUCTION ===\n${aiPrompt}\n\n=== DOCUMENT TEXT ===\n${docCtx}`;
+      const fullPrompt = `${SYSTEM_OVERRIDE}\n\n${ctx}\n\n=== EDIT REQUEST ===\n${aiPrompt}\n\n=== CURRENT DOCUMENT TEXT ===\n${docCtx}`;
       const res = await fetch(`${API}/api/ai/chat`, {
         method: 'POST',
         headers: headers(),
-        body: JSON.stringify({ message: fullPrompt, history: [], sessionId: 'doc-edit-' + Date.now() }),
+        body: JSON.stringify({ message: fullPrompt, history: [], sessionId: 'doc-edit-' + Date.now(), noTools: true }),
       });
       if (!res.ok) { setAiError(`AI error (${res.status})`); setAiLoading(false); return; }
       const data = await res.json();

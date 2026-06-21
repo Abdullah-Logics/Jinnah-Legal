@@ -254,7 +254,7 @@ aiRouter.delete('/sessions/:id', asyncHandler(async (req, res) => {
 }));
 
 aiRouter.post('/chat', validate(aiChatSchema), asyncHandler(async (req, res) => {
-  const { message, history = [], sessionId, noTools } = req.body;
+  const { message, history = [], sessionId, noTools, noSession } = req.body;
   const isLawyer = ['lawyer', 'firm_admin'].includes(req.user.role);
   const sid = sessionId || uuid();
 
@@ -262,9 +262,11 @@ aiRouter.post('/chat', validate(aiChatSchema), asyncHandler(async (req, res) => 
     throw new AppError('AI service not configured. Set GEMINI_API_KEY in .env', 503);
   }
 
-  let session = await queryOne('SELECT id FROM ai_sessions WHERE id=? AND user_id=?', [sid, req.user.id]);
-  if (!session) {
-    await run('INSERT INTO ai_sessions (id,user_id,title) VALUES (?,?,?)', [sid, req.user.id, 'New Chat']);
+  if (!noSession) {
+    let session = await queryOne('SELECT id FROM ai_sessions WHERE id=? AND user_id=?', [sid, req.user.id]);
+    if (!session) {
+      await run('INSERT INTO ai_sessions (id,user_id,title) VALUES (?,?,?)', [sid, req.user.id, 'New Chat']);
+    }
   }
 
   try {
@@ -313,11 +315,13 @@ aiRouter.post('/chat', validate(aiChatSchema), asyncHandler(async (req, res) => 
       responseText = 'I completed the requested actions. Is there anything else I can help you with?';
     }
 
-    await run('INSERT INTO ai_chat_history (id,user_id,role,content,session_id) VALUES (?,?,?,?,?)', [uuid(), req.user.id, 'user', message, sid]);
-    await run('INSERT INTO ai_chat_history (id,user_id,role,content,session_id) VALUES (?,?,?,?,?)', [uuid(), req.user.id, 'assistant', responseText, sid]);
+    if (!noSession) {
+      await run('INSERT INTO ai_chat_history (id,user_id,role,content,session_id) VALUES (?,?,?,?,?)', [uuid(), req.user.id, 'user', message, sid]);
+      await run('INSERT INTO ai_chat_history (id,user_id,role,content,session_id) VALUES (?,?,?,?,?)', [uuid(), req.user.id, 'assistant', responseText, sid]);
 
-    const title = message.length > 50 ? message.slice(0, 50) + '...' : message;
-    await run('UPDATE ai_sessions SET title=? WHERE id=? AND title=?', [title, sid, 'New Chat']);
+      const title = message.length > 50 ? message.slice(0, 50) + '...' : message;
+      await run('UPDATE ai_sessions SET title=? WHERE id=? AND title=?', [title, sid, 'New Chat']);
+    }
 
     res.json({ response: responseText, model: MODEL, sessionId: sid, tokensUsed: 0 });
   } catch (err) {

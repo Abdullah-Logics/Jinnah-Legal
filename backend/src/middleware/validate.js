@@ -162,7 +162,9 @@ export const aiChatSchema = z.object({
     role: z.string(),
     content: z.string(),
   })).optional().default([]),
+  sessionId: z.string().optional(),
   noTools: z.boolean().optional().default(false),
+  noSession: z.boolean().optional().default(false),
 });
 
 export const adminVerifySchema = z.object({

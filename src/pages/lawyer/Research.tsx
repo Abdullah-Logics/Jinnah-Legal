@@ -39,7 +39,7 @@ export default function LawyerResearch() {
       const data = await api.post('/api/ai/chat', {
         message: `You are a legal research assistant for Pakistani law. Research this topic and provide findings with relevant statutes, case precedents, and analysis:\n\nTopic: ${query}`,
         history: [],
-        sessionId: 'research-' + Date.now(),
+        noSession: true,
         noTools: true,
       });
       const raw = (data.response || '').replace(/\*\*/g, '').trim();

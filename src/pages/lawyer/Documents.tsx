@@ -539,7 +539,7 @@ export default function LawyerDocuments() {
     const res = await fetch(`${API}/api/ai/chat`, {
       method: 'POST',
       headers: headers(),
-      body: JSON.stringify({ message: msg, history: [], sessionId: `doc-${mode}-${Date.now()}`, noTools: true }),
+      body: JSON.stringify({ message: msg, history: [], noSession: true, noTools: true }),
     });
     if (!res.ok) { setAiError(`AI error (${res.status})`); return ''; }
     const data = await res.json();

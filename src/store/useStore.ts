@@ -108,6 +108,17 @@ const API = import.meta.env.DEV
   ? 'http://localhost:3001'
   : 'https://headphones-june-exterior-performer.trycloudflare.com';
 
+function normalizeJournalEntry(e: Record<string, unknown>): JournalEntry {
+  return {
+    id: e.id as string,
+    userId: (e.user_id || e.userId) as string,
+    date: e.date as string,
+    notes: e.notes as string,
+    todos: e.todos as { id: string; text: string; completed: boolean }[] || [],
+    plans: e.plans as string || '',
+  };
+}
+
 function normalizeFirm(f: Record<string, unknown>): Firm {
   return {
     id: f.id as string,
@@ -363,20 +374,20 @@ export const useStore = create<AppState>()(
         const { token } = get();
         try {
           const j = await apiFetch('/api/journal', {}, token);
-          set({ journals: j });
+          set({ journals: (j as Record<string, unknown>[]).map(normalizeJournalEntry) });
         } catch {}
       },
 
       addJournalEntry: async (entry) => {
         const { token } = get();
         const newEntry = await apiFetch('/api/journal', { method: 'POST', body: JSON.stringify(entry) }, token);
-        set(state => ({ journals: [newEntry, ...state.journals] }));
+        set(state => ({ journals: [normalizeJournalEntry(newEntry as Record<string, unknown>), ...state.journals] }));
       },
 
       updateJournalEntry: async (entryId, updates) => {
         const { token } = get();
         const updated = await apiFetch(`/api/journal/${entryId}`, { method: 'PATCH', body: JSON.stringify(updates) }, token);
-        set(state => ({ journals: state.journals.map(j => j.id === entryId ? updated : j) }));
+        set(state => ({ journals: state.journals.map(j => j.id === entryId ? normalizeJournalEntry(updated as Record<string, unknown>) : j) }));
       },
 
       loadInvoices: async () => {

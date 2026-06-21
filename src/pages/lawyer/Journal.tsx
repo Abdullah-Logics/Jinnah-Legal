@@ -51,6 +51,7 @@ export default function LawyerJournal() {
   const [scheduling, setScheduling] = useState(false);
   const [plans, setPlans] = useState('');
   const [showHistory, setShowHistory] = useState(false);
+  const journalsLoaded = useRef(false);
 
   useEffect(() => { loadJournals(); loadCases(); }, [loadJournals, loadCases]);
 
@@ -135,9 +136,10 @@ export default function LawyerJournal() {
 
   useEffect(() => {
     if (todayEntry) {
+      journalsLoaded.current = true;
       setTodos(todayEntry.todos || []);
       setPlans(todayEntry.plans || '');
-      if (!entryCreated) setEntryCreated(todayEntry.createdAt || new Date().toISOString());
+      setEntryCreated(todayEntry.createdAt || new Date().toISOString());
       if (editor) {
         const current = editor.getHTML();
         if (current !== todayEntry.content && todayEntry.content) {
@@ -146,7 +148,7 @@ export default function LawyerJournal() {
           editor.commands.setContent('');
         }
       }
-    } else {
+    } else if (journalsLoaded.current) {
       setTodos([]);
       setPlans('');
       setEntryCreated(null);

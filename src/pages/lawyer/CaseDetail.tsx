@@ -106,8 +106,12 @@ export default function LawyerCaseDetail() {
 
       {/* Quick Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
+          <User className="text-emerald-600 mb-2" size={20} />
+          <p className="text-lg font-bold text-slate-900 truncate">{client?.name || '—'}</p>
+          <p className="text-sm text-slate-500">Client</p>
+        </div>
         {[
-          { label: 'Client', value: client?.name || 'Unknown', icon: User },
           { label: 'Documents', value: caseData.documents.length, icon: FileText },
           { label: 'Court Dates', value: caseData.courtDates.length, icon: Calendar },
           { label: 'Timeline Events', value: caseData.timeline.length, icon: Clock },
@@ -128,7 +132,11 @@ export default function LawyerCaseDetail() {
           {/* Description */}
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
             <h2 className="text-lg font-bold text-slate-900 mb-4">Case Description</h2>
-            <p className="text-slate-600 whitespace-pre-wrap">{caseData.description}</p>
+            {caseData.description ? (
+              <p className="text-slate-600 whitespace-pre-wrap">{caseData.description}</p>
+            ) : (
+              <p className="text-slate-400 italic">No description provided</p>
+            )}
           </div>
 
           {/* Timeline */}
@@ -219,18 +227,30 @@ export default function LawyerCaseDetail() {
                 <img src={client.avatar || `https://ui-avatars.com/api/?name=${client.name}`} alt={client.name} className="w-12 h-12 rounded-full object-cover" />
                 <div>
                   <h3 className="font-medium text-slate-900">{client.name}</h3>
-                  <p className="text-sm text-slate-500">{client.email}</p>
-                  <p className="text-sm text-slate-500">{client.phone}</p>
+                  {client.email && <p className="text-sm text-slate-500">{client.email}</p>}
+                  {client.phone && <p className="text-sm text-slate-500">{client.phone}</p>}
                 </div>
               </div>
+            ) : caseData.clientId ? (
+              <div className="text-center py-3">
+                <User className="mx-auto text-slate-300 mb-2" size={32} />
+                <p className="text-sm text-slate-400">Client data not loaded</p>
+                <p className="text-xs text-slate-300 mt-1">ID: {caseData.clientId.slice(0, 8)}</p>
+              </div>
             ) : (
-              <p className="text-slate-400">No client assigned</p>
+              <div className="text-center py-4">
+                <User className="mx-auto text-slate-300 mb-2" size={32} />
+                <p className="text-sm text-slate-400">No client assigned yet</p>
+                <p className="text-xs text-slate-300 mt-1">Assign a client to this case</p>
+              </div>
             )}
-            <Link to="/lawyer/messages"
-              className="flex items-center justify-center gap-2 mt-4 w-full bg-emerald-50 text-emerald-700 py-2.5 rounded-xl font-medium hover:bg-emerald-100 transition"
-            >
-              <MessageSquare size={18} /> Message Client
-            </Link>
+            {client && (
+              <Link to="/lawyer/messages"
+                className="flex items-center justify-center gap-2 mt-4 w-full bg-emerald-50 text-emerald-700 py-2.5 rounded-xl font-medium hover:bg-emerald-100 transition"
+              >
+                <MessageSquare size={18} /> Message Client
+              </Link>
+            )}
           </div>
 
           {/* Court Dates */}

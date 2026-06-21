@@ -302,6 +302,7 @@ export default function LawyerDocuments() {
   const [aiLoading, setAiLoading] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
+  const [aiError, setAiError] = useState('');
 
   const [docName, setDocName] = useState('');
   const [docContent, setDocContent] = useState('');
@@ -450,6 +451,7 @@ export default function LawyerDocuments() {
   const generateWithAI = async () => {
     if (!aiPrompt.trim()) return;
     setAiLoading(true);
+    setAiError('');
     try {
       const caseCtx = buildAIContext();
       const msg = caseCtx ? `Context:${caseCtx}\n\nTask: ${aiPrompt}` : aiPrompt;
@@ -458,17 +460,17 @@ export default function LawyerDocuments() {
         headers: headers(),
         body: JSON.stringify({ message: msg, history: [], sessionId: 'doc-gen-' + Date.now() }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        setDocContent(prev => prev + '\n\n--- AI GENERATED ---\n\n' + data.response);
-      }
-    } catch {}
+      if (!res.ok) { setAiError(`AI error (${res.status})`); setAiLoading(false); return; }
+      const data = await res.json();
+      setDocContent(prev => prev + '\n\n--- AI GENERATED ---\n\n' + data.response);
+    } catch (e) { setAiError('Network error — is the server running?'); }
     setAiLoading(false);
   };
 
   const editWithAI = async () => {
     if (!aiPrompt.trim()) return;
     setAiLoading(true);
+    setAiError('');
     try {
       const selected = textRef.current?.selectionStart !== undefined
         ? docContent.substring(textRef.current.selectionStart, textRef.current.selectionEnd)
@@ -483,17 +485,16 @@ export default function LawyerDocuments() {
         headers: headers(),
         body: JSON.stringify({ message: fullPrompt, history: [], sessionId: 'doc-edit-' + Date.now() }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        if (selected && textRef.current) {
-          const start = textRef.current.selectionStart;
-          const end = textRef.current.selectionEnd;
-          setDocContent(docContent.substring(0, start) + data.response + docContent.substring(end));
-        } else {
-          setDocContent(data.response);
-        }
+      if (!res.ok) { setAiError(`AI error (${res.status})`); setAiLoading(false); return; }
+      const data = await res.json();
+      if (selected && textRef.current) {
+        const start = textRef.current.selectionStart;
+        const end = textRef.current.selectionEnd;
+        setDocContent(docContent.substring(0, start) + data.response + docContent.substring(end));
+      } else {
+        setDocContent(data.response);
       }
-    } catch {}
+    } catch (e) { setAiError('Network error — is the server running?'); }
     setAiLoading(false);
   };
 
@@ -655,6 +656,7 @@ export default function LawyerDocuments() {
                 <Edit3 size={13} /> Edit
               </button>
             </div>
+            {aiError && <p className="text-[11px] text-red-500 mt-1.5 ml-0.5">{aiError}</p>}
           </div>
         </div>
       </div>

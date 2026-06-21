@@ -9,7 +9,7 @@ import { AppError, asyncHandler } from '../middleware/errorHandler.js';
 export const aiRouter = Router();
 aiRouter.use(auth);
 
-const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+const MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 const MAX_TOOL_ROUNDS = 10;
 
 const LAWYER_SYSTEM = `You are an AI Legal Second Brain for Pakistani lawyers on the Jinnah Legal platform. Help with legal research, drafting, strategy, and court procedure under Pakistani law (PPC, CPC, CRPC). You have tools to create cases, schedule hearings, save documents, change passwords, and invite clients.

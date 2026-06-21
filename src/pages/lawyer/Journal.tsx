@@ -13,7 +13,7 @@ import {
   BookOpen, Check, Calendar, ChevronLeft, ChevronRight,
   Bold, Italic, Underline as UnderlineIcon, Strikethrough,
   List, ListOrdered, CheckSquare, Quote, Code, Pilcrow,
-  Heading1, Heading2, Heading3, MapPin, Minus,
+  Heading1, Heading2, Heading3, MapPin, Plus, Trash2, Type,
 } from 'lucide-react';
 
 const SLASH_COMMANDS = [
@@ -36,6 +36,8 @@ export default function LawyerJournal() {
   const [slashSearch, setSlashSearch] = useState('');
   const slashRef = useRef<HTMLDivElement>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout>>();
+  const [todos, setTodos] = useState<{ id: string; text: string; completed: boolean }[]>([]);
+  const [newTodo, setNewTodo] = useState('');
 
   useEffect(() => { loadJournals(); loadCases(); }, [loadJournals, loadCases]);
 
@@ -55,15 +57,30 @@ export default function LawyerJournal() {
     c.label.toLowerCase().includes(slashSearch.toLowerCase())
   );
 
-  const saveEntry = useCallback(async (html: string) => {
+  const extractTodosFromHTML = useCallback((html: string) => {
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    const items: { id: string; text: string; completed: boolean }[] = [];
+    div.querySelectorAll('ul[data-type="taskList"] li[data-type="taskItem"]').forEach(li => {
+      const label = li.querySelector('label');
+      const checked = label?.getAttribute('data-checked') === 'true';
+      const p = li.querySelector('p');
+      const text = p?.textContent?.trim() || '';
+      if (text) items.push({ id: Date.now().toString() + Math.random(), text, completed: checked });
+    });
+    return items;
+  }, []);
+
+  const saveEntry = useCallback(async (contentHtml: string, todoList?: { id: string; text: string; completed: boolean }[]) => {
     setSaving(true);
+    const finalTodos = todoList ?? todos;
     const entry = {
       userId: currentUser?.id || '',
       date: dateKey,
       notes: '',
-      todos: [] as { id: string; text: string; completed: boolean }[],
+      todos: finalTodos,
       plans: '',
-      content: html,
+      content: contentHtml,
     };
     if (todayEntry) {
       await updateJournalEntry(todayEntry.id, entry);
@@ -71,7 +88,7 @@ export default function LawyerJournal() {
       await addJournalEntry(entry);
     }
     setSaving(false);
-  }, [currentUser?.id, dateKey, todayEntry, addJournalEntry, updateJournalEntry]);
+  }, [currentUser?.id, dateKey, todayEntry, todos, addJournalEntry, updateJournalEntry]);
 
   const editor = useEditor({
     extensions: [
@@ -81,7 +98,7 @@ export default function LawyerJournal() {
       TaskList,
       TaskItem.configure({ nested: true }),
       Placeholder.configure({
-        placeholder: "Type '/' for commands, or start writing...",
+        placeholder: "Write your journal entry... Use '/' for headings, lists, todos & more",
       }),
     ],
     content: todayEntry?.content || '',
@@ -105,22 +122,32 @@ export default function LawyerJournal() {
     },
     onUpdate: ({ editor: ed }) => {
       const html = ed.getHTML();
+      const extracted = extractTodosFromHTML(html);
+      setTodos(prev => extracted.length > 0 ? extracted : prev);
       if (saveTimer.current) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(() => saveEntry(html), 1000);
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-slate max-w-none focus:outline-none min-h-[300px] px-0 py-4',
+        class: 'prose prose-slate max-w-none focus:outline-none min-h-[200px] px-0 py-2',
       },
     },
   });
 
   useEffect(() => {
-    if (editor && todayEntry) {
-      const current = editor.getHTML();
-      if (current !== todayEntry.content && todayEntry.content) {
-        editor.commands.setContent(todayEntry.content);
+    if (todayEntry) {
+      setTodos(todayEntry.todos || []);
+      if (editor) {
+        const current = editor.getHTML();
+        if (current !== todayEntry.content && todayEntry.content) {
+          editor.commands.setContent(todayEntry.content);
+        } else if (!todayEntry.content) {
+          editor.commands.setContent('');
+        }
       }
+    } else {
+      setTodos([]);
+      if (editor) editor.commands.setContent('');
     }
   }, [dateKey]);
 
@@ -152,10 +179,30 @@ export default function LawyerJournal() {
     }
   };
 
+  const addTodo = () => {
+    if (!newTodo.trim()) return;
+    const updated = [...todos, { id: Date.now().toString(), text: newTodo, completed: false }];
+    setTodos(updated);
+    setNewTodo('');
+    if (editor) saveEntry(editor.getHTML(), updated);
+  };
+
+  const toggleTodo = (id: string) => {
+    const updated = todos.map(t => t.id === id ? { ...t, completed: !t.completed } : t);
+    setTodos(updated);
+    if (editor) saveEntry(editor.getHTML(), updated);
+  };
+
+  const removeTodo = (id: string) => {
+    const updated = todos.filter(t => t.id !== id);
+    setTodos(updated);
+    if (editor) saveEntry(editor.getHTML(), updated);
+  };
+
   if (!editor) return null;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-4">
+    <div className="max-w-5xl mx-auto space-y-4">
       {/* Week View */}
       <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
         <div className="flex items-center justify-between mb-4">
@@ -219,155 +266,168 @@ export default function LawyerJournal() {
         </div>
       )}
 
-      {/* Notion-like Journal Page */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 md:p-10">
-        {/* Date header — like Notion's page title */}
-        <div className="text-sm text-slate-400 font-medium mb-1">
-          {format(selectedDate, 'EEEE')}
-        </div>
-        <div className="text-3xl md:text-4xl font-bold text-slate-900 mb-6">
-          {format(selectedDate, 'MMMM d, yyyy')}
-        </div>
-
-        {/* Bubble Menu (selection toolbar) */}
-        <BubbleMenu editor={editor} tippyOptions={{ duration: 150 }}>
-          <div className="flex items-center gap-0.5 bg-white rounded-xl shadow-lg border border-slate-200 px-1.5 py-1">
-            <button
-              onClick={() => editor.chain().focus().toggleBold().run()}
-              className={`p-1.5 rounded-md transition ${editor.isActive('bold') ? 'bg-slate-200 text-slate-900' : 'text-slate-500 hover:bg-slate-100'}`}
-            >
-              <Bold size={15} />
-            </button>
-            <button
-              onClick={() => editor.chain().focus().toggleItalic().run()}
-              className={`p-1.5 rounded-md transition ${editor.isActive('italic') ? 'bg-slate-200 text-slate-900' : 'text-slate-500 hover:bg-slate-100'}`}
-            >
-              <Italic size={15} />
-            </button>
-            <button
-              onClick={() => editor.chain().focus().toggleUnderline().run()}
-              className={`p-1.5 rounded-md transition ${editor.isActive('underline') ? 'bg-slate-200 text-slate-900' : 'text-slate-500 hover:bg-slate-100'}`}
-            >
-              <UnderlineIcon size={15} />
-            </button>
-            <button
-              onClick={() => editor.chain().focus().toggleStrike().run()}
-              className={`p-1.5 rounded-md transition ${editor.isActive('strike') ? 'bg-slate-200 text-slate-900' : 'text-slate-500 hover:bg-slate-100'}`}
-            >
-              <Strikethrough size={15} />
-            </button>
-            <div className="w-px h-5 bg-slate-200 mx-1" />
-            <button
-              onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-              className={`p-1.5 rounded-md transition ${editor.isActive('heading', { level: 1 }) ? 'bg-slate-200 text-slate-900' : 'text-slate-500 hover:bg-slate-100'}`}
-              title="Heading 1"
-            >
-              <Heading1 size={15} />
-            </button>
-            <button
-              onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-              className={`p-1.5 rounded-md transition ${editor.isActive('heading', { level: 2 }) ? 'bg-slate-200 text-slate-900' : 'text-slate-500 hover:bg-slate-100'}`}
-              title="Heading 2"
-            >
-              <Heading2 size={15} />
-            </button>
-            <button
-              onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-              className={`p-1.5 rounded-md transition ${editor.isActive('heading', { level: 3 }) ? 'bg-slate-200 text-slate-900' : 'text-slate-500 hover:bg-slate-100'}`}
-              title="Heading 3"
-            >
-              <Heading3 size={15} />
-            </button>
-            <div className="w-px h-5 bg-slate-200 mx-1" />
-            <button
-              onClick={() => editor.chain().focus().toggleBulletList().run()}
-              className={`p-1.5 rounded-md transition ${editor.isActive('bulletList') ? 'bg-slate-200 text-slate-900' : 'text-slate-500 hover:bg-slate-100'}`}
-            >
-              <List size={15} />
-            </button>
-            <button
-              onClick={() => editor.chain().focus().toggleOrderedList().run()}
-              className={`p-1.5 rounded-md transition ${editor.isActive('orderedList') ? 'bg-slate-200 text-slate-900' : 'text-slate-500 hover:bg-slate-100'}`}
-            >
-              <ListOrdered size={15} />
-            </button>
-            <button
-              onClick={() => editor.chain().focus().toggleTaskList().run()}
-              className={`p-1.5 rounded-md transition ${editor.isActive('taskList') ? 'bg-slate-200 text-slate-900' : 'text-slate-500 hover:bg-slate-100'}`}
-            >
-              <CheckSquare size={15} />
-            </button>
-            <button
-              onClick={() => editor.chain().focus().toggleBlockquote().run()}
-              className={`p-1.5 rounded-md transition ${editor.isActive('blockquote') ? 'bg-slate-200 text-slate-900' : 'text-slate-500 hover:bg-slate-100'}`}
-            >
-              <Quote size={15} />
-            </button>
+      {/* Journal Page */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100">
+        {/* Date header */}
+        <div className="p-6 md:p-8 pb-0">
+          <div className="text-sm text-slate-400 font-medium mb-1">
+            {format(selectedDate, 'EEEE')}
           </div>
-        </BubbleMenu>
+          <div className="text-3xl md:text-4xl font-bold text-slate-900">
+            {format(selectedDate, 'MMMM d, yyyy')}
+          </div>
+        </div>
 
-        {/* Slash Command Menu */}
-        {showSlash && (
-          <div
-            ref={slashRef}
-            className="absolute z-50 w-72 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden"
-            style={{ marginTop: -40 }}
-          >
-            <div className="px-3 py-2 border-b border-slate-100">
+        {/* Content: Rich Editor + Todos side by side */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-0 p-6 md:p-8 pt-6">
+          {/* Main Editor — takes 2/3 */}
+          <div className="lg:col-span-2 pr-0 lg:pr-6 border-r-0 lg:border-r border-slate-100">
+            <div className="flex items-center gap-2 mb-3">
+              <BookOpen size={18} className="text-emerald-600" />
+              <h2 className="font-semibold text-slate-900">Journal Notes</h2>
+            </div>
+
+            {/* Bubble Menu */}
+            <BubbleMenu editor={editor} tippyOptions={{ duration: 150 }}>
+              <div className="flex items-center gap-0.5 bg-white rounded-xl shadow-lg border border-slate-200 px-1.5 py-1">
+                <button onClick={() => editor.chain().focus().toggleBold().run()} className={`p-1.5 rounded-md transition ${editor.isActive('bold') ? 'bg-slate-200 text-slate-900' : 'text-slate-500 hover:bg-slate-100'}`}><Bold size={15} /></button>
+                <button onClick={() => editor.chain().focus().toggleItalic().run()} className={`p-1.5 rounded-md transition ${editor.isActive('italic') ? 'bg-slate-200 text-slate-900' : 'text-slate-500 hover:bg-slate-100'}`}><Italic size={15} /></button>
+                <button onClick={() => editor.chain().focus().toggleUnderline().run()} className={`p-1.5 rounded-md transition ${editor.isActive('underline') ? 'bg-slate-200 text-slate-900' : 'text-slate-500 hover:bg-slate-100'}`}><UnderlineIcon size={15} /></button>
+                <button onClick={() => editor.chain().focus().toggleStrike().run()} className={`p-1.5 rounded-md transition ${editor.isActive('strike') ? 'bg-slate-200 text-slate-900' : 'text-slate-500 hover:bg-slate-100'}`}><Strikethrough size={15} /></button>
+                <div className="w-px h-5 bg-slate-200 mx-1" />
+                <button onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} className={`p-1.5 rounded-md transition ${editor.isActive('heading', { level: 1 }) ? 'bg-slate-200 text-slate-900' : 'text-slate-500 hover:bg-slate-100'}`}><Heading1 size={15} /></button>
+                <button onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} className={`p-1.5 rounded-md transition ${editor.isActive('heading', { level: 2 }) ? 'bg-slate-200 text-slate-900' : 'text-slate-500 hover:bg-slate-100'}`}><Heading2 size={15} /></button>
+                <button onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} className={`p-1.5 rounded-md transition ${editor.isActive('heading', { level: 3 }) ? 'bg-slate-200 text-slate-900' : 'text-slate-500 hover:bg-slate-100'}`}><Heading3 size={15} /></button>
+                <div className="w-px h-5 bg-slate-200 mx-1" />
+                <button onClick={() => editor.chain().focus().toggleBulletList().run()} className={`p-1.5 rounded-md transition ${editor.isActive('bulletList') ? 'bg-slate-200 text-slate-900' : 'text-slate-500 hover:bg-slate-100'}`}><List size={15} /></button>
+                <button onClick={() => editor.chain().focus().toggleOrderedList().run()} className={`p-1.5 rounded-md transition ${editor.isActive('orderedList') ? 'bg-slate-200 text-slate-900' : 'text-slate-500 hover:bg-slate-100'}`}><ListOrdered size={15} /></button>
+                <button onClick={() => editor.chain().focus().toggleTaskList().run()} className={`p-1.5 rounded-md transition ${editor.isActive('taskList') ? 'bg-slate-200 text-slate-900' : 'text-slate-500 hover:bg-slate-100'}`}><CheckSquare size={15} /></button>
+                <button onClick={() => editor.chain().focus().toggleBlockquote().run()} className={`p-1.5 rounded-md transition ${editor.isActive('blockquote') ? 'bg-slate-200 text-slate-900' : 'text-slate-500 hover:bg-slate-100'}`}><Quote size={15} /></button>
+              </div>
+            </BubbleMenu>
+
+            {/* Slash Command Menu */}
+            {showSlash && (
+              <div
+                ref={slashRef}
+                className="absolute z-50 w-72 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden"
+                style={{ marginTop: -40 }}
+              >
+                <div className="px-3 py-2 border-b border-slate-100">
+                  <input
+                    value={slashSearch}
+                    onChange={e => setSlashSearch(e.target.value)}
+                    placeholder="Filter commands..."
+                    className="w-full text-sm bg-transparent focus:outline-none text-slate-700 placeholder-slate-400"
+                    autoFocus
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && filteredCommands.length > 0) selectCommand(filteredCommands[0].id);
+                      if (e.key === 'Escape') setShowSlash(false);
+                    }}
+                  />
+                </div>
+                <div className="max-h-64 overflow-y-auto p-1.5">
+                  {filteredCommands.map(cmd => (
+                    <button
+                      key={cmd.id}
+                      onClick={() => selectCommand(cmd.id)}
+                      className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 transition text-left"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 flex-shrink-0">
+                        <cmd.icon size={16} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-slate-900">{cmd.label}</p>
+                        <p className="text-xs text-slate-400">{cmd.description}</p>
+                      </div>
+                    </button>
+                  ))}
+                  {filteredCommands.length === 0 && (
+                    <p className="text-sm text-slate-400 text-center py-4">No results</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="relative">
+              <EditorContent editor={editor} />
+            </div>
+          </div>
+
+          {/* Todos Panel — takes 1/3 */}
+          <div className="lg:col-span-1 pt-6 lg:pt-0 lg:pl-6">
+            <div className="flex items-center gap-2 mb-4">
+              <CheckSquare size={18} className="text-emerald-600" />
+              <h2 className="font-semibold text-slate-900">To-do List</h2>
+              <span className="text-xs text-slate-400 ml-auto">
+                {todos.filter(t => t.completed).length}/{todos.length}
+              </span>
+            </div>
+
+            <div className="flex gap-2 mb-3">
               <input
-                value={slashSearch}
-                onChange={e => setSlashSearch(e.target.value)}
-                placeholder="Filter commands..."
-                className="w-full text-sm bg-transparent focus:outline-none text-slate-700 placeholder-slate-400"
-                autoFocus
-                onKeyDown={e => {
-                  if (e.key === 'Enter' && filteredCommands.length > 0) {
-                    selectCommand(filteredCommands[0].id);
-                  }
-                  if (e.key === 'Escape') setShowSlash(false);
-                }}
+                type="text"
+                value={newTodo}
+                onChange={e => setNewTodo(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && addTodo()}
+                placeholder="Add a task..."
+                className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
               />
+              <button
+                onClick={addTodo}
+                className="p-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex-shrink-0 transition"
+              >
+                <Plus size={18} />
+              </button>
             </div>
-            <div className="max-h-64 overflow-y-auto p-1.5">
-              {filteredCommands.map(cmd => (
-                <button
-                  key={cmd.id}
-                  onClick={() => selectCommand(cmd.id)}
-                  className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 transition text-left"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 flex-shrink-0">
-                    <cmd.icon size={16} />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-slate-900">{cmd.label}</p>
-                    <p className="text-xs text-slate-400">{cmd.description}</p>
-                  </div>
-                </button>
-              ))}
-              {filteredCommands.length === 0 && (
-                <p className="text-sm text-slate-400 text-center py-4">No results</p>
+
+            <div className="space-y-1.5 max-h-[400px] overflow-y-auto">
+              {todos.length === 0 && (
+                <p className="text-center text-slate-400 py-8 text-sm">No tasks for today</p>
               )}
+              {todos.map(todo => (
+                <div
+                  key={todo.id}
+                  className="flex items-center gap-2.5 p-2.5 bg-slate-50 rounded-lg group hover:bg-slate-100 transition"
+                >
+                  <button
+                    onClick={() => toggleTodo(todo.id)}
+                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition flex-shrink-0 ${
+                      todo.completed
+                        ? 'bg-emerald-500 border-emerald-500 text-white'
+                        : 'border-slate-300 hover:border-emerald-500'
+                    }`}
+                  >
+                    {todo.completed && <Check size={12} />}
+                  </button>
+                  <span className={`flex-1 text-sm ${todo.completed ? 'line-through text-slate-400' : 'text-slate-700'}`}>
+                    {todo.text}
+                  </span>
+                  <button
+                    onClick={() => removeTodo(todo.id)}
+                    className="p-1 text-slate-400 hover:text-red-500 transition flex-shrink-0 opacity-0 group-hover:opacity-100"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
-        )}
-
-        {/* Editor */}
-        <div className="relative">
-          <EditorContent editor={editor} />
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-100">
+        <div className="flex items-center justify-between px-6 md:px-8 pb-6 pt-4 border-t border-slate-100">
           <div className="flex items-center gap-2 text-xs text-slate-400">
             <BookOpen size={14} />
             {saving ? (
-              <span className="text-emerald-600">Saving...</span>
+              <span className="text-emerald-600 font-medium">Saving...</span>
             ) : (
-              <span>Auto-saved</span>
+              <span className="text-emerald-600 font-medium">Auto-saved</span>
             )}
           </div>
-          <div className="text-xs text-slate-400">
-            {editor.storage.characterCount?.characters?.() || 0} characters
+          <div className="text-xs text-slate-400 flex items-center gap-3">
+            <span>{todos.filter(t => t.completed).length} tasks done</span>
+            {editor ? <span>· {editor.storage.characterCount?.characters?.() || 0} chars</span> : null}
           </div>
         </div>
       </div>

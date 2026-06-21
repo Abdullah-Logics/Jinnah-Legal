@@ -3,7 +3,7 @@
 
 const BASE = import.meta.env.DEV
   ? 'http://localhost:3001'
-  : 'https://bizarre-xbox-cookie-advise.trycloudflare.com';
+  : 'https://stress-these-confidence-holding.trycloudflare.com';
 
 function getToken(): string | null {
   try {

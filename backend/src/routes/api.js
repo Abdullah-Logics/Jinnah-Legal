@@ -157,6 +157,13 @@ apiRouter.patch('/journal/:id', validate(journalUpdateSchema), asyncHandler(asyn
   res.json({ ...entry, todos: safeJson(entry.todos, []) });
 }));
 
+apiRouter.delete('/journal/:id', asyncHandler(async (req, res) => {
+  const existing = await queryOne('SELECT * FROM journal_entries WHERE id=? AND user_id=?', [req.params.id, req.user.id]);
+  if (!existing) throw new AppError('Journal entry not found', 404);
+  await run('DELETE FROM journal_entries WHERE id=? AND user_id=?', [req.params.id, req.user.id]);
+  res.json({ success: true });
+}));
+
 // ── FIRMS ──────────────────────────────────────────────────
 apiRouter.post('/firms/register', validate(firmRegisterSchema), asyncHandler(async (req, res) => {
   const { name, email, password, phone, city, address, description, registrationNumber, adminName, adminPhone, documentIds } = req.body;

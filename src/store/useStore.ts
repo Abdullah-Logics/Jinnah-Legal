@@ -201,6 +201,7 @@ interface AppState {
   loadJournals: () => Promise<void>;
   addJournalEntry: (entry: Omit<JournalEntry, 'id'>) => Promise<void>;
   updateJournalEntry: (entryId: string, updates: Partial<JournalEntry>) => Promise<void>;
+  deleteJournalEntry: (entryId: string) => Promise<void>;
 
   // Invoice actions
   loadInvoices: () => Promise<void>;
@@ -390,6 +391,12 @@ export const useStore = create<AppState>()(
         const { token } = get();
         const updated = await apiFetch(`/api/journal/${entryId}`, { method: 'PATCH', body: JSON.stringify(updates) }, token);
         set(state => ({ journals: state.journals.map(j => j.id === entryId ? normalizeJournalEntry(updated as Record<string, unknown>) : j) }));
+      },
+
+      deleteJournalEntry: async (entryId) => {
+        const { token } = get();
+        await apiFetch(`/api/journal/${entryId}`, { method: 'DELETE' }, token);
+        set(state => ({ journals: state.journals.filter(j => j.id !== entryId) }));
       },
 
       loadInvoices: async () => {

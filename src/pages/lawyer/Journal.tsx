@@ -31,7 +31,7 @@ const SLASH_COMMANDS = [
 ];
 
 export default function LawyerJournal() {
-  const { currentUser, journals, cases, addJournalEntry, updateJournalEntry, loadJournals, loadCases } = useStore();
+  const { currentUser, journals, cases, addJournalEntry, updateJournalEntry, deleteJournalEntry, loadJournals, loadCases } = useStore();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [saving, setSaving] = useState(false);
   const [showSlash, setShowSlash] = useState(false);
@@ -345,8 +345,25 @@ export default function LawyerJournal() {
               </span>
             )}
           </div>
-          <div className="text-3xl md:text-4xl font-bold text-slate-900">
+          <div className="text-3xl md:text-4xl font-bold text-slate-900 flex items-center gap-3">
             {format(selectedDate, 'MMMM d, yyyy')}
+            {todayEntry && (
+              <button
+                onClick={() => {
+                  if (window.confirm('Delete this journal entry?')) {
+                    deleteJournalEntry(todayEntry.id);
+                    setEntryCreated(null);
+                    setTodos([]);
+                    setPlans('');
+                    if (editor) editor.commands.setContent('');
+                  }
+                }}
+                className="p-2 rounded-xl text-red-400 hover:bg-red-50 hover:text-red-600 transition"
+                title="Delete entry"
+              >
+                <Trash2 size={18} />
+              </button>
+            )}
           </div>
         </div>
 

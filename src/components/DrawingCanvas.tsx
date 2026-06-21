@@ -1,203 +1,158 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
-import { Canvas, Rect, Ellipse, Line, PencilBrush } from 'fabric';
 import { Pencil, Square, Circle, Minus, ArrowRight, Eraser, RotateCcw, Trash2 } from 'lucide-react';
 
 export default function DrawingCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [canvas, setCanvas] = useState<any>(null);
+  const [ctx, setCtx] = useState<CanvasRenderingContext2D | null>(null);
   const [tool, setTool] = useState<'pen' | 'rect' | 'circle' | 'line' | 'arrow' | 'eraser'>('pen');
   const [color, setColor] = useState('#1e293b');
   const [strokeWidth, setStrokeWidth] = useState(3);
-  const [history, setHistory] = useState<string[]>([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
   const [isDrawing, setIsDrawing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const startPos = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
-  const shapeRef = useRef<any>(null);
+  const startPos = useRef({ x: 0, y: 0 });
+  const lastPos = useRef({ x: 0, y: 0 });
+  const snapshots = useRef<string[]>([]);
+  const snapshotIndex = useRef(-1);
 
   useEffect(() => {
-    if (!canvasRef.current) return;
-    let cancelled = false;
-    try {
-      const container = canvasRef.current.parentElement;
-      if (!container) {
-        if (!cancelled) setError('Canvas container not found');
-        return;
-      }
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const context = canvas.getContext('2d');
+    if (!context) return;
+    const container = canvas.parentElement;
+    if (!container) return;
 
-      const c = new Canvas(canvasRef.current, {
-        width: container.clientWidth || 600,
-        height: 450,
-        backgroundColor: '#ffffff',
-        preserveObjectStacking: true,
-        selection: true,
-      });
+    canvas.width = container.clientWidth || 600;
+    canvas.height = 450;
+    context.lineCap = 'round';
+    context.lineJoin = 'round';
+    setCtx(context);
 
-      c.on('object:modified', () => {
-        const state = JSON.stringify(c);
-        setHistory(prev => {
-          const next = prev.slice(0, historyIndex + 1);
-          next.push(state);
-          return next;
-        });
-        setHistoryIndex(prev => prev + 1);
-      });
-
-      if (!cancelled) setCanvas(c);
-    } catch (e) {
-      if (!cancelled) setError('Failed to initialize canvas');
-    }
-    return () => { cancelled = true; };
+    saveSnapshot(context, canvas.width, canvas.height);
   }, []);
 
-  useEffect(() => {
-    if (!canvas) return;
-    canvas.selection = false;
-    canvas.isDrawingMode = false;
+  const saveSnapshot = (c: CanvasRenderingContext2D, w: number, h: number) => {
+    const data = c.getImageData(0, 0, w, h);
+    const url = JSON.stringify(data);
+    snapshots.current = snapshots.current.slice(0, snapshotIndex.current + 1);
+    snapshots.current.push(url);
+    snapshotIndex.current++;
+  };
 
-    if (tool === 'pen') {
-      canvas.isDrawingMode = true;
-      if (!canvas.freeDrawingBrush) {
-        canvas.freeDrawingBrush = new PencilBrush(canvas);
-      }
-      canvas.freeDrawingBrush.color = color;
-      canvas.freeDrawingBrush.width = strokeWidth;
-      canvas.defaultCursor = 'crosshair';
-    } else if (tool === 'eraser') {
-      canvas.isDrawingMode = true;
-      if (!canvas.freeDrawingBrush) {
-        canvas.freeDrawingBrush = new PencilBrush(canvas);
-      }
-      canvas.freeDrawingBrush.color = '#ffffff';
-      canvas.freeDrawingBrush.width = strokeWidth * 6;
-      canvas.defaultCursor = 'crosshair';
-    } else {
-      canvas.isDrawingMode = false;
-      canvas.selection = false;
-      canvas.defaultCursor = 'crosshair';
-    }
-  }, [tool, color, strokeWidth, canvas]);
+  const restoreSnapshot = (idx: number) => {
+    const canvas = canvasRef.current;
+    if (!canvas || !ctx || idx < 0 || idx >= snapshots.current.length) return;
+    const data = JSON.parse(snapshots.current[idx]) as ImageData;
+    ctx.putImageData(data, 0, 0);
+    snapshotIndex.current = idx;
+  };
 
-  const getPointer = useCallback((e: any) => {
+  const getPos = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
-    return canvas.getPointer(e);
-  }, [canvas]);
+    const rect = canvas.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  }, []);
 
-  const handleMouseDown = useCallback((e: any) => {
-    if (tool === 'pen' || tool === 'eraser' || !canvas) return;
+  const drawLine = (from: { x: number; y: number }, to: { x: number; y: number }) => {
+    if (!ctx) return;
+    ctx.beginPath();
+    ctx.moveTo(from.x, from.y);
+    ctx.lineTo(to.x, to.y);
+    ctx.stroke();
+  };
+
+  const handleMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas || !ctx) return;
+    const pos = getPos(e);
+    startPos.current = pos;
+    lastPos.current = pos;
     setIsDrawing(true);
-    const pointer = getPointer(e);
-    startPos.current = pointer;
 
-    let shape: any = null;
-    if (tool === 'rect') {
-      shape = new Rect({
-        left: pointer.x, top: pointer.y, width: 0, height: 0,
-        fill: 'transparent', stroke: color, strokeWidth,
-      });
-    } else if (tool === 'circle') {
-      shape = new Ellipse({
-        left: pointer.x, top: pointer.y, rx: 0, ry: 0,
-        fill: 'transparent', stroke: color, strokeWidth,
-      });
-    } else if (tool === 'line' || tool === 'arrow') {
-      shape = new Line([pointer.x, pointer.y, pointer.x, pointer.y], {
-        stroke: color, strokeWidth,
-      });
-    }
-    if (shape) {
-      shapeRef.current = shape;
-      canvas.add(shape);
-      canvas.renderAll();
-    }
-  }, [tool, canvas, color, strokeWidth, getPointer]);
+    ctx.strokeStyle = tool === 'eraser' ? '#ffffff' : color;
+    ctx.lineWidth = tool === 'eraser' ? strokeWidth * 6 : strokeWidth;
 
-  const handleMouseMove = useCallback((e: any) => {
-    if (!isDrawing || !canvas || !shapeRef.current) return;
-    const pointer = getPointer(e);
-    const shape = shapeRef.current;
+    if (tool === 'pen' || tool === 'eraser') {
+      ctx.beginPath();
+      ctx.moveTo(pos.x, pos.y);
+    }
+  }, [ctx, tool, color, strokeWidth, getPos]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDrawing || !ctx) return;
+    const pos = getPos(e);
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const w = canvas.width;
+    const h = canvas.height;
+
+    if (tool === 'pen' || tool === 'eraser') {
+      ctx.strokeStyle = tool === 'eraser' ? '#ffffff' : color;
+      ctx.lineWidth = tool === 'eraser' ? strokeWidth * 6 : strokeWidth;
+      ctx.lineTo(pos.x, pos.y);
+      ctx.stroke();
+      lastPos.current = pos;
+      return;
+    }
+
+    ctx.putImageData(JSON.parse(snapshots.current[snapshotIndex.current]), 0, 0);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = strokeWidth;
     const start = startPos.current;
 
     if (tool === 'rect') {
-      const w = pointer.x - start.x;
-      const h = pointer.y - start.y;
-      shape.set({ width: Math.abs(w), height: Math.abs(h), left: w > 0 ? start.x : pointer.x, top: h > 0 ? start.y : pointer.y });
+      ctx.strokeRect(start.x, start.y, pos.x - start.x, pos.y - start.y);
     } else if (tool === 'circle') {
-      const rx = Math.abs(pointer.x - start.x) / 2;
-      const ry = Math.abs(pointer.y - start.y) / 2;
-      shape.set({ rx, ry, left: (start.x + pointer.x) / 2, top: (start.y + pointer.y) / 2 });
+      const rx = Math.abs(pos.x - start.x) / 2;
+      const ry = Math.abs(pos.y - start.y) / 2;
+      ctx.beginPath();
+      ctx.ellipse((start.x + pos.x) / 2, (start.y + pos.y) / 2, rx, ry, 0, 0, Math.PI * 2);
+      ctx.stroke();
     } else if (tool === 'line' || tool === 'arrow') {
-      shape.set({ x2: pointer.x, y2: pointer.y });
+      ctx.beginPath();
+      ctx.moveTo(start.x, start.y);
+      ctx.lineTo(pos.x, pos.y);
+      ctx.stroke();
+      if (tool === 'arrow') {
+        const angle = Math.atan2(pos.y - start.y, pos.x - start.x);
+        const headLen = 12;
+        ctx.beginPath();
+        ctx.moveTo(pos.x, pos.y);
+        ctx.lineTo(pos.x - headLen * Math.cos(angle - Math.PI / 6), pos.y - headLen * Math.sin(angle - Math.PI / 6));
+        ctx.moveTo(pos.x, pos.y);
+        ctx.lineTo(pos.x - headLen * Math.cos(angle + Math.PI / 6), pos.y - headLen * Math.sin(angle + Math.PI / 6));
+        ctx.stroke();
+      }
     }
-    canvas.renderAll();
-  }, [isDrawing, canvas, tool, getPointer]);
+  }, [isDrawing, ctx, tool, color, strokeWidth, getPos]);
 
   const handleMouseUp = useCallback(() => {
-    if (isDrawing && shapeRef.current && canvas) {
-      setIsDrawing(false);
-      const state = JSON.stringify(canvas);
-      setHistory(prev => {
-        const next = prev.slice(0, historyIndex + 1);
-        next.push(state);
-        return next;
-      });
-      setHistoryIndex(prev => prev + 1);
-      shapeRef.current = null;
-    }
-  }, [isDrawing, canvas, historyIndex]);
-
-  useEffect(() => {
-    if (!canvas) return;
-    canvas.on('mouse:down', handleMouseDown);
-    canvas.on('mouse:move', handleMouseMove);
-    canvas.on('mouse:up', handleMouseUp);
-    return () => {
-      canvas.off('mouse:down', handleMouseDown);
-      canvas.off('mouse:move', handleMouseMove);
-      canvas.off('mouse:up', handleMouseUp);
-    };
-  }, [canvas, handleMouseDown, handleMouseMove, handleMouseUp]);
+    if (!isDrawing || !ctx) return;
+    setIsDrawing(false);
+    const canvas = canvasRef.current;
+    if (canvas) saveSnapshot(ctx, canvas.width, canvas.height);
+  }, [isDrawing, ctx]);
 
   const undo = () => {
-    if (historyIndex < 0 || !canvas) return;
-    const newIdx = historyIndex - 1;
-    if (newIdx >= 0) {
-      canvas.loadFromJSON(JSON.parse(history[newIdx]), () => canvas.renderAll());
-    } else {
-      canvas.clear();
-      canvas.backgroundColor = '#ffffff';
-      canvas.renderAll();
-    }
-    setHistoryIndex(newIdx);
+    if (snapshotIndex.current > 0) restoreSnapshot(snapshotIndex.current - 1);
   };
 
   const redo = () => {
-    if (historyIndex >= history.length - 1 || !canvas) return;
-    const newIdx = historyIndex + 1;
-    canvas.loadFromJSON(JSON.parse(history[newIdx]), () => canvas.renderAll());
-    setHistoryIndex(newIdx);
+    if (snapshotIndex.current < snapshots.current.length - 1) restoreSnapshot(snapshotIndex.current + 1);
   };
 
-  const clear = () => {
-    if (!canvas) return;
-    canvas.clear();
-    canvas.backgroundColor = '#ffffff';
-    canvas.renderAll();
-    setHistory([]);
-    setHistoryIndex(-1);
+  const clearCanvas = () => {
+    const canvas = canvasRef.current;
+    if (!canvas || !ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    saveSnapshot(ctx, canvas.width, canvas.height);
   };
 
   const colors = ['#1e293b', '#dc2626', '#ea580c', '#ca8a04', '#16a34a', '#2563eb', '#7c3aed', '#ec4899', '#78716c', '#000000'];
 
-  if (error) {
-    return (
-      <div className="flex items-center justify-center h-[300px] bg-red-50 rounded-xl border border-red-200 text-red-600 text-sm">
-        {error}
-      </div>
-    );
-  }
-
-  if (!canvas) {
+  if (!ctx) {
     return (
       <div className="flex items-center justify-center h-[300px] bg-slate-50 rounded-xl border border-slate-200 text-slate-400 text-sm">
         <div className="flex flex-col items-center gap-2">
@@ -228,12 +183,19 @@ export default function DrawingCanvas() {
         <input type="range" min="1" max="20" value={strokeWidth} onChange={e => setStrokeWidth(Number(e.target.value))} className="w-16 h-1 accent-emerald-600" title="Stroke width" />
         <span className="text-xs text-slate-500 w-4">{strokeWidth}</span>
         <div className="w-px h-6 bg-slate-300 mx-1" />
-        <button onClick={undo} disabled={historyIndex < 0} className="p-2 rounded-lg text-slate-500 hover:bg-slate-200 disabled:opacity-30 transition" title="Undo"><RotateCcw size={16} /></button>
-        <button onClick={redo} disabled={historyIndex >= history.length - 1} className="p-2 rounded-lg text-slate-500 hover:bg-slate-200 disabled:opacity-30 transition" title="Redo"><RotateCcw size={16} className="scale-x-[-1]" /></button>
-        <button onClick={clear} className="p-2 rounded-lg text-red-500 hover:bg-red-50 transition" title="Clear Canvas"><Trash2 size={16} /></button>
+        <button onClick={undo} disabled={snapshotIndex.current <= 0} className="p-2 rounded-lg text-slate-500 hover:bg-slate-200 disabled:opacity-30 transition" title="Undo"><RotateCcw size={16} /></button>
+        <button onClick={redo} disabled={snapshotIndex.current >= snapshots.current.length - 1} className="p-2 rounded-lg text-slate-500 hover:bg-slate-200 disabled:opacity-30 transition" title="Redo"><RotateCcw size={16} className="scale-x-[-1]" /></button>
+        <button onClick={clearCanvas} className="p-2 rounded-lg text-red-500 hover:bg-red-50 transition" title="Clear Canvas"><Trash2 size={16} /></button>
       </div>
-      <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
-        <canvas ref={canvasRef} />
+      <div className="border border-slate-200 rounded-xl overflow-hidden bg-white" style={{ height: 450 }}>
+        <canvas
+          ref={canvasRef}
+          className="cursor-crosshair"
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+        />
       </div>
     </div>
   );

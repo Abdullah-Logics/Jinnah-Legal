@@ -1,15 +1,22 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useStore } from '../../store/useStore';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock, MapPin, BookOpen, Check } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock, MapPin, BookOpen, Check, Gavel } from 'lucide-react';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isToday } from 'date-fns';
 
 export default function LawyerCalendar() {
-  const { currentUser, cases, journals, loadJournals } = useStore();
+  const { currentUser, cases, journals, loadJournals, loadCases } = useStore();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [showAddEvent, setShowAddEvent] = useState(false);
+  const [eventCase, setEventCase] = useState('');
+  const [eventType, setEventType] = useState<'hearing' | 'meeting' | 'deadline'>('hearing');
+  const [eventDate, setEventDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [eventTitle, setEventTitle] = useState('');
+  const [eventLocation, setEventLocation] = useState('');
+  const [eventSaving, setEventSaving] = useState(false);
 
-  useEffect(() => { loadJournals(); }, [loadJournals]);
+  useEffect(() => { loadJournals(); loadCases(); }, [loadJournals, loadCases]);
 
   const myCases = cases.filter(c => c.lawyerId === currentUser?.id);
   
@@ -49,11 +56,58 @@ export default function LawyerCalendar() {
           <h1 className="text-2xl font-bold text-slate-900">Calendar</h1>
           <p className="text-slate-500">Court dates, deadlines, and events</p>
         </div>
-        <button className="flex items-center justify-center gap-2 bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-emerald-700 transition">
+        <button onClick={() => setShowAddEvent(!showAddEvent)} className="flex items-center justify-center gap-2 bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-emerald-700 transition">
           <Plus size={20} />
-          <span>Add Event</span>
+          <span>{showAddEvent ? 'Close' : 'Add Event'}</span>
         </button>
       </div>
+
+      {showAddEvent && (
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 flex flex-wrap items-end gap-3">
+          <select value={eventCase} onChange={e => setEventCase(e.target.value)} className="text-sm px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            <option value="">Select case...</option>
+            {cases.filter(c => c.lawyerId === currentUser?.id).map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+          </select>
+          <div className="flex gap-1">
+            {(['hearing', 'meeting', 'deadline'] as const).map(t => (
+              <button key={t} onClick={() => setEventType(t)} className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition ${eventType === t ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>{t}</button>
+            ))}
+          </div>
+          <input type="date" value={eventDate} onChange={e => setEventDate(e.target.value)} className="text-sm px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+          <input type="text" value={eventTitle} onChange={e => setEventTitle(e.target.value)} placeholder="Title / notes" className="text-sm px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 w-48" />
+          {eventType === 'hearing' && <input type="text" value={eventLocation} onChange={e => setEventLocation(e.target.value)} placeholder="Court & location" className="text-sm px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 w-48" />}
+          <button
+            onClick={async () => {
+              if (!eventCase || !eventDate) return;
+              setEventSaving(true);
+              try {
+                const token = localStorage.getItem('token');
+                const base = import.meta.env.DEV ? 'http://localhost:3001' : '';
+                if (eventType === 'hearing') {
+                  await fetch(`${base}/api/cases/${eventCase}/court-dates`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                    body: JSON.stringify({ date: eventDate, court: eventLocation, notes: eventTitle }),
+                  });
+                } else {
+                  await fetch(`${base}/api/cases/${eventCase}/timeline`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                    body: JSON.stringify({ date: eventDate, event: eventTitle, description: eventLocation }),
+                  });
+                }
+                setShowAddEvent(false);
+                setEventTitle('');
+                setEventLocation('');
+                loadCases();
+              } catch {}
+              setEventSaving(false);
+            }}
+            disabled={eventSaving || !eventCase}
+            className="px-5 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition disabled:opacity-50"
+          >
+            {eventSaving ? 'Saving...' : 'Save'}
+          </button>
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Calendar */}

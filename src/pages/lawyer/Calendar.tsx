@@ -1,13 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useStore } from '../../store/useStore';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock, MapPin } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock, MapPin, BookOpen, Check } from 'lucide-react';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isToday } from 'date-fns';
 
 export default function LawyerCalendar() {
-  const { currentUser, cases } = useStore();
+  const { currentUser, cases, journals, loadJournals } = useStore();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
+
+  useEffect(() => { loadJournals(); }, [loadJournals]);
 
   const myCases = cases.filter(c => c.lawyerId === currentUser?.id);
   
@@ -36,6 +38,8 @@ export default function LawyerCalendar() {
   const paddedDays = Array(startDay).fill(null).concat(monthDays);
 
   const selectedDateEvents = allEvents.filter(e => isSameDay(e.date, selectedDate));
+  const dateKey = format(selectedDate, 'yyyy-MM-dd');
+  const dayJournal = journals.find(j => j.userId === currentUser?.id && j.date === dateKey);
 
   return (
     <div className="space-y-6">
@@ -159,6 +163,42 @@ export default function LawyerCalendar() {
               </div>
             )}
           </div>
+
+          {/* Journal Entry */}
+          {dayJournal && (
+            <div className="mt-6 pt-6 border-t border-slate-100">
+              <h4 className="font-medium text-slate-900 mb-3 flex items-center gap-2">
+                <BookOpen size={16} className="text-emerald-600" /> Journal
+              </h4>
+              {dayJournal.notes && (
+                <div className="mb-3">
+                  <p className="text-xs text-slate-500 mb-1 font-medium">Notes</p>
+                  <p className="text-sm text-slate-700 bg-slate-50 p-3 rounded-xl">{dayJournal.notes}</p>
+                </div>
+              )}
+              {dayJournal.todos && dayJournal.todos.length > 0 && (
+                <div className="mb-3">
+                  <p className="text-xs text-slate-500 mb-1 font-medium">Tasks</p>
+                  <div className="space-y-1">
+                    {dayJournal.todos.map(t => (
+                      <div key={t.id} className="flex items-center gap-2 text-sm text-slate-700">
+                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${t.completed ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300'}`}>
+                          {t.completed && <Check size={10} className="text-white" />}
+                        </div>
+                        <span className={t.completed ? 'line-through text-slate-400' : ''}>{t.text}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {dayJournal.plans && (
+                <div>
+                  <p className="text-xs text-slate-500 mb-1 font-medium">Plans</p>
+                  <p className="text-sm text-slate-700 bg-slate-50 p-3 rounded-xl">{dayJournal.plans}</p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Upcoming Events */}
           <div className="mt-6 pt-6 border-t border-slate-100">

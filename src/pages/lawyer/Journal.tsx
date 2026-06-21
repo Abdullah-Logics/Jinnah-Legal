@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useStore } from '../../store/useStore';
-import { format, addDays, startOfWeek } from 'date-fns';
-import { BookOpen, Plus, Check, Trash2, Calendar, ChevronLeft, ChevronRight, Loader } from 'lucide-react';
+import { format, addDays, startOfWeek, isSameDay } from 'date-fns';
+import { BookOpen, Plus, Check, Trash2, Calendar, ChevronLeft, ChevronRight, Loader, MapPin } from 'lucide-react';
 
 export default function LawyerJournal() {
-  const { currentUser, journals, addJournalEntry, updateJournalEntry, loadJournals } = useStore();
+  const { currentUser, journals, cases, addJournalEntry, updateJournalEntry, loadJournals, loadCases } = useStore();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [notes, setNotes] = useState('');
   const [todos, setTodos] = useState<{ id: string; text: string; completed: boolean }[]>([]);
@@ -13,10 +13,16 @@ export default function LawyerJournal() {
   const [newTodo, setNewTodo] = useState('');
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => { loadJournals(); }, [loadJournals]);
+  useEffect(() => { loadJournals(); loadCases(); }, [loadJournals, loadCases]);
 
   const dateKey = format(selectedDate, 'yyyy-MM-dd');
   const todayEntry = journals.find(j => j.userId === currentUser?.id && j.date === dateKey);
+
+  const myCases = cases.filter(c => c.lawyerId === currentUser?.id);
+  const dayEvents = myCases.flatMap(c => [
+    ...c.courtDates.filter(d => isSameDay(new Date(d.date), selectedDate)).map(d => ({ type: 'court' as const, title: c.title, court: d.court, notes: d.notes })),
+    ...c.timeline.filter(t => isSameDay(new Date(t.date), selectedDate)).map(t => ({ type: 'event' as const, title: t.event, description: t.description })),
+  ]);
 
   useEffect(() => {
     if (todayEntry) {
@@ -126,6 +132,26 @@ export default function LawyerJournal() {
           })}
         </div>
       </div>
+
+      {/* Day Events */}
+      {dayEvents.length > 0 && (
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+          <h3 className="font-semibold text-slate-900 mb-3 text-sm">Court Dates & Events</h3>
+          <div className="space-y-2">
+            {dayEvents.map((ev, i) => (
+              <div key={i} className={`p-3 rounded-xl text-sm ${ev.type === 'court' ? 'bg-red-50 border-l-4 border-red-500' : 'bg-emerald-50 border-l-4 border-emerald-500'}`}>
+                <p className="font-medium text-slate-900">{ev.type === 'court' ? `Court: ${ev.title}` : ev.title}</p>
+                {ev.type === 'court' && ev.court && (
+                  <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5"><MapPin size={12} />{ev.court}</p>
+                )}
+                {(ev.type === 'event' ? ev.description : ev.notes) && (
+                  <p className="text-xs text-slate-500 mt-0.5">{ev.type === 'event' ? ev.description : ev.notes}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Journal Content */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">

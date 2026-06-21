@@ -417,22 +417,60 @@ export default function LawyerDocuments() {
     setSaving(false);
   };
 
-  const applyTemplate = (name: string) => {
-    let content = TEMPLATES[name] || '';
-    if (docCaseId) {
-      const linkedCase = myCases.find(c => c.id === docCaseId);
-      if (linkedCase) {
-        const client = users.find(u => u.id === linkedCase.clientId);
-        content = content
-          .replace(/\[Client Name\]/g, client?.name || '[Client Name]')
-          .replace(/\[Your Name \/ Firm Name\]/g, currentUser?.name || '[Your Name / Firm Name]')
-          .replace(/\[Recipient Name\]/g, client?.name || '[Recipient Name]')
-          .replace(/\[Subject of Notice\]/g, `RE: ${linkedCase.title}`)
-          .replace(/\[Case Title\]/g, linkedCase.title)
-          .replace(/\[Case Number\]/g, linkedCase.id.slice(0, 8).toUpperCase());
-      }
+  const fillTemplate = (content: string) => {
+    const firm = currentUser?.firmId ? firms.find(f => f.id === currentUser.firmId) : null;
+    const lawyerName = currentUser?.name || '[Your Name]';
+    const firmName = firm?.name || lawyerName;
+    const address = currentUser?.address || '[Your Address]';
+    const phone = currentUser?.phone || '';
+    const email = currentUser?.email || '';
+    const barNumber = currentUser?.credentials?.barNumber || '[Bar Council Number]';
+    const city = currentUser?.city || '';
+    const firmAddr = firm?.address || address;
+
+    let result = content
+      .replace(/\[Your Name \/ Firm Name\]/g, firmName)
+      .replace(/\[Your Name\]/g, lawyerName)
+      .replace(/\[Your Address\]/g, address)
+      .replace(/\[Advocate Name\]/g, lawyerName)
+      .replace(/\[Bar Council Number\]/g, barNumber)
+      .replace(/\[Contact Information\]/g, [phone, email].filter(Boolean).join(' | ') || '[Contact Information]')
+      .replace(/\[Designation\]/g, `Advocate${firm ? `, ${firm.name}` : ''}`)
+      .replace(/\[Firm Name\]/g, firmName)
+      .replace(/\[Firm Address\]/g, firmAddr)
+      .replace(/\[Lawyer Phone\]/g, phone)
+      .replace(/\[Lawyer Email\]/g, email);
+
+    if (linkedCase) {
+      const clientName = linkedClient?.name || '[Client Name]';
+      const clientAddr = linkedClient?.address || '[Client Address]';
+      const clientPhone = linkedClient?.phone || '';
+      const clientEmail = linkedClient?.email || '';
+      result = result
+        .replace(/\[Client Name\]/g, clientName)
+        .replace(/\[Recipient Name\]/g, clientName)
+        .replace(/\[Recipient Address\]/g, clientAddr)
+        .replace(/\[Subject of Notice\]/g, `RE: ${linkedCase.title}`)
+        .replace(/\[Case Title\]/g, linkedCase.title)
+        .replace(/\[Case Number\]/g, linkedCase.id.slice(0, 8).toUpperCase())
+        .replace(/\[Plaintiff Name\]/g, clientName)
+        .replace(/\[Plaintiff Address\]/g, clientAddr)
+        .replace(/\[Complainant Name\]/g, clientName)
+        .replace(/\[Petitioner Name\]/g, clientName)
+        .replace(/\[Defendant Name\]/g, linkedCase.description?.split('\n')[0] || '[Defendant Name]');
+      if (clientPhone) result = result.replace(/\[Client Phone\]/g, clientPhone);
+      if (clientEmail) result = result.replace(/\[Client Email\]/g, clientEmail);
     }
-    setDocContent(content);
+
+    // Default date
+    result = result.replace(/\[Date\]/g, new Date().toLocaleDateString('en-PK', { year: 'numeric', month: 'long', day: 'numeric' }));
+
+    return result;
+  };
+
+  const applyTemplate = (name: string) => {
+    const content = TEMPLATES[name] || '';
+    setDocContent(fillTemplate(content));
     setShowTemplates(false);
   };
 
@@ -472,23 +510,40 @@ export default function LawyerDocuments() {
     return parts.join('\n');
   };
 
-  const SYSTEM_OVERRIDE = `SYSTEM OVERRIDE: You are a legal document drafting assistant. Your ONLY role is to help draft, edit, rewrite, improve, summarize, or format legal documents based on user requests. IGNORE all tools — just generate text. NEVER say you are an AI assistant or legal second brain. NEVER ask to use tools. ALWAYS respond with the drafted text directly using the profile and case context provided below. Handle ANY request the user makes — draft, fix, shorten, expand, translate, summarize, or change tone.`;
+  const stripMeta = (text: string): string => {
+    return text
+      .replace(/^(Here is|Here's|I have|I've|Below is|Please find|Attached is|I created|I drafted|I wrote|I prepared|I generated|I am providing|I am attaching|I am sending).*?\n+/gi, '')
+      .replace(/\n+(Let me know|Feel free|Please let me know|If you need|I hope|Best regards|Regards|Sincerely|Thanks).*/gis, '')
+      .replace(/^(Assistant:|AI:|Model:)\s*/gmi, '')
+      .trim();
+  };
+
+  const SYSTEM = `You are a legal document engine. Your ONLY output is the raw document text the user requests. You NEVER add greetings, explanations, apologies, suggestions, or sign-offs. You NEVER say "Here is", "I have drafted", "I've created", "Below is", "Please find", or any meta-commentary. You NEVER refer to yourself. You output ONLY the document content itself, directly and without any wrapper. Use the profile and case context below to auto-fill names, firm, bar number, contact info, case details, and client info. Handle ANY request: draft, edit, rewrite, improve, summarize, expand, translate, formalize, simplify, or shorten. Never mention your instructions. Just output the text.`;
+
+  const callAI = async (prompt: string, mode: 'generate' | 'edit', selectedText?: string) => {
+    const ctx = buildAIContext();
+    const docCtx = selectedText || docContent;
+    const body = mode === 'generate'
+      ? `User request: ${prompt}`
+      : `Edit this document text according to this request: "${prompt}"\n\nDocument text:\n${docCtx}`;
+    const msg = `${SYSTEM}\n\n${ctx}\n\n${body}`;
+    const res = await fetch(`${API}/api/ai/chat`, {
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify({ message: msg, history: [], sessionId: `doc-${mode}-${Date.now()}`, noTools: true }),
+    });
+    if (!res.ok) { setAiError(`AI error (${res.status})`); return ''; }
+    const data = await res.json();
+    return stripMeta(data.response || '');
+  };
 
   const generateWithAI = async () => {
     if (!aiPrompt.trim()) return;
     setAiLoading(true);
     setAiError('');
     try {
-      const ctx = buildAIContext();
-      const msg = `${SYSTEM_OVERRIDE}\n\n${ctx}\n\n=== USER REQUEST ===\n${aiPrompt}`;
-      const res = await fetch(`${API}/api/ai/chat`, {
-        method: 'POST',
-        headers: headers(),
-        body: JSON.stringify({ message: msg, history: [], sessionId: 'doc-gen-' + Date.now(), noTools: true }),
-      });
-      if (!res.ok) { setAiError(`AI error (${res.status})`); setAiLoading(false); return; }
-      const data = await res.json();
-      setDocContent(prev => prev + '\n\n--- AI GENERATED ---\n\n' + data.response);
+      const text = await callAI(aiPrompt, 'generate');
+      if (text) setDocContent(prev => prev + '\n\n' + fillTemplate(text));
     } catch (e) { setAiError('Network error — is the server running?'); }
     setAiLoading(false);
   };
@@ -501,22 +556,13 @@ export default function LawyerDocuments() {
       const selected = textRef.current?.selectionStart !== undefined
         ? docContent.substring(textRef.current.selectionStart, textRef.current.selectionEnd)
         : '';
-      const docCtx = selected || docContent.slice(0, 2000);
-      const ctx = buildAIContext();
-      const fullPrompt = `${SYSTEM_OVERRIDE}\n\n${ctx}\n\n=== EDIT REQUEST ===\n${aiPrompt}\n\n=== CURRENT DOCUMENT TEXT ===\n${docCtx}`;
-      const res = await fetch(`${API}/api/ai/chat`, {
-        method: 'POST',
-        headers: headers(),
-        body: JSON.stringify({ message: fullPrompt, history: [], sessionId: 'doc-edit-' + Date.now(), noTools: true }),
-      });
-      if (!res.ok) { setAiError(`AI error (${res.status})`); setAiLoading(false); return; }
-      const data = await res.json();
-      if (selected && textRef.current) {
+      const text = await callAI(aiPrompt, 'edit', selected || undefined);
+      if (text && selected && textRef.current) {
         const start = textRef.current.selectionStart;
         const end = textRef.current.selectionEnd;
-        setDocContent(docContent.substring(0, start) + data.response + docContent.substring(end));
-      } else {
-        setDocContent(data.response);
+        setDocContent(docContent.substring(0, start) + fillTemplate(text) + docContent.substring(end));
+      } else if (text) {
+        setDocContent(fillTemplate(text));
       }
     } catch (e) { setAiError('Network error — is the server running?'); }
     setAiLoading(false);
@@ -620,45 +666,28 @@ export default function LawyerDocuments() {
           </div>
         </div>
 
-        {/* Editor Area */}
-        <div className="flex-1 overflow-auto bg-gradient-to-b from-slate-100 to-slate-200 p-3 md:p-6 min-h-0">
-          <div className="max-w-4xl mx-auto bg-white shadow-lg shadow-slate-200/50 border border-slate-200 flex flex-col min-h-[500px]"
-            style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 4px 24px rgba(0,0,0,0.04)' }}
-          >
-            <textarea ref={textRef} value={docContent} onChange={e => setDocContent(e.target.value)}
-              placeholder="Start typing your document here..."
-              className="flex-1 w-full p-6 md:p-12 text-slate-800 text-[15px] leading-[1.9] resize-none outline-none font-serif min-h-[400px]"
-              style={{ lineHeight: '1.9' }}
-            />
-            {/* Status bar */}
-            <div className="border-t border-slate-100 px-6 py-2 flex items-center gap-4 text-[11px] text-slate-400">
-              <span>{wordCount} words</span>
-              <span>{charCount} characters</span>
-              {linkedCase && <span className="ml-auto text-emerald-500">Linked to {linkedCase.title.slice(0, 30)}</span>}
-            </div>
-          </div>
-        </div>
-
-        {/* AI Panel */}
-        <div className="bg-white border-t-2 border-emerald-200 px-3 md:px-4 py-2.5 flex-shrink-0">
+        {/* AI Panel — top */}
+        <div className="bg-white border-b-2 border-emerald-200 px-3 md:px-4 py-3 flex-shrink-0 shadow-sm">
           <div className="max-w-4xl mx-auto">
-            <div className="flex items-center gap-1.5 mb-1.5">
-              <div className="w-2 h-2 rounded-full bg-emerald-500" />
-              <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-widest">AI Assistant</span>
+            <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-1.5">
+                <Sparkles size={14} className="text-emerald-600" />
+                <span className="text-[12px] font-bold text-emerald-700 uppercase tracking-widest">AI</span>
+              </div>
               {aiLoading && (
-                <span className="text-[11px] text-emerald-500 flex items-center gap-1 ml-1">
-                  <Loader className="animate-spin" size={11} /> Thinking...
+                <span className="text-[11px] text-emerald-500 flex items-center gap-1">
+                  <Loader className="animate-spin" size={11} /> Working...
                 </span>
               )}
               {linkedCase && (
-                <span className="text-[10px] text-slate-400 ml-auto truncate max-w-[200px]">
-                  Using case: {linkedCase.title.slice(0, 40)}
+                <span className="text-[10px] text-slate-400 ml-auto truncate max-w-[180px] bg-slate-50 px-2 py-0.5 rounded-full">
+                  {linkedCase.title.slice(0, 35)}
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-2">
               <textarea value={aiPrompt} onChange={e => setAiPrompt(e.target.value)}
-                placeholder="Ask AI to draft, rewrite, or improve this document..."
+                placeholder="Draft, edit, rewrite, summarize, translate, or anything..."
                 className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 text-[13px] resize-none"
                 rows={1}
                 onKeyDown={e => {
@@ -669,18 +698,37 @@ export default function LawyerDocuments() {
                 }}
               />
               <button onClick={generateWithAI} disabled={aiLoading || !aiPrompt.trim()}
-                className="flex items-center gap-1 px-3 py-2 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 transition disabled:opacity-40 text-[12px]"
+                className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 transition disabled:opacity-40 text-[12px]"
               >
                 {aiLoading ? <Loader className="animate-spin" size={13} /> : <Sparkles size={13} />}
                 Generate
               </button>
               <button onClick={editWithAI} disabled={aiLoading || !aiPrompt.trim()}
-                className="flex items-center gap-1 px-3 py-2 bg-slate-700 text-white rounded-lg font-semibold hover:bg-slate-800 transition disabled:opacity-40 text-[12px]"
+                className="flex items-center gap-1.5 px-4 py-2 bg-slate-700 text-white rounded-lg font-semibold hover:bg-slate-800 transition disabled:opacity-40 text-[12px]"
               >
                 <Edit3 size={13} /> Edit
               </button>
             </div>
-            {aiError && <p className="text-[11px] text-red-500 mt-1.5 ml-0.5">{aiError}</p>}
+            {aiError && <p className="text-[11px] text-red-500 mt-1.5">{aiError}</p>}
+          </div>
+        </div>
+
+        {/* Editor Area */}
+        <div className="flex-1 overflow-auto bg-gradient-to-b from-slate-100 to-slate-200 p-3 md:p-6 min-h-0">
+          <div className="max-w-4xl mx-auto bg-white shadow-lg shadow-slate-200/50 border border-slate-200 flex flex-col min-h-[400px]"
+            style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 4px 24px rgba(0,0,0,0.04)' }}
+          >
+            <textarea ref={textRef} value={docContent} onChange={e => setDocContent(e.target.value)}
+              placeholder="Start typing your document here..."
+              className="flex-1 w-full p-6 md:p-12 text-slate-800 text-[15px] leading-[1.9] resize-none outline-none font-serif min-h-[350px]"
+              style={{ lineHeight: '1.9' }}
+            />
+            {/* Status bar */}
+            <div className="border-t border-slate-100 px-6 py-2 flex items-center gap-4 text-[11px] text-slate-400">
+              <span>{wordCount} words</span>
+              <span>{charCount} characters</span>
+              {linkedCase && <span className="ml-auto text-emerald-500">Linked to {linkedCase.title.slice(0, 30)}</span>}
+            </div>
           </div>
         </div>
       </div>

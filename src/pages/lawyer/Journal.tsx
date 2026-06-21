@@ -142,17 +142,15 @@ export default function LawyerJournal() {
       setEntryCreated(todayEntry.createdAt || new Date().toISOString());
       if (editor) {
         const current = editor.getHTML();
-        if (current !== todayEntry.content && todayEntry.content) {
-          editor.commands.setContent(todayEntry.content);
-        } else if (!todayEntry.content) {
-          editor.commands.setContent('');
+        if (current !== todayEntry.content) {
+          editor.commands.setContent(todayEntry.content || '', { emitUpdate: false });
         }
       }
     } else if (journalsLoaded.current) {
       setTodos([]);
       setPlans('');
       setEntryCreated(null);
-      if (editor) editor.commands.setContent('');
+      if (editor) editor.commands.setContent('', { emitUpdate: false });
     }
   }, [dateKey, todayEntry]);
 
@@ -353,12 +351,12 @@ export default function LawyerJournal() {
             {todayEntry && (
               <button
                 onClick={() => {
-                  if (window.confirm('Delete this journal entry?')) {
+                    if (window.confirm('Delete this journal entry?')) {
                     deleteJournalEntry(todayEntry.id);
                     setEntryCreated(null);
                     setTodos([]);
                     setPlans('');
-                    if (editor) editor.commands.setContent('');
+                    if (editor) editor.commands.setContent('', { emitUpdate: false });
                   }
                 }}
                 className="p-2 rounded-xl text-red-400 hover:bg-red-50 hover:text-red-600 transition"

@@ -497,23 +497,31 @@ export default function LawyerDocuments() {
     setAiLoading(false);
   };
 
+  const printRef = useRef<HTMLIFrameElement>(null);
+
   const downloadPDF = () => {
-    const win = window.open('', '_blank');
-    if (!win) return;
-    win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${docName}</title>
+    const iframe = printRef.current;
+    if (!iframe) return;
+    const doc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!doc) return;
+    doc.open();
+    doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${docName}</title>
 <style>
   @page { margin: 20mm; }
-  body { font-family: 'Georgia', serif; font-size: 12pt; line-height: 1.8; color: #000; padding: 0; margin: 0; }
-  .content { max-width: 210mm; margin: 0 auto; white-space: pre-wrap; }
+  body { font-family: 'Georgia', serif; font-size: 12pt; line-height: 1.8; color: #000; margin: 0; padding: 20mm; }
+  .content { white-space: pre-wrap; max-width: 170mm; margin: 0 auto; }
   @media print { body { padding: 0; } }
-</style></head><body><div class="content">${docContent.replace(/\n/g, '<br>')}</div>
-<script>window.print();<\/script></body></html>`);
-    win.document.close();
+</style></head><body><div class="content">${docContent.replace(/\n/g, '<br>')}</div></body></html>`);
+    doc.close();
+    setTimeout(() => { iframe.contentWindow?.print(); }, 300);
   };
 
   const filtered = docs.filter(d =>
     d.name.toLowerCase().includes(search.toLowerCase())
   );
+
+  const wordCount = docContent.trim() ? docContent.trim().split(/\s+/).length : 0;
+  const charCount = docContent.length;
 
   const formatSize = (bytes: number) => {
     if (bytes < 1024) return bytes + ' B';
@@ -524,64 +532,61 @@ export default function LawyerDocuments() {
   if (view === 'editor') {
     return (
       <div className="h-full flex flex-col">
+        <iframe ref={printRef} className="hidden" title="print-frame" />
+
         {/* Toolbar */}
-        <div className="bg-white border-b border-slate-200 px-4 py-3 flex items-center gap-2 flex-shrink-0">
-          <button onClick={() => setView('list')} className="p-2 hover:bg-slate-100 rounded-lg transition">
+        <div className="bg-white border-b border-slate-200 px-3 md:px-4 py-2 flex items-center gap-2 flex-shrink-0">
+          <button onClick={() => setView('list')} className="p-1.5 hover:bg-slate-100 rounded-lg transition">
             <ArrowLeft size={20} className="text-slate-600" />
           </button>
-          <input
-            value={docName}
-            onChange={e => setDocName(e.target.value)}
+          <input value={docName} onChange={e => setDocName(e.target.value)}
             placeholder="Document name..."
-            className="flex-1 text-lg font-semibold text-slate-900 bg-transparent border-none outline-none placeholder-slate-300 min-w-[120px]"
+            className="flex-1 font-semibold text-slate-900 bg-transparent border-none outline-none placeholder-slate-300 min-w-0 text-sm md:text-base"
           />
           <button onClick={downloadPDF} disabled={!docContent.trim()}
-            className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-emerald-600 transition disabled:opacity-30"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs md:text-sm bg-white border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600 transition disabled:opacity-30"
             title="Download as PDF"
           >
-            <Printer size={18} />
+            <Printer size={15} /> <span className="hidden sm:inline">PDF</span>
           </button>
           <button onClick={handleSave} disabled={saving || !docName.trim()}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 transition disabled:opacity-50 text-sm"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs md:text-sm bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 transition disabled:opacity-50"
           >
-            {saving ? <Loader className="animate-spin" size={16} /> : <Save size={16} />}
-            Save
+            {saving ? <Loader className="animate-spin" size={15} /> : <Save size={15} />}
+            <span className="hidden sm:inline">Save</span>
           </button>
         </div>
 
         {/* Metadata Bar */}
-        <div className="bg-white border-b border-slate-100 px-4 py-2 flex items-center gap-3 flex-wrap text-sm flex-shrink-0">
-          <div className="flex items-center gap-1.5">
-            <FolderOpen size={14} className="text-slate-400" />
-            <select value={docCaseId} onChange={e => setDocCaseId(e.target.value)}
-              className="text-sm bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-emerald-500 max-w-[200px]"
-            >
-              <option value="">No case linked</option>
-              {myCases.map(c => (
-                <option key={c.id} value={c.id}>#{c.id.slice(0,6)} {c.title}</option>
-              ))}
-            </select>
-          </div>
+        <div className="bg-white border-b border-slate-100 px-3 md:px-4 py-2 flex items-center gap-2 flex-wrap text-xs flex-shrink-0">
+          <FolderOpen size={13} className="text-slate-400 hidden sm:block" />
+          <select value={docCaseId} onChange={e => setDocCaseId(e.target.value)}
+            className="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-emerald-500 max-w-[140px] sm:max-w-[200px]"
+          >
+            <option value="">No case linked</option>
+            {myCases.map(c => (
+              <option key={c.id} value={c.id}>#{c.id.slice(0,6)} {c.title}</option>
+            ))}
+          </select>
           {linkedCase && linkedClient && (
-            <span className="text-xs text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full flex items-center gap-1">
-              <CaseSensitive size={12} /> {linkedClient.name}
+            <span className="text-[10px] text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full flex items-center gap-1 truncate max-w-[120px]">
+              <CaseSensitive size={10} /> {linkedClient.name}
             </span>
           )}
-
           <div className="relative">
             <button onClick={() => setShowTemplates(!showTemplates)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 transition text-slate-600"
+              className="flex items-center gap-1 px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 transition text-slate-600"
             >
-              <BookTemplate size={14} /> Templates <ChevronDown size={14} />
+              <BookTemplate size={12} /> Templates <ChevronDown size={12} />
             </button>
             <AnimatePresence>
               {showTemplates && (
                 <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
-                  className="absolute top-full left-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-20 w-56 max-h-72 overflow-y-auto"
+                  className="absolute top-full left-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-20 w-52 max-h-72 overflow-y-auto"
                 >
                   {Object.keys(TEMPLATES).map(name => (
                     <button key={name} onClick={() => applyTemplate(name)}
-                      className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 transition"
+                      className="w-full text-left px-3 py-2 text-xs text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 transition"
                     >{name}</button>
                   ))}
                 </motion.div>
@@ -591,42 +596,63 @@ export default function LawyerDocuments() {
         </div>
 
         {/* Editor Area */}
-        <div className="flex-1 overflow-auto bg-slate-100 p-4 md:p-8 min-h-0">
-          <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col min-h-[400px]">
+        <div className="flex-1 overflow-auto bg-gradient-to-b from-slate-100 to-slate-200 p-3 md:p-6 min-h-0">
+          <div className="max-w-4xl mx-auto bg-white shadow-lg shadow-slate-200/50 border border-slate-200 flex flex-col min-h-[500px]"
+            style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 4px 24px rgba(0,0,0,0.04)' }}
+          >
             <textarea ref={textRef} value={docContent} onChange={e => setDocContent(e.target.value)}
-              placeholder="Start typing your document here... or select a template above."
-              className="flex-1 w-full p-6 md:p-10 text-slate-800 text-base leading-relaxed resize-none outline-none font-serif rounded-2xl min-h-[300px]"
-              style={{ lineHeight: '1.8' }}
+              placeholder="Start typing your document here..."
+              className="flex-1 w-full p-6 md:p-12 text-slate-800 text-[15px] leading-[1.9] resize-none outline-none font-serif min-h-[400px]"
+              style={{ lineHeight: '1.9' }}
             />
+            {/* Status bar */}
+            <div className="border-t border-slate-100 px-6 py-2 flex items-center gap-4 text-[11px] text-slate-400">
+              <span>{wordCount} words</span>
+              <span>{charCount} characters</span>
+              {linkedCase && <span className="ml-auto text-emerald-500">Linked to {linkedCase.title.slice(0, 30)}</span>}
+            </div>
           </div>
         </div>
 
         {/* AI Panel */}
-        <div className="bg-white border-t-2 border-emerald-100 px-4 py-3 flex-shrink-0">
+        <div className="bg-white border-t-2 border-emerald-200 px-3 md:px-4 py-2.5 flex-shrink-0">
           <div className="max-w-4xl mx-auto">
-            <div className="flex items-center gap-2 mb-2">
-              <Sparkles size={14} className="text-emerald-600" />
-              <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">AI Assistant</span>
-              {linkedCase && <span className="text-xs text-slate-400">· Context: {linkedCase.title}</span>}
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <div className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-widest">AI Assistant</span>
+              {aiLoading && (
+                <span className="text-[11px] text-emerald-500 flex items-center gap-1 ml-1">
+                  <Loader className="animate-spin" size={11} /> Thinking...
+                </span>
+              )}
+              {linkedCase && (
+                <span className="text-[10px] text-slate-400 ml-auto truncate max-w-[200px]">
+                  Using case: {linkedCase.title.slice(0, 40)}
+                </span>
+              )}
             </div>
-            <div className="flex items-center gap-2">
-              <input value={aiPrompt} onChange={e => setAiPrompt(e.target.value)}
+            <div className="flex items-center gap-1.5">
+              <textarea value={aiPrompt} onChange={e => setAiPrompt(e.target.value)}
                 placeholder="Ask AI to draft, rewrite, or improve this document..."
-                className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+                className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-emerald-500 text-[13px] resize-none"
+                rows={1}
                 onKeyDown={e => {
-                  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (aiPrompt.trim()) generateWithAI(); }
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (aiPrompt.trim()) generateWithAI();
+                  }
                 }}
               />
               <button onClick={generateWithAI} disabled={aiLoading || !aiPrompt.trim()}
-                className="flex items-center gap-1.5 px-4 py-2.5 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 transition disabled:opacity-50 text-sm whitespace-nowrap"
+                className="flex items-center gap-1 px-3 py-2 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 transition disabled:opacity-40 text-[12px]"
               >
-                {aiLoading ? <Loader className="animate-spin" size={15} /> : <Sparkles size={15} />}
+                {aiLoading ? <Loader className="animate-spin" size={13} /> : <Sparkles size={13} />}
                 Generate
               </button>
               <button onClick={editWithAI} disabled={aiLoading || !aiPrompt.trim()}
-                className="flex items-center gap-1.5 px-4 py-2.5 bg-slate-700 text-white rounded-xl font-semibold hover:bg-slate-800 transition disabled:opacity-50 text-sm whitespace-nowrap"
+                className="flex items-center gap-1 px-3 py-2 bg-slate-700 text-white rounded-lg font-semibold hover:bg-slate-800 transition disabled:opacity-40 text-[12px]"
               >
-                <Edit3 size={15} /> Edit
+                <Edit3 size={13} /> Edit
               </button>
             </div>
           </div>

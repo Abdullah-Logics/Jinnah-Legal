@@ -42,13 +42,14 @@ export default function LawyerJournal() {
   const [newTodo, setNewTodo] = useState('');
   const [tab, setTab] = useState<'notes' | 'sketch'>('notes');
   const [entryCreated, setEntryCreated] = useState<string | null>(null);
-  const [showScheduler, setShowScheduler] = useState(false);
+  const [showScheduler, setShowScheduler] = useState(true);
   const [scheduleCase, setScheduleCase] = useState('');
   const [scheduleDate, setScheduleDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [scheduleType, setScheduleType] = useState<'hearing' | 'meeting' | 'deadline'>('hearing');
   const [scheduleTitle, setScheduleTitle] = useState('');
   const [scheduleLocation, setScheduleLocation] = useState('');
   const [scheduling, setScheduling] = useState(false);
+  const [plans, setPlans] = useState('');
 
   useEffect(() => { loadJournals(); loadCases(); }, [loadJournals, loadCases]);
 
@@ -76,7 +77,7 @@ export default function LawyerJournal() {
       date: dateKey,
       notes: todayEntry?.notes || '',
       todos: finalTodos,
-      plans: '',
+      plans: plans,
       content: contentHtml,
     };
     if (todayEntry) {
@@ -134,6 +135,7 @@ export default function LawyerJournal() {
   useEffect(() => {
     if (todayEntry) {
       setTodos(todayEntry.todos || []);
+      setPlans(todayEntry.plans || '');
       if (!entryCreated) setEntryCreated(new Date().toISOString());
       if (editor) {
         const current = editor.getHTML();
@@ -145,6 +147,7 @@ export default function LawyerJournal() {
       }
     } else {
       setTodos([]);
+      setPlans('');
       setEntryCreated(null);
       if (editor) editor.commands.setContent('');
     }
@@ -367,7 +370,23 @@ export default function LawyerJournal() {
 
         {/* Tab Content */}
         {tab === 'notes' ? (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-0 p-6 md:p-8 pt-6">
+          <>
+            {/* Plans for today */}
+            <div className="px-6 md:px-8 pt-4 pb-2">
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                <label className="flex items-center gap-2 text-sm font-medium text-amber-800 mb-2">
+                  <CheckSquare size={16} /> Plans for Today
+                </label>
+                <textarea
+                  value={plans}
+                  onChange={e => setPlans(e.target.value)}
+                  onBlur={() => { if (editor) saveEntry(editor.getHTML()); }}
+                  placeholder="What do you plan to do today? Court prep, client calls, filings..."
+                  className="w-full bg-transparent border-0 text-sm text-slate-700 placeholder-slate-400 focus:outline-none resize-none min-h-[60px]"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-0 p-6 md:p-8 pt-4">
             {/* Main Editor — 2/3 */}
             <div className="lg:col-span-2 pr-0 lg:pr-6 border-r-0 lg:border-r border-slate-100">
               <BubbleMenu editor={editor} tippyOptions={{ duration: 150 }}>
@@ -435,6 +454,7 @@ export default function LawyerJournal() {
               </div>
             </div>
           </div>
+          </>
         ) : (
           /* Sketch Tab */
           <div className="p-6 md:p-8">

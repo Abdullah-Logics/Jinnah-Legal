@@ -12,7 +12,9 @@ aiRouter.use(auth);
 const MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash';
 const MAX_TOOL_ROUNDS = 10;
 
-const LAWYER_SYSTEM = `You are an AI Legal Second Brain for Pakistani lawyers on the Jinnah Legal platform. Help with legal research, drafting, strategy, and court procedure under Pakistani law (PPC, CPC, CRPC). You have tools to create cases, schedule hearings, save documents, change passwords, and invite clients.
+const LAWYER_SYSTEM = `You are an AI Legal Second Brain for Pakistani lawyers on the Jinnah Legal platform. Help with legal research, drafting, strategy, and court procedure under Pakistani law (PPC, CPC, CRPC). You have tools to create cases, schedule hearings, save documents, create journal entries with notes/todos/plans, add timeline events to cases, change passwords, and invite clients.
+
+When you save a document, check if it mentions any dates (court dates, deadlines, meeting dates) and automatically call addTimelineEvent or createCalendarEvent for those dates. When the user shares daily tasks or notes, use createJournalEntry to record them.
 
 Key rules:
 - Respond naturally and conversationally — avoid rigid formatting or bullet-point lists unless the user asks for them.
@@ -102,6 +104,34 @@ const FUNCTION_DECLARATIONS = [
       required: ['currentPassword', 'newPassword'],
     },
   },
+  {
+    name: 'createJournalEntry',
+    description: 'Add or update a journal entry for a specific date with notes, todo tasks, and plans. Use when the user wants to journal, add notes/tasks/plans for a day, or set goals.',
+    parameters: {
+      type: 'object',
+      properties: {
+        date: { type: 'string', description: 'Date in YYYY-MM-DD format' },
+        notes: { type: 'string', description: 'Journal notes/observations for the day' },
+        todos: { type: 'string', description: 'Comma-separated list of todo tasks' },
+        plans: { type: 'string', description: 'Plans or goals for the day' },
+      },
+      required: ['date'],
+    },
+  },
+  {
+    name: 'addTimelineEvent',
+    description: 'Add an event to a case timeline. Use when a document mentions a date that should appear on the calendar, or when tracking case milestones.',
+    parameters: {
+      type: 'object',
+      properties: {
+        caseId: { type: 'string', description: 'The ID of the case' },
+        date: { type: 'string', description: 'Date in YYYY-MM-DD format' },
+        event: { type: 'string', description: 'Name/title of the event' },
+        description: { type: 'string', description: 'Optional details about the event' },
+      },
+      required: ['caseId', 'date', 'event'],
+    },
+  },
 ];
 
 async function executeTool(name, args, req) {
@@ -162,6 +192,36 @@ async function executeTool(name, args, req) {
       const hash = await bcrypt.hash(newPassword, 10);
       await run('UPDATE users SET password_hash=? WHERE id=?', [hash, req.user.id]);
       return { success: true, message: 'Password changed successfully' };
+    }
+
+    case 'createJournalEntry': {
+      const { date, notes, todos, plans } = args;
+      const existing = await queryOne('SELECT id FROM journals WHERE user_id=? AND date=?', [req.user.id, date]);
+      const todoList = todos ? todos.split(',').map(t => t.trim()).filter(Boolean).map(t => ({ id: uuid(), text: t, completed: false })) : [];
+      if (existing) {
+        const current = await queryOne('SELECT notes, todos, plans FROM journals WHERE id=?', [existing.id]);
+        const mergedTodos = todoList.length > 0 ? JSON.stringify(todoList) : current.todos;
+        await run(
+          'UPDATE journals SET notes=COALESCE(?,notes), todos=COALESCE(?,todos), plans=COALESCE(?,plans), updated_at=? WHERE id=?',
+          [notes ?? null, mergedTodos, plans ?? null, new Date().toISOString(), existing.id],
+        );
+      } else {
+        await run(
+          'INSERT INTO journals (id, user_id, date, notes, todos, plans) VALUES (?,?,?,?,?,?)',
+          [uuid(), req.user.id, date, notes || '', JSON.stringify(todoList), plans || ''],
+        );
+      }
+      return { success: true, message: `Journal entry for ${date} saved` };
+    }
+
+    case 'addTimelineEvent': {
+      const { caseId, date, event, description } = args;
+      const caseRow = await queryOne('SELECT id, timeline FROM cases WHERE id=? AND lawyer_id=?', [caseId, req.user.id]);
+      if (!caseRow) return { error: 'Case not found or not owned by you' };
+      const timeline = JSON.parse(caseRow.timeline || '[]');
+      timeline.push({ date, event, description: description || '' });
+      await run('UPDATE cases SET timeline=?, updated_at=? WHERE id=?', [JSON.stringify(timeline), new Date().toISOString(), caseId]);
+      return { success: true, message: `Timeline event "${event}" added for ${date}` };
     }
 
     default:

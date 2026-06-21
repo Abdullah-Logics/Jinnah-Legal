@@ -7,3 +7,5 @@ backend/*.db
 backend/*.sqlite
 data/
 .vercel
+backups/
+uploads/

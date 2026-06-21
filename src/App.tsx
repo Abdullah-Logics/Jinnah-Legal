@@ -34,6 +34,7 @@ import ClientMessages from './pages/client/Messages';
 import ClientCalendar from './pages/client/Calendar';
 import ClientProfile from './pages/client/Profile';
 import ClientAIAssistant from './pages/client/AIAssistant';
+import ClientDocuments from './pages/client/Documents';
 
 // Admin Portal
 import AdminDashboard from './pages/admin/Dashboard';
@@ -110,6 +111,7 @@ function App() {
             <Route path="calendar" element={<ClientCalendar />} />
             <Route path="profile" element={<ClientProfile />} />
             <Route path="ai-assistant" element={<ClientAIAssistant />} />
+            <Route path="documents" element={<ClientDocuments />} />
           </Route>
 
           {/* Admin Portal */}

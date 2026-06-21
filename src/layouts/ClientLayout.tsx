@@ -16,6 +16,7 @@ import {
   Bell,
   Scale,
   Bot,
+  FileText,
 } from 'lucide-react';
 
 const navItems = [
@@ -25,6 +26,7 @@ const navItems = [
   { path: '/client/find-lawyer', icon: Search, label: 'Find Lawyer' },
   { path: '/client/billing', icon: CreditCard, label: 'Billing' },
   { path: '/client/calendar', icon: Calendar, label: 'Calendar' },
+  { path: '/client/documents', icon: FileText, label: 'Documents' },
   { path: '/client/messages', icon: MessageSquare, label: 'Messages' },
   { path: '/client/profile', icon: User, label: 'Profile' },
 ];

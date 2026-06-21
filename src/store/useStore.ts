@@ -106,7 +106,7 @@ export interface TimeEntry {
 
 const API = import.meta.env.DEV
   ? 'http://localhost:3001'
-  : 'https://stress-these-confidence-holding.trycloudflare.com';
+  : 'https://headphones-june-exterior-performer.trycloudflare.com';
 
 function normalizeFirm(f: Record<string, unknown>): Firm {
   return {

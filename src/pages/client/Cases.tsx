@@ -55,7 +55,10 @@ export default function ClientCases() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
-                      <h3 className="font-bold text-slate-900 truncate">{c.title}</h3>
+                      <h3 className="font-bold text-slate-900 truncate">
+                        {c.title}
+                        <span className="ml-2 text-xs font-mono text-slate-400">#{c.id.slice(0,8)}</span>
+                      </h3>
                       <span className={`flex-shrink-0 px-2 py-1 text-xs font-medium rounded-full ${
                         c.status === 'active' ? 'bg-emerald-100 text-emerald-700' :
                         c.status === 'pending' ? 'bg-amber-100 text-amber-700' :

@@ -39,7 +39,7 @@ export default function ClientCaseDetail() {
           <ArrowLeft size={24} />
         </Link>
         <div className="flex-1">
-          <h1 className="text-xl md:text-2xl font-bold text-slate-900">{caseData.title}</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-slate-900">{caseData.title} <span className="text-sm font-mono text-slate-400">#{caseData.id.slice(0,8)}</span></h1>
           <div className="flex items-center gap-3 mt-1">
             <span className={`px-2 py-1 text-xs font-medium rounded-full ${
               caseData.status === 'active' ? 'bg-emerald-100 text-emerald-700' :

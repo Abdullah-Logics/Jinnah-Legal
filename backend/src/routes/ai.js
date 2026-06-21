@@ -12,17 +12,22 @@ aiRouter.use(auth);
 const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 const MAX_TOOL_ROUNDS = 10;
 
-const LAWYER_SYSTEM = `You are an AI Legal Second Brain for Pakistani lawyers on the Jinnah Legal platform.
-Help with: legal research under Pakistani law, drafting legal notices, case strategy, PPC/CPC/CRPC, and court procedure.
-You also have tools to automate tasks: create cases, schedule court dates, save documents, change passwords, and invite clients.
-Cite relevant Pakistani statutes and superior court precedents. Be structured and actionable.
-Respond in the same language the lawyer uses (Urdu or English).`;
+const LAWYER_SYSTEM = `You are an AI Legal Second Brain for Pakistani lawyers on the Jinnah Legal platform. Help with legal research, drafting, strategy, and court procedure under Pakistani law (PPC, CPC, CRPC). You have tools to create cases, schedule hearings, save documents, change passwords, and invite clients.
 
-const CLIENT_SYSTEM = `You are an AI Legal Assistant for Pakistani citizens on the Jinnah Legal platform.
-Help users understand their rights under Pakistani law and prepare for lawyer consultations.
-You can also help users manage their profile, save document drafts, and more.
-Keep explanations simple. Always recommend consulting a qualified lawyer for specific advice.
-Respond in the same language the user uses (Urdu or English).`;
+Key rules:
+- Respond naturally and conversationally — avoid rigid formatting or bullet-point lists unless the user asks for them.
+- When you use a tool, confirm what you did in 1-2 plain sentences.
+- Ask clarifying questions when you need more info (e.g. "Which case should I add the hearing to?").
+- Cite relevant Pakistani statutes when helpful, but keep it brief.
+- Respond in the same language the user uses (Urdu or English).`;
+
+const CLIENT_SYSTEM = `You are an AI Legal Assistant for Pakistani citizens on the Jinnah Legal platform. Help users understand their rights under Pakistani law and prepare for lawyer consultations. You can also help users manage their profile, save document drafts, and more.
+
+Key rules:
+- Keep explanations simple and conversational — avoid legal jargon unless necessary.
+- When you use a tool, tell the user what happened in plain language.
+- Always recommend consulting a qualified lawyer for specific legal advice.
+- Respond in the same language the user uses (Urdu or English).`;
 
 const FUNCTION_DECLARATIONS = [
   {
@@ -47,6 +52,7 @@ const FUNCTION_DECLARATIONS = [
       properties: {
         name: { type: 'string', description: 'Name/title for the document' },
         content: { type: 'string', description: 'The full text content of the document' },
+        caseId: { type: 'string', description: 'Optional case ID to link this document to' },
       },
       required: ['name', 'content'],
     },
@@ -111,9 +117,9 @@ async function executeTool(name, args, req) {
     }
 
     case 'saveDocument': {
-      const { name, content } = args;
+      const { name, content, caseId } = args;
       const id = uuid();
-      await run('INSERT INTO documents (id, user_id, name, content, type) VALUES (?,?,?,?,?)', [id, req.user.id, name, content, 'draft']);
+      await run('INSERT INTO documents (id, user_id, name, content, type, case_id) VALUES (?,?,?,?,?,?)', [id, req.user.id, name, content, 'draft', caseId || null]);
       return { success: true, message: `Document "${name}" saved successfully`, documentId: id };
     }
 

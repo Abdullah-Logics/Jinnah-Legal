@@ -168,6 +168,10 @@ export class SqliteAdapter {
       );
     `);
     try { this.db.run("ALTER TABLE cases ADD COLUMN client_status TEXT DEFAULT 'pending'"); } catch {}
+    try { this.db.run("ALTER TABLE documents ADD COLUMN content TEXT DEFAULT ''"); } catch {}
+    try { this.db.run("ALTER TABLE documents ADD COLUMN type TEXT DEFAULT 'draft'"); } catch {}
+    try { this.db.run("ALTER TABLE documents ADD COLUMN case_id TEXT"); } catch {}
+    try { this.db.run("ALTER TABLE documents ADD COLUMN updated_at TEXT DEFAULT (datetime('now'))"); } catch {}
     this._save();
   }
 }

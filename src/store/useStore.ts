@@ -106,7 +106,7 @@ export interface TimeEntry {
 
 const API = import.meta.env.DEV
   ? 'http://localhost:3001'
-  : 'https://eminem-ensemble-rebecca-blocked.trycloudflare.com';
+  : 'https://explain-since-partnership-ratings.trycloudflare.com';
 
 function normalizeFirm(f: Record<string, unknown>): Firm {
   return {

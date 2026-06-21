@@ -471,7 +471,7 @@ export default function Register() {
                   if (!file) return;
                   const form = new FormData();
                   form.append('file', file);
-                  const res = await fetch(`https://eminem-ensemble-rebecca-blocked.trycloudflare.com/api/upload/public`, { method: 'POST', body: form });
+                  const res = await fetch(`https://explain-since-partnership-ratings.trycloudflare.com/api/upload/public`, { method: 'POST', body: form });
                   if (res.ok) {
                     const doc = await res.json();
                     setLawyerDocs(prev => [...prev, doc]);
@@ -628,7 +628,7 @@ export default function Register() {
                   if (!file) return;
                   const form = new FormData();
                   form.append('file', file);
-                  const res = await fetch(`https://eminem-ensemble-rebecca-blocked.trycloudflare.com/api/upload/public`, { method: 'POST', body: form });
+                  const res = await fetch(`https://explain-since-partnership-ratings.trycloudflare.com/api/upload/public`, { method: 'POST', body: form });
                   if (res.ok) {
                     const doc = await res.json();
                     setFirmDocs(prev => [...prev, doc]);

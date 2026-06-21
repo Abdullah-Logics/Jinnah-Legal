@@ -18,7 +18,7 @@ export default function LawyerAIBrain() {
   const [showSidebar, setShowSidebar] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const API = import.meta.env.DEV ? 'http://localhost:3001' : 'https://eminem-ensemble-rebecca-blocked.trycloudflare.com';
+  const API = import.meta.env.DEV ? 'http://localhost:3001' : 'https://explain-since-partnership-ratings.trycloudflare.com';
 
   const suggestions = [
     "Draft a legal notice for property dispute",

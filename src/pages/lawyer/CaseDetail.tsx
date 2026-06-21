@@ -157,7 +157,7 @@ export default function LawyerCaseDetail() {
                 try {
                   const form = new FormData();
                   form.append('file', file);
-                  const res = await fetch(`${import.meta.env.DEV ? 'http://localhost:3001' : 'https://eminem-ensemble-rebecca-blocked.trycloudflare.com'}/api/upload`, {
+                  const res = await fetch(`${import.meta.env.DEV ? 'http://localhost:3001' : 'https://explain-since-partnership-ratings.trycloudflare.com'}/api/upload`, {
                     method: 'POST',
                     headers: token ? { Authorization: `Bearer ${token}` } : {},
                     body: form,

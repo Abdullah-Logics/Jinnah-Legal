@@ -3,7 +3,7 @@
 
 const BASE = import.meta.env.DEV
   ? 'http://localhost:3001'
-  : 'https://eminem-ensemble-rebecca-blocked.trycloudflare.com';
+  : 'https://explain-since-partnership-ratings.trycloudflare.com';
 
 function getToken(): string | null {
   try {

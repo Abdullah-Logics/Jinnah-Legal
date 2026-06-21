@@ -16,7 +16,7 @@ export default function ClientAIAssistant() {
   const [showSidebar, setShowSidebar] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const API = import.meta.env.DEV ? 'http://localhost:3001' : 'https://eminem-ensemble-rebecca-blocked.trycloudflare.com';
+  const API = import.meta.env.DEV ? 'http://localhost:3001' : 'https://explain-since-partnership-ratings.trycloudflare.com';
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 

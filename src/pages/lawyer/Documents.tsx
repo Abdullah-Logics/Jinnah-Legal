@@ -4,6 +4,8 @@ import {
   FileText, Plus, Search, Download, Trash2, Upload, Loader,
   ArrowLeft, Save, Sparkles, Edit3, BookTemplate, FolderOpen,
   X, Eye, ChevronDown, Printer, CaseSensitive,
+  Bold, Italic, Underline, Heading1, Heading2, Heading3,
+  List, ListOrdered, AlignLeft, AlignCenter, AlignRight,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 
@@ -290,14 +292,13 @@ Through
 };
 
 export default function LawyerDocuments() {
-  const { currentUser, cases, users, firms, token, loadCases } = useStore();
+  const { currentUser, cases, users, firms, token, loadCases, loadUsers } = useStore();
   const [search, setSearch] = useState('');
   const [docs, setDocs] = useState<Doc[]>([]);
   const [view, setView] = useState<'list' | 'editor'>('list');
   const [editing, setEditing] = useState<Doc | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const textRef = useRef<HTMLTextAreaElement>(null);
   const [saving, setSaving] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
@@ -324,9 +325,9 @@ export default function LawyerDocuments() {
     } catch {}
   }, [API, token]);
 
-  useEffect(() => { loadDocs(); loadCases(); }, [loadDocs, loadCases]);
+  useEffect(() => { loadDocs(); loadCases(); loadUsers(); }, [loadDocs, loadCases]);
 
-  const myCases = (cases || []).filter(c => c.lawyerId === currentUser?.id);
+  const myCases = (cases || []).filter(c => c.lawyerId === currentUser?.id && c.status === 'active');
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -365,7 +366,8 @@ export default function LawyerDocuments() {
           const data = await res.json();
           setEditing(doc);
           setDocName(doc.name.replace(/\.txt$/, ''));
-          setDocContent(data.content || '');
+          const content = data.content || '';
+          setDocContent(content);
           setDocCaseId(doc.case_id || '');
         }
       } catch {}
@@ -378,6 +380,13 @@ export default function LawyerDocuments() {
     setView('editor');
     setAiPrompt('');
   };
+
+  useEffect(() => {
+    if (editorRef.current && view === 'editor') {
+      const isHtml = /<[a-z][\s\S]*>/i.test(docContent);
+      editorRef.current.innerHTML = isHtml ? docContent : textToHtml(docContent);
+    }
+  }, [view]);
 
   const handleSave = async () => {
     if (!docName.trim()) return;
@@ -470,7 +479,7 @@ export default function LawyerDocuments() {
 
   const applyTemplate = (name: string) => {
     const content = TEMPLATES[name] || '';
-    setDocContent(fillTemplate(content));
+    setDocContentHtml(textToHtml(fillTemplate(content)));
     setShowTemplates(false);
   };
 
@@ -522,7 +531,7 @@ export default function LawyerDocuments() {
 
   const callAI = async (prompt: string, mode: 'generate' | 'edit', selectedText?: string) => {
     const ctx = buildAIContext();
-    const docCtx = selectedText || docContent;
+    const docCtx = selectedText || htmlToText(docContent);
     const body = mode === 'generate'
       ? `User request: ${prompt}`
       : `Edit this document text according to this request: "${prompt}"\n\nDocument text:\n${docCtx}`;
@@ -537,13 +546,35 @@ export default function LawyerDocuments() {
     return stripMeta(data.response || '');
   };
 
+  const insertAtCursor = (html: string) => {
+    if (editorRef.current) {
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        const range = sel.getRangeAt(0);
+        if (editorRef.current.contains(range.commonAncestorContainer)) {
+          range.deleteContents();
+          const frag = range.createContextualFragment(html);
+          range.insertNode(frag);
+          range.collapse(false);
+          sel.removeAllRanges();
+          sel.addRange(range);
+        } else {
+          editorRef.current.innerHTML += html;
+        }
+      } else {
+        editorRef.current.innerHTML += html;
+      }
+      handleEditorInput();
+    }
+  };
+
   const generateWithAI = async () => {
     if (!aiPrompt.trim()) return;
     setAiLoading(true);
     setAiError('');
     try {
       const text = await callAI(aiPrompt, 'generate');
-      if (text) setDocContent(prev => prev + '\n\n' + fillTemplate(text));
+      if (text) insertAtCursor(textToHtml(fillTemplate(text)));
     } catch (e) { setAiError('Network error — is the server running?'); }
     setAiLoading(false);
   };
@@ -553,36 +584,78 @@ export default function LawyerDocuments() {
     setAiLoading(true);
     setAiError('');
     try {
-      const selected = textRef.current?.selectionStart !== undefined
-        ? docContent.substring(textRef.current.selectionStart, textRef.current.selectionEnd)
-        : '';
-      const text = await callAI(aiPrompt, 'edit', selected || undefined);
-      if (text && selected && textRef.current) {
-        const start = textRef.current.selectionStart;
-        const end = textRef.current.selectionEnd;
-        setDocContent(docContent.substring(0, start) + fillTemplate(text) + docContent.substring(end));
-      } else if (text) {
-        setDocContent(fillTemplate(text));
+      const sel = window.getSelection();
+      const selectedText = sel?.toString() || '';
+      const text = await callAI(aiPrompt, 'edit', selectedText || undefined);
+      if (text) {
+        const html = textToHtml(fillTemplate(text));
+        if (selectedText && sel && sel.rangeCount > 0 && editorRef.current?.contains(sel.getRangeAt(0).commonAncestorContainer)) {
+          const range = sel.getRangeAt(0);
+          range.deleteContents();
+          const frag = range.createContextualFragment(html);
+          range.insertNode(frag);
+          range.collapse(false);
+          sel.removeAllRanges();
+          sel.addRange(range);
+          handleEditorInput();
+        } else {
+          setDocContentHtml(html);
+        }
       }
-    } catch (e) { setAiError('Network error — is the server running?'); }
+    } catch (e) { setAiError('Network error — is the server ready?'); }
     setAiLoading(false);
   };
 
+  const editorRef = useRef<HTMLDivElement>(null);
   const printRef = useRef<HTMLIFrameElement>(null);
+
+  const textToHtml = (text: string) => {
+    if (!text) return '';
+    const escaped = text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    return '<p>' + escaped.split(/\n{2,}/).map(b => b.replace(/\n/g, '<br>')).join('</p><p>') + '</p>';
+  };
+
+  const htmlToText = (html: string) => {
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    return div.textContent || div.innerText || '';
+  };
+
+  const setDocContentHtml = (html: string) => {
+    setDocContent(html);
+    if (editorRef.current) editorRef.current.innerHTML = html;
+  };
+
+  const applyFormat = (cmd: string, val?: string) => {
+    document.execCommand(cmd, false, val);
+    if (editorRef.current) editorRef.current.focus();
+  };
+
+  const handleEditorInput = () => {
+    if (editorRef.current) setDocContent(editorRef.current.innerHTML);
+  };
 
   const downloadPDF = () => {
     const iframe = printRef.current;
     if (!iframe) return;
     const doc = iframe.contentDocument || iframe.contentWindow?.document;
     if (!doc) return;
+    const isHtml = /<[a-z][\s\S]*>/i.test(docContent);
+    const bodyContent = isHtml ? docContent : `<pre style="font-family:'Georgia',serif;font-size:12pt;line-height:1.8;white-space:pre-wrap;margin:0;padding:0;">${docContent}</pre>`;
     doc.open();
     doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${docName}</title>
 <style>
   @page { margin: 20mm; }
   body { font-family: 'Georgia', serif; font-size: 12pt; line-height: 1.8; color: #000; margin: 0; padding: 20mm; }
-  .content { white-space: pre-wrap; max-width: 170mm; margin: 0 auto; }
+  .content { max-width: 170mm; margin: 0 auto; }
+  p { margin: 0 0 0.5em 0; }
+  h1, h2, h3 { margin: 1em 0 0.5em 0; }
+  ul, ol { margin: 0.5em 0; padding-left: 2em; }
   @media print { body { padding: 0; } }
-</style></head><body><div class="content">${docContent.replace(/\n/g, '<br>')}</div></body></html>`);
+</style></head><body><div class="content">${bodyContent}</div></body></html>`);
     doc.close();
     setTimeout(() => { iframe.contentWindow?.print(); }, 300);
   };
@@ -591,8 +664,9 @@ export default function LawyerDocuments() {
     d.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  const wordCount = docContent.trim() ? docContent.trim().split(/\s+/).length : 0;
-  const charCount = docContent.length;
+  const plainText = htmlToText(docContent);
+  const wordCount = plainText.trim() ? plainText.trim().split(/\s+/).length : 0;
+  const charCount = plainText.length;
 
   const formatSize = (bytes: number) => {
     if (bytes < 1024) return bytes + ' B';
@@ -718,10 +792,44 @@ export default function LawyerDocuments() {
           <div className="max-w-4xl mx-auto bg-white shadow-lg shadow-slate-200/50 border border-slate-200 flex flex-col min-h-[400px]"
             style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.08), 0 4px 24px rgba(0,0,0,0.04)' }}
           >
-            <textarea ref={textRef} value={docContent} onChange={e => setDocContent(e.target.value)}
-              placeholder="Start typing your document here..."
-              className="flex-1 w-full p-6 md:p-12 text-slate-800 text-[15px] leading-[1.9] resize-none outline-none font-serif min-h-[350px]"
-              style={{ lineHeight: '1.9' }}
+            {/* Formatting Toolbar */}
+            <div className="flex items-center gap-0.5 px-3 py-2 border-b border-slate-100 bg-slate-50 flex-wrap">
+              {[
+                [Bold, 'bold'], [Italic, 'italic'], [Underline, 'underline'],
+              ].map(([Icon, cmd]) => (
+                <button key={cmd as string} onMouseDown={e => { e.preventDefault(); applyFormat(cmd as string); }}
+                  className="p-1.5 rounded hover:bg-slate-200 text-slate-600"
+                ><Icon size={15} /></button>
+              ))}
+              <span className="w-px h-5 bg-slate-200 mx-1" />
+              {[
+                [Heading1, 'formatBlock', '<h1>'], [Heading2, 'formatBlock', '<h2>'], [Heading3, 'formatBlock', '<h3>'],
+              ].map(([Icon, cmd, val]) => (
+                <button key={val as string} onMouseDown={e => { e.preventDefault(); applyFormat(cmd as string, val as string); }}
+                  className="p-1.5 rounded hover:bg-slate-200 text-slate-600"
+                ><Icon size={15} /></button>
+              ))}
+              <span className="w-px h-5 bg-slate-200 mx-1" />
+              {[
+                [List, 'insertUnorderedList'], [ListOrdered, 'insertOrderedList'],
+              ].map(([Icon, cmd]) => (
+                <button key={cmd as string} onMouseDown={e => { e.preventDefault(); applyFormat(cmd as string); }}
+                  className="p-1.5 rounded hover:bg-slate-200 text-slate-600"
+                ><Icon size={15} /></button>
+              ))}
+              <span className="w-px h-5 bg-slate-200 mx-1" />
+              {[
+                [AlignLeft, 'justifyLeft'], [AlignCenter, 'justifyCenter'], [AlignRight, 'justifyRight'],
+              ].map(([Icon, cmd]) => (
+                <button key={cmd as string} onMouseDown={e => { e.preventDefault(); applyFormat(cmd as string); }}
+                  className="p-1.5 rounded hover:bg-slate-200 text-slate-600"
+                ><Icon size={15} /></button>
+              ))}
+            </div>
+            <div ref={editorRef} contentEditable suppressContentEditableWarning
+              onInput={handleEditorInput}
+              className="flex-1 w-full p-6 md:p-12 text-slate-800 text-[15px] leading-[1.9] outline-none font-serif min-h-[350px]"
+              style={{ lineHeight: '1.9', whiteSpace: 'pre-wrap' }}
             />
             {/* Status bar */}
             <div className="border-t border-slate-100 px-6 py-2 flex items-center gap-4 text-[11px] text-slate-400">

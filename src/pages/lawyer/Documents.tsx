@@ -290,7 +290,7 @@ Through
 };
 
 export default function LawyerDocuments() {
-  const { currentUser, cases, users, token, loadCases } = useStore();
+  const { currentUser, cases, users, firms, token, loadCases } = useStore();
   const [search, setSearch] = useState('');
   const [docs, setDocs] = useState<Doc[]>([]);
   const [view, setView] = useState<'list' | 'editor'>('list');
@@ -440,12 +440,36 @@ export default function LawyerDocuments() {
   const linkedClient = linkedCase ? users.find(u => u.id === linkedCase.clientId) : null;
 
   const buildAIContext = () => {
-    let ctx = '';
-    if (linkedCase) {
-      ctx += `\nCase: ${linkedCase.title}\nType: ${linkedCase.type}\nStatus: ${linkedCase.status}\n`;
-      if (linkedClient) ctx += `Client: ${linkedClient.name} (${linkedClient.email})\n`;
+    const parts: string[] = ['=== YOUR PROFILE ==='];
+    if (currentUser) {
+      parts.push(`Name: ${currentUser.name}`);
+      if (currentUser.credentials?.barNumber) parts.push(`Bar No: ${currentUser.credentials.barNumber}`);
+      if (currentUser.credentials?.specialization?.length) parts.push(`Specialization: ${currentUser.credentials.specialization.join(', ')}`);
+      if (currentUser.credentials?.education) parts.push(`Education: ${currentUser.credentials.education}`);
+      if (currentUser.phone) parts.push(`Phone: ${currentUser.phone}`);
+      if (currentUser.email) parts.push(`Email: ${currentUser.email}`);
+      if (currentUser.firmId) {
+        const firm = firms.find(f => f.id === currentUser.firmId);
+        if (firm) parts.push(`Firm: ${firm.name}${firm.address ? `, ${firm.address}` : ''}`);
+      }
     }
-    return ctx;
+    if (linkedCase) {
+      parts.push('');
+      parts.push('=== LINKED CASE ===');
+      parts.push(`Title: ${linkedCase.title}`);
+      parts.push(`Type: ${linkedCase.type}`);
+      parts.push(`Status: ${linkedCase.status}`);
+      parts.push(`Description: ${linkedCase.description}`);
+      if (linkedClient) {
+        parts.push('');
+        parts.push('=== CLIENT ===');
+        parts.push(`Name: ${linkedClient.name}`);
+        parts.push(`Email: ${linkedClient.email}`);
+        if (linkedClient.phone) parts.push(`Phone: ${linkedClient.phone}`);
+        if (linkedClient.address) parts.push(`Address: ${linkedClient.address}`);
+      }
+    }
+    return parts.join('\n');
   };
 
   const generateWithAI = async () => {
@@ -453,8 +477,8 @@ export default function LawyerDocuments() {
     setAiLoading(true);
     setAiError('');
     try {
-      const caseCtx = buildAIContext();
-      const msg = caseCtx ? `Context:${caseCtx}\n\nTask: ${aiPrompt}` : aiPrompt;
+      const ctx = buildAIContext();
+      const msg = `User info and case context (use this automatically when relevant):\n\n${ctx}\n\n=== USER INSTRUCTION ===\n${aiPrompt}`;
       const res = await fetch(`${API}/api/ai/chat`, {
         method: 'POST',
         headers: headers(),
@@ -476,10 +500,8 @@ export default function LawyerDocuments() {
         ? docContent.substring(textRef.current.selectionStart, textRef.current.selectionEnd)
         : '';
       const docCtx = selected || docContent.slice(0, 2000);
-      const caseCtx = buildAIContext();
-      const fullPrompt = caseCtx
-        ? `Context:${caseCtx}\n\nEdit the following text: "${aiPrompt}"\n\nText:\n${docCtx}`
-        : `Edit the following document text according to these instructions: "${aiPrompt}"\n\nDocument text:\n${docCtx}`;
+      const ctx = buildAIContext();
+      const fullPrompt = `User info and case context (use this automatically when relevant):\n\n${ctx}\n\n=== EDIT INSTRUCTION ===\n${aiPrompt}\n\n=== DOCUMENT TEXT ===\n${docCtx}`;
       const res = await fetch(`${API}/api/ai/chat`, {
         method: 'POST',
         headers: headers(),

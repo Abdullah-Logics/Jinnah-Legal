@@ -17,7 +17,7 @@ export default function LawyerDocuments() {
   const [docs, setDocs] = useState<Doc[]>([]);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const API = import.meta.env.DEV ? 'http://localhost:3001' : 'https://explain-since-partnership-ratings.trycloudflare.com';
+  const API = import.meta.env.DEV ? 'http://localhost:3001' : 'https://bizarre-xbox-cookie-advise.trycloudflare.com';
 
   const headers = (): Record<string, string> => {
     const h: Record<string, string> = {};

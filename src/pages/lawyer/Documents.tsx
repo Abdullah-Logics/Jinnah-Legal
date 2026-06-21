@@ -290,7 +290,7 @@ Through
 };
 
 export default function LawyerDocuments() {
-  const { currentUser, cases, token } = useStore();
+  const { currentUser, cases, token, loadCases } = useStore();
   const [search, setSearch] = useState('');
   const [docs, setDocs] = useState<Doc[]>([]);
   const [view, setView] = useState<'list' | 'editor'>('list');
@@ -323,7 +323,7 @@ export default function LawyerDocuments() {
     } catch {}
   }, [API, token]);
 
-  useEffect(() => { loadDocs(); }, [loadDocs]);
+  useEffect(() => { loadDocs(); loadCases(); }, [loadDocs, loadCases]);
 
   const myCases = (cases || []).filter(c => c.lawyerId === currentUser?.id);
 

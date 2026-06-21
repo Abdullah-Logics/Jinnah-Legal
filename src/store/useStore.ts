@@ -171,6 +171,7 @@ interface AppState {
   loadCases: () => Promise<void>;
   addCase: (caseData: Omit<Case, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   updateCase: (caseId: string, updates: Partial<Case>) => Promise<void>;
+  deleteCase: (caseId: string) => Promise<void>;
   createCaseWithClient: (data: {
     email: string; password: string; name: string; phone?: string; city?: string;
     title: string; description?: string; type?: string; lawyerId: string;
@@ -286,6 +287,12 @@ export const useStore = create<AppState>()(
         const { token } = get();
         const updated = await apiFetch(`/api/cases/${caseId}`, { method: 'PATCH', body: JSON.stringify(updates) }, token);
         set(state => ({ cases: state.cases.map(c => c.id === caseId ? updated : c) }));
+      },
+
+      deleteCase: async (caseId) => {
+        const { token } = get();
+        await apiFetch(`/api/cases/${caseId}`, { method: 'DELETE' }, token);
+        set(state => ({ cases: state.cases.filter(c => c.id !== caseId) }));
       },
 
       createCaseWithClient: async (data) => {

@@ -93,6 +93,16 @@ casesRouter.patch('/:id/respond', validate(caseRespondSchema), asyncHandler(asyn
   res.json(parseCase(updated));
 }));
 
+casesRouter.delete('/:id', asyncHandler(async (req, res) => {
+  const existing = await queryOne('SELECT * FROM cases WHERE id = ?', [req.params.id]);
+  if (!existing) throw new AppError('Case not found', 404);
+  if (req.user.role === 'lawyer' && existing.lawyer_id !== req.user.id) {
+    throw new AppError('Unauthorized to delete this case', 403);
+  }
+  await run('DELETE FROM cases WHERE id = ?', [req.params.id]);
+  res.json({ ok: true, message: 'Case deleted' });
+}));
+
 casesRouter.patch('/:id', validate(caseUpdateSchema), asyncHandler(async (req, res) => {
   const existing = await queryOne('SELECT * FROM cases WHERE id = ?', [req.params.id]);
   if (!existing) throw new AppError('Case not found', 404);

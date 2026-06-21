@@ -5,15 +5,18 @@ import { Search, Send, Paperclip, Phone, Video, MoreVertical, Check, CheckCheck 
 import { format } from 'date-fns';
 
 export default function LawyerMessages() {
-  const { currentUser, users, messages, loadMessages, sendMessage, markAsRead } = useStore();
+  const { currentUser, users, cases, messages, loadMessages, loadCases, sendMessage, markAsRead } = useStore();
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { loadMessages(); }, [loadMessages]);
+  useEffect(() => { loadMessages(); loadCases(); }, [loadMessages, loadCases]);
 
-  const myContacts = users.filter(u => u.role === 'client');
+  const myClientIds = new Set(
+    cases.filter(c => c.lawyerId === currentUser?.id).map(c => c.clientId)
+  );
+  const myContacts = users.filter(u => u.role === 'client' && myClientIds.has(u.id));
   
   const filteredContacts = myContacts.filter(c =>
     c.name.toLowerCase().includes(searchQuery.toLowerCase())

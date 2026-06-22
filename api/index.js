@@ -1,10 +1,8 @@
-import { createApp } from '../backend/src/app.js';
+import express from 'express';
+import cors from 'cors';
 
-let app;
+const app = express();
+app.use(cors());
+app.get('/api/health', (_req, res) => res.json({ status: 'ok', env: process.env.NODE_ENV }));
 
-export default async function handler(req, res) {
-  if (!app) {
-    app = await createApp();
-  }
-  return app(req, res);
-}
+export default app;

@@ -208,13 +208,13 @@ export default function LawyerJournal() {
     setScheduling(true);
     try {
       if (scheduleType === 'hearing') {
-        await fetch(`${import.meta.env.DEV ? 'http://localhost:3001' : 'https://headphones-june-exterior-performer.trycloudflare.com'}/api/cases/${scheduleCase}/court-dates`, {
+        await fetch(`${import.meta.env.DEV ? 'http://localhost:3001' : 'https://back-african-messaging-ten.trycloudflare.com'}/api/cases/${scheduleCase}/court-dates`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
           body: JSON.stringify({ date: scheduleDate, court: scheduleLocation, notes: scheduleTitle }),
         });
       } else {
-        await fetch(`${import.meta.env.DEV ? 'http://localhost:3001' : 'https://headphones-june-exterior-performer.trycloudflare.com'}/api/cases/${scheduleCase}/timeline`, {
+        await fetch(`${import.meta.env.DEV ? 'http://localhost:3001' : 'https://back-african-messaging-ten.trycloudflare.com'}/api/cases/${scheduleCase}/timeline`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
           body: JSON.stringify({ date: scheduleDate, event: scheduleTitle, description: scheduleLocation }),

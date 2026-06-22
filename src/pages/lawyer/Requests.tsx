@@ -18,7 +18,7 @@ export default function LawyerRequests() {
   const searchUser = async () => {
     if (!searchEmail.trim()) return;
     try {
-      const res = await fetch(`${import.meta.env.DEV ? 'http://localhost:3001' : 'https://headphones-june-exterior-performer.trycloudflare.com'}/api/users/search?email=${searchEmail}`, {
+      const res = await fetch(`${import.meta.env.DEV ? 'http://localhost:3001' : 'https://back-african-messaging-ten.trycloudflare.com'}/api/users/search?email=${searchEmail}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
       });
       if (res.ok) {

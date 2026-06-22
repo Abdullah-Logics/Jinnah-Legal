@@ -3,7 +3,7 @@
 
 const BASE = import.meta.env.DEV
   ? 'http://localhost:3001'
-  : 'https://headphones-june-exterior-performer.trycloudflare.com';
+  : 'https://back-african-messaging-ten.trycloudflare.com';
 
 function getToken(): string | null {
   try {

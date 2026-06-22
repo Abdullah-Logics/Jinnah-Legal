@@ -4,7 +4,7 @@ import { useStore } from '../../store/useStore';
 import { Search, Send, Paperclip, Phone, Video, MoreVertical, Check, CheckCheck, Camera, Mic, MicOff, FileText, X, Image as ImageIcon } from 'lucide-react';
 import { format } from 'date-fns';
 
-const API = import.meta.env.DEV ? 'http://localhost:3001' : 'https://headphones-june-exterior-performer.trycloudflare.com';
+const API = import.meta.env.DEV ? 'http://localhost:3001' : 'https://back-african-messaging-ten.trycloudflare.com';
 
 export default function ClientMessages() {
   const { currentUser, users, connections, messages, loadMessages, loadConnections, sendMessage, markAsRead } = useStore();

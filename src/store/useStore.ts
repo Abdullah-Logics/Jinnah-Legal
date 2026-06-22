@@ -133,7 +133,7 @@ export interface TimeEntry {
 
 const API = import.meta.env.DEV
   ? 'http://localhost:3001'
-  : 'https://headphones-june-exterior-performer.trycloudflare.com';
+  : 'https://back-african-messaging-ten.trycloudflare.com';
 
 function normalizeJournalEntry(e: Record<string, unknown>): JournalEntry {
   return {

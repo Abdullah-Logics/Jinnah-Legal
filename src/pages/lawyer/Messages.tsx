@@ -4,7 +4,7 @@ import { useStore } from '../../store/useStore';
 import { Search, Send, Paperclip, Phone, Video, MoreVertical, Check, CheckCheck, Camera, Mic, MicOff, FileText, X, Image as ImageIcon } from 'lucide-react';
 import { format, isToday, isYesterday, differenceInMinutes } from 'date-fns';
 
-const API = import.meta.env.DEV ? 'http://localhost:3001' : 'https://back-african-messaging-ten.trycloudflare.com';
+const API = import.meta.env.DEV ? 'http://localhost:3001' : 'https://indianapolis-reseller-moreover-columns.trycloudflare.com';
 
 function formatMsgTime(t: string) {
   const d = new Date(t);
@@ -41,11 +41,12 @@ export default function LawyerMessages() {
 
   useEffect(() => { loadMessages(); loadCases(); loadConnections(); }, [loadMessages, loadCases, loadConnections]);
 
-  // Auto-poll for new messages every 3s
+  // Auto-poll active conversation every 3s
   useEffect(() => {
-    const interval = setInterval(() => loadMessages(), 3000);
+    if (!selectedUser) return;
+    const interval = setInterval(() => loadMessages(selectedUser), 3000);
     return () => clearInterval(interval);
-  }, [loadMessages]);
+  }, [loadMessages, selectedUser]);
 
   useEffect(() => {
     if (messages.length > prevMsgCount.current) {

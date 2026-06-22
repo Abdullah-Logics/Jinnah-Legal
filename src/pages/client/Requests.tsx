@@ -19,7 +19,7 @@ export default function ClientRequests() {
     if (!searchEmail.trim()) return;
     try {
       const token = localStorage.getItem('token') || useStore.getState().token;
-      const res = await fetch(`${import.meta.env.DEV ? 'http://localhost:3001' : 'https://back-african-messaging-ten.trycloudflare.com'}/api/users/search?email=${searchEmail}`, {
+      const res = await fetch(`${import.meta.env.DEV ? 'http://localhost:3001' : 'https://indianapolis-reseller-moreover-columns.trycloudflare.com'}/api/users/search?email=${searchEmail}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {

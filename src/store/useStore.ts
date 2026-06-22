@@ -133,7 +133,7 @@ export interface TimeEntry {
 
 const API = import.meta.env.DEV
   ? 'http://localhost:3001'
-  : 'https://back-african-messaging-ten.trycloudflare.com';
+  : 'https://indianapolis-reseller-moreover-columns.trycloudflare.com';
 
 function normalizeJournalEntry(e: Record<string, unknown>): JournalEntry {
   return {
@@ -369,11 +369,10 @@ export const useStore = create<AppState>()(
       },
 
       loadMessages: async (withUserId) => {
-        const { token } = get();
+        const { token, messages: existing } = get();
         try {
           const path = withUserId ? `/api/messages?with=${withUserId}` : '/api/messages';
           const msgs = await apiFetch(path, {}, token);
-          // Normalize snake_case → camelCase from backend
           const normalised = msgs.map((m: any) => ({
             id: m.id,
             senderId: m.sender_id ?? m.senderId,
@@ -382,8 +381,16 @@ export const useStore = create<AppState>()(
             timestamp: m.created_at ?? m.timestamp,
             read: !!(m.is_read ?? m.read),
             caseId: m.case_id ?? m.caseId,
+            attachments: m.attachments,
           }));
-          set({ messages: normalised });
+          // If fetching ALL messages, replace state wholly
+          // If fetching a single conversation, merge so other chats aren't lost
+          if (withUserId) {
+            const other = existing.filter(m => m.senderId !== withUserId && m.receiverId !== withUserId);
+            set({ messages: [...other, ...normalised] });
+          } else {
+            set({ messages: normalised });
+          }
         } catch {}
       },
 

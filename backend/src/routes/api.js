@@ -72,10 +72,10 @@ apiRouter.get('/messages', asyncHandler(async (req, res) => {
     );
     return res.json(rows);
   }
+  // Return ALL messages for the user (for sidebar computation)
   const rows = await query(
-    `SELECT DISTINCT CASE WHEN sender_id=? THEN receiver_id ELSE sender_id END as partner_id, MAX(created_at) as last_at
-     FROM messages WHERE sender_id=? OR receiver_id=? GROUP BY CASE WHEN sender_id=? THEN receiver_id ELSE sender_id END ORDER BY last_at DESC`,
-    [id, id, id, id]
+    `SELECT * FROM messages WHERE sender_id=? OR receiver_id=? ORDER BY created_at DESC`,
+    [id, id]
   );
   res.json(rows);
 }));

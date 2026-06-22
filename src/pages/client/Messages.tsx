@@ -4,7 +4,7 @@ import { useStore } from '../../store/useStore';
 import { Search, Send, Paperclip, Phone, Video, MoreVertical, Check, CheckCheck, Camera, Mic, MicOff, FileText, X, Image as ImageIcon } from 'lucide-react';
 import { format, isToday, isYesterday, differenceInMinutes } from 'date-fns';
 
-const API = import.meta.env.DEV ? 'http://localhost:3001' : 'https://back-african-messaging-ten.trycloudflare.com';
+const API = import.meta.env.DEV ? 'http://localhost:3001' : 'https://indianapolis-reseller-moreover-columns.trycloudflare.com';
 
 function formatMsgTime(t: string) {
   const d = new Date(t);
@@ -37,11 +37,12 @@ export default function ClientMessages() {
 
   useEffect(() => { loadMessages(); loadConnections(); }, [loadMessages, loadConnections]);
 
-  // Auto-poll for new messages every 3s
+  // Auto-poll active conversation every 3s
   useEffect(() => {
-    const interval = setInterval(() => loadMessages(), 3000);
+    if (!selectedUser) return;
+    const interval = setInterval(() => loadMessages(selectedUser), 3000);
     return () => clearInterval(interval);
-  }, [loadMessages]);
+  }, [loadMessages, selectedUser]);
 
   const connectedUserIds = new Set(connections.map(c => c.user1_id === currentUser?.id ? c.user2_id : c.user1_id));
   const allContactIds = new Set([...users.filter(u => u.role === 'lawyer').map(u => u.id), ...connectedUserIds]);

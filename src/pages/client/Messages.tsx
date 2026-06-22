@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useStore } from '../../store/useStore';
-import { Search, Send, Paperclip, Phone, Video, MoreVertical, Check, CheckCheck, Camera, FileText, X, Image as ImageIcon } from 'lucide-react';
+import { Search, Send, Paperclip, Phone, Video, MoreVertical, Check, CheckCheck, Camera, Mic, MicOff, FileText, X, Image as ImageIcon } from 'lucide-react';
 import { format } from 'date-fns';
 
 const API = import.meta.env.DEV ? 'http://localhost:3001' : 'https://headphones-june-exterior-performer.trycloudflare.com';
@@ -12,10 +12,14 @@ export default function ClientMessages() {
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [recording, setRecording] = useState(false);
   const [attachments, setAttachments] = useState<{ name: string; url: string; type: string; size: number }[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => { loadMessages(); loadConnections(); }, [loadMessages, loadConnections]);
 
@@ -68,6 +72,43 @@ export default function ClientMessages() {
     sendMessage({ senderId: currentUser?.id || '', receiverId: selectedUser, content: newMessage, attachments: attachments.length > 0 ? JSON.stringify(attachments) : undefined });
     setNewMessage('');
     setAttachments([]);
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm';
+      const recorder = new MediaRecorder(stream, { mimeType });
+      mediaRecorderRef.current = recorder;
+      audioChunksRef.current = [];
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+      recorder.onstop = async () => {
+        const blob = new Blob(audioChunksRef.current, { type: mimeType });
+        const file = new File([blob], `voice-${Date.now()}.webm`, { type: mimeType });
+        stream.getTracks().forEach(t => t.stop());
+        streamRef.current = null;
+        await uploadFile(file);
+      };
+      recorder.start();
+      setRecording(true);
+    } catch { setRecording(false); }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    }
+    setRecording(false);
+  };
+
+  const toggleRecording = () => {
+    if (recording) stopRecording();
+    else startRecording();
   };
 
   const getUnreadCount = (userId: string) => messages.filter(m => m.senderId === userId && m.receiverId === currentUser?.id && !m.read).length;
@@ -197,6 +238,9 @@ export default function ClientMessages() {
                 <input type="file" ref={cameraInputRef} onChange={handleFilePick} className="hidden" accept="image/*" capture="environment" />
                 <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="p-2 hover:bg-slate-100 rounded-lg transition disabled:opacity-50"><Paperclip size={20} className="text-slate-500" /></button>
                 <button onClick={() => cameraInputRef.current?.click()} disabled={uploading} className="p-2 hover:bg-slate-100 rounded-lg transition disabled:opacity-50"><Camera size={20} className="text-slate-500" /></button>
+                <button onClick={toggleRecording} disabled={uploading} className={`p-2 rounded-lg transition disabled:opacity-50 ${recording ? 'bg-red-100 animate-pulse' : 'hover:bg-slate-100'}`}>
+                  {recording ? <MicOff size={20} className="text-red-500" /> : <Mic size={20} className="text-slate-500" />}
+                </button>
                 <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSend()} placeholder="Type a message..." className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" />
                 <button onClick={handleSend} disabled={(!newMessage.trim() && attachments.length === 0) || uploading} className="p-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-50 transition">
                   {uploading ? <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin block" /> : <Send size={20} />}

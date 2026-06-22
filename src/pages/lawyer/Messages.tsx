@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useStore } from '../../store/useStore';
-import { Search, Send, Paperclip, Phone, Video, MoreVertical, Check, CheckCheck, Camera, Mic, FileText, X, Image as ImageIcon } from 'lucide-react';
+import { Search, Send, Paperclip, Phone, Video, MoreVertical, Check, CheckCheck, Camera, Mic, MicOff, FileText, X, Image as ImageIcon } from 'lucide-react';
 import { format } from 'date-fns';
 
 const API = import.meta.env.DEV ? 'http://localhost:3001' : 'https://headphones-june-exterior-performer.trycloudflare.com';
@@ -12,11 +12,15 @@ export default function LawyerMessages() {
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [recording, setRecording] = useState(false);
   const [attachments, setAttachments] = useState<{ name: string; url: string; type: string; size: number }[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const prevMsgCount = useRef(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => { loadMessages(); loadCases(); loadConnections(); }, [loadMessages, loadCases, loadConnections]);
 
@@ -86,6 +90,43 @@ export default function LawyerMessages() {
     });
     setNewMessage('');
     setAttachments([]);
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm';
+      const recorder = new MediaRecorder(stream, { mimeType });
+      mediaRecorderRef.current = recorder;
+      audioChunksRef.current = [];
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+      recorder.onstop = async () => {
+        const blob = new Blob(audioChunksRef.current, { type: mimeType });
+        const file = new File([blob], `voice-${Date.now()}.webm`, { type: mimeType });
+        stream.getTracks().forEach(t => t.stop());
+        streamRef.current = null;
+        await uploadFile(file);
+      };
+      recorder.start();
+      setRecording(true);
+    } catch { setRecording(false); }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    }
+    setRecording(false);
+  };
+
+  const toggleRecording = () => {
+    if (recording) stopRecording();
+    else startRecording();
   };
 
   const getUnreadCount = (userId: string) => {
@@ -297,6 +338,13 @@ export default function LawyerMessages() {
                 </button>
                 <button onClick={() => cameraInputRef.current?.click()} disabled={uploading} className="p-2 hover:bg-slate-100 rounded-lg transition disabled:opacity-50">
                   <Camera size={20} className="text-slate-500" />
+                </button>
+                <button
+                  onClick={toggleRecording}
+                  disabled={uploading}
+                  className={`p-2 rounded-lg transition disabled:opacity-50 ${recording ? 'bg-red-100 animate-pulse' : 'hover:bg-slate-100'}`}
+                >
+                  {recording ? <MicOff size={20} className="text-red-500" /> : <Mic size={20} className="text-slate-500" />}
                 </button>
                 <input
                   type="text"

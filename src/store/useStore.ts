@@ -133,7 +133,7 @@ export interface TimeEntry {
 
 const API = import.meta.env.DEV
   ? 'http://localhost:3001'
-  : '';
+  : import.meta.env.VITE_API_URL || '';
 
 function normalizeJournalEntry(e: Record<string, unknown>): JournalEntry {
   const ts = (e.created_at || e.createdAt) as string | undefined;

@@ -184,7 +184,7 @@ export default function LawyerCaseDetail() {
                 try {
                   const form = new FormData();
                   form.append('file', file);
-                  const res = await fetch(`${import.meta.env.DEV ? 'http://localhost:3001' : ''}/api/upload`, {
+                  const res = await fetch(`${import.meta.env.DEV ? 'http://localhost:3001' : import.meta.env.VITE_API_URL || ''}/api/upload`, {
                     method: 'POST', headers: token ? { Authorization: `Bearer ${token}` } : {}, body: form,
                   });
                   if (res.ok) {

@@ -309,7 +309,7 @@ export default function LawyerDocuments() {
   const [docContent, setDocContent] = useState('');
   const [docCaseId, setDocCaseId] = useState('');
 
-  const API = import.meta.env.DEV ? 'http://localhost:3001' : '';
+  const API = import.meta.env.DEV ? 'http://localhost:3001' : import.meta.env.VITE_API_URL || '';
 
   const headers = (): Record<string, string> => {
     const h: Record<string, string> = {};

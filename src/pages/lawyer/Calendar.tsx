@@ -82,7 +82,7 @@ export default function LawyerCalendar() {
               setEventSaving(true);
               try {
               const token = localStorage.getItem('token') || useStore.getState().token;
-              const base = import.meta.env.DEV ? 'http://localhost:3001' : '';
+              const base = import.meta.env.DEV ? 'http://localhost:3001' : import.meta.env.VITE_API_URL || '';
                 if (eventType === 'hearing') {
                   await fetch(`${base}/api/cases/${eventCase}/court-dates`, {
                     method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },

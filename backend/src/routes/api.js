@@ -22,6 +22,20 @@ function safeJson(v, def) {
 }
 
 // ── USERS ─────────────────────────────────────────────────
+// Static routes must come BEFORE parameterized /:id
+apiRouter.get('/users/search', asyncHandler(async (req, res) => {
+  const { email } = req.query;
+  if (!email) throw new AppError('Email query param required', 400);
+  const u = await queryOne('SELECT * FROM users WHERE email=?', [email]);
+  if (!u) return res.status(404).json({ error: 'User not found' });
+  res.json(toPublic(u));
+}));
+
+apiRouter.get('/users/all', asyncHandler(async (req, res) => {
+  const rows = await query('SELECT id,name,email,phone,city,avatar,role,firm_id FROM users WHERE id != ? ORDER BY name', [req.user.id]);
+  res.json(rows);
+}));
+
 apiRouter.get('/users/lawyers', asyncHandler(async (_req, res) => {
   const rows = await query(`SELECT * FROM users WHERE role = 'lawyer' AND is_verified = 1`);
   res.json(rows.map(toPublic));
@@ -51,19 +65,6 @@ apiRouter.patch('/users/:id', validate(userUpdateSchema), asyncHandler(async (re
     [name||u.name, phone??u.phone, address??u.address, city??u.city, avatar??u.avatar, req.params.id]);
 
   res.json(toPublic(await queryOne('SELECT * FROM users WHERE id = ?', [req.params.id])));
-}));
-
-apiRouter.get('/users/search', asyncHandler(async (req, res) => {
-  const { email } = req.query;
-  if (!email) throw new AppError('Email query param required', 400);
-  const u = await queryOne('SELECT * FROM users WHERE email=?', [email]);
-  if (!u) return res.status(404).json({ error: 'User not found' });
-  res.json(toPublic(u));
-}));
-
-apiRouter.get('/users/all', asyncHandler(async (req, res) => {
-  const rows = await query('SELECT id,name,email,phone,city,avatar,role,firm_id FROM users WHERE id != ? ORDER BY name', [req.user.id]);
-  res.json(rows);
 }));
 
 // ── MESSAGES ──────────────────────────────────────────────

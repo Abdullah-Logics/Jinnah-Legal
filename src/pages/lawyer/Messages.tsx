@@ -4,7 +4,7 @@ import { useStore } from '../../store/useStore';
 import { Search, Send, Paperclip, Phone, Video, MoreVertical, Check, CheckCheck, Camera, Mic, MicOff, FileText, X, Image as ImageIcon } from 'lucide-react';
 import { format, isToday, isYesterday, differenceInMinutes } from 'date-fns';
 
-const API = import.meta.env.DEV ? 'http://localhost:3001' : 'https://indianapolis-reseller-moreover-columns.trycloudflare.com';
+const API = import.meta.env.DEV ? 'http://localhost:3001' : 'https://houston-momentum-ecological-floors.trycloudflare.com';
 
 function formatMsgTime(t: string) {
   const d = new Date(t);
@@ -104,17 +104,21 @@ export default function LawyerMessages() {
     e.target.value = '';
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if ((!newMessage.trim() && attachments.length === 0) || !selectedUser) return;
-    sendMessage({
-      senderId: currentUser?.id || '',
-      receiverId: selectedUser,
-      content: newMessage,
-      attachments: attachments.length > 0 ? JSON.stringify(attachments) : undefined,
-    });
-    setNewMessage('');
-    setAttachments([]);
-    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+    try {
+      await sendMessage({
+        senderId: currentUser?.id || '',
+        receiverId: selectedUser,
+        content: newMessage,
+        attachments: attachments.length > 0 ? JSON.stringify(attachments) : undefined,
+      });
+      setNewMessage('');
+      setAttachments([]);
+      if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+    } catch (e) {
+      alert('Failed to send message. Please try again.');
+    }
   };
 
   const startRecording = async () => {

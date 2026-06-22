@@ -211,13 +211,13 @@ export default function LawyerJournal() {
     try {
       const token = localStorage.getItem('token') || useStore.getState().token;
       if (scheduleType === 'hearing') {
-        await fetch(`${import.meta.env.DEV ? 'http://localhost:3001' : 'https://indianapolis-reseller-moreover-columns.trycloudflare.com'}/api/cases/${scheduleCase}/court-dates`, {
+        await fetch(`${import.meta.env.DEV ? 'http://localhost:3001' : 'https://houston-momentum-ecological-floors.trycloudflare.com'}/api/cases/${scheduleCase}/court-dates`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ date: scheduleDate, court: scheduleLocation, notes: scheduleTitle }),
         });
       } else {
-        await fetch(`${import.meta.env.DEV ? 'http://localhost:3001' : 'https://indianapolis-reseller-moreover-columns.trycloudflare.com'}/api/cases/${scheduleCase}/timeline`, {
+        await fetch(`${import.meta.env.DEV ? 'http://localhost:3001' : 'https://houston-momentum-ecological-floors.trycloudflare.com'}/api/cases/${scheduleCase}/timeline`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ date: scheduleDate, event: scheduleTitle, description: scheduleLocation }),

@@ -111,7 +111,7 @@ export const caseWithClientSchema = z.object({
 
 export const messageSchema = z.object({
   receiverId: z.string().min(1),
-  content: z.string().min(1, 'Message content is required').max(10000),
+  content: z.string().max(10000).default(''),
   caseId: z.string().optional().nullable(),
   attachments: z.string().optional().default('[]'),
 });

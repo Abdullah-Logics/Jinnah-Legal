@@ -4,7 +4,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { UserPlus, Check, X, Send, Clock, Mail, MessageSquare, Search, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-const API = import.meta.env.DEV ? 'http://localhost:3001' : 'https://indianapolis-reseller-moreover-columns.trycloudflare.com';
+const API = import.meta.env.DEV ? 'http://localhost:3001' : 'https://houston-momentum-ecological-floors.trycloudflare.com';
 
 export default function ClientRequests() {
   const { currentUser, users, requests, loadRequests, respondToRequest, sendRequest, loadConnections, loadUsers } = useStore();

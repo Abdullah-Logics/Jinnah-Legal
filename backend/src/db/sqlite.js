@@ -28,6 +28,18 @@ export class SqliteAdapter {
   constructor() { this.db = null; this.SQL = null; this._writeCount = 0; }
 
   async connect() {
+    this.SQL = await initSqlJs();
+
+    // On Vercel (no persistent filesystem), use in-memory DB
+    if (process.env.VERCEL) {
+      this.db = new this.SQL.Database();
+      this._memoryOnly = true;
+      console.log('✅  SQLite (in-memory) ready → Vercel ephemeral mode');
+      console.log('⚠️  Set DATABASE_URL for persistent PostgreSQL');
+      await this._createSchema();
+      return;
+    }
+
     mkdirSync(DB_DIR, { recursive: true });
     mkdirSync(BACKUP_DIR, { recursive: true });
 
@@ -35,7 +47,6 @@ export class SqliteAdapter {
       backup();
     }
 
-    this.SQL = await initSqlJs();
     if (existsSync(DB_FILE)) {
       this.db = new this.SQL.Database(readFileSync(DB_FILE));
     } else {
@@ -46,17 +57,19 @@ export class SqliteAdapter {
     console.log('✅  SQLite (local) ready →', DB_FILE);
     console.log('💾  Backups →', BACKUP_DIR);
 
-    // Hourly auto-backup
-    setInterval(() => {
-      if (this.db) {
-        backup();
-        console.log('⏰ Hourly backup saved');
-      }
-    }, 60 * 60 * 1000);
+    // Hourly auto-backup (skip on Vercel)
+    if (!process.env.VERCEL) {
+      setInterval(() => {
+        if (this.db) {
+          backup();
+          console.log('⏰ Hourly backup saved');
+        }
+      }, 60 * 60 * 1000);
+    }
   }
 
   _save() {
-    // Backup before every 10th write (plus startup)
+    if (this._memoryOnly) return;
     this._writeCount++;
     if (this._writeCount % 10 === 0) {
       backup();

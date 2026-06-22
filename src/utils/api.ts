@@ -3,7 +3,7 @@
 
 const BASE = import.meta.env.DEV
   ? 'http://localhost:3001'
-  : 'https://houston-momentum-ecological-floors.trycloudflare.com';
+  : '';
 
 function getToken(): string | null {
   try {

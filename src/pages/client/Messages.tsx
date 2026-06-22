@@ -4,7 +4,7 @@ import { useStore } from '../../store/useStore';
 import { Search, Send, Paperclip, Phone, Video, MoreVertical, Check, CheckCheck, Camera, Mic, MicOff, FileText, X, Image as ImageIcon } from 'lucide-react';
 import { format, isToday, isYesterday, differenceInMinutes } from 'date-fns';
 
-const API = import.meta.env.DEV ? 'http://localhost:3001' : 'https://houston-momentum-ecological-floors.trycloudflare.com';
+const API = import.meta.env.DEV ? 'http://localhost:3001' : '';
 
 function formatMsgTime(t: string) {
   const d = new Date(t);

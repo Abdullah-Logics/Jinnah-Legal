@@ -11,17 +11,24 @@ import { asyncHandler, AppError } from '../middleware/errorHandler.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UPLOAD_DIR = path.join(__dirname, '../../../uploads');
 
-if (!existsSync(UPLOAD_DIR)) {
-  mkdirSync(UPLOAD_DIR, { recursive: true });
-}
+// On Vercel, use memory storage (no persistent filesystem)
+const isVercel = !!process.env.VERCEL;
 
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    cb(null, `${uuid()}${ext}`);
-  },
-});
+let storage;
+if (isVercel) {
+  storage = multer.memoryStorage();
+} else {
+  if (!existsSync(UPLOAD_DIR)) {
+    mkdirSync(UPLOAD_DIR, { recursive: true });
+  }
+  storage = multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname);
+      cb(null, `${uuid()}${ext}`);
+    },
+  });
+}
 
 const upload = multer({
   storage,
@@ -109,13 +116,25 @@ uploadRouter.post('/chat', requireAuth, chatUpload.single('file'), asyncHandler(
   if (!allowedTypes.includes(req.file.mimetype)) {
     throw new AppError('File type not allowed for chat. Allowed: images, PDF, DOC, TXT, audio, video.', 400);
   }
-  const fileUrl = `/uploads/${req.file.filename}`;
-  res.json({
-    name: req.file.originalname,
-    url: fileUrl,
-    type: req.file.mimetype,
-    size: req.file.size,
-  });
+  if (isVercel) {
+    // On Vercel, return a data URI since we can't serve static files
+    const b64 = req.file.buffer.toString('base64');
+    const dataUri = `data:${req.file.mimetype};base64,${b64}`;
+    res.json({
+      name: req.file.originalname,
+      url: dataUri,
+      type: req.file.mimetype,
+      size: req.file.size,
+    });
+  } else {
+    const fileUrl = `/uploads/${req.file.filename}`;
+    res.json({
+      name: req.file.originalname,
+      url: fileUrl,
+      type: req.file.mimetype,
+      size: req.file.size,
+    });
+  }
 }));
 
 uploadRouter.put('/:id', requireAuth, asyncHandler(async (req, res) => {

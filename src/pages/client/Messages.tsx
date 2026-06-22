@@ -21,7 +21,7 @@ function formatDateSep(t: string) {
 }
 
 export default function ClientMessages() {
-  const { currentUser, users, connections, messages, loadMessages, loadConnections, sendMessage, markAsRead } = useStore();
+  const { currentUser, users, connections, messages, loadMessages, loadConnections, loadUsers, sendMessage, markAsRead } = useStore();
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -35,7 +35,7 @@ export default function ClientMessages() {
   const audioChunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
 
-  useEffect(() => { loadMessages(); loadConnections(); }, [loadMessages, loadConnections]);
+  useEffect(() => { loadMessages(); loadConnections(); loadUsers(); }, [loadMessages, loadConnections, loadUsers]);
 
   // Auto-poll active conversation every 3s
   useEffect(() => {

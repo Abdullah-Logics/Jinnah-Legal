@@ -523,7 +523,7 @@ export const useStore = create<AppState>()(
             const users = await apiFetch('/api/admin/users', {}, token);
             set({ users });
           } else {
-            const users = await apiFetch('/api/users/clients', {}, token);
+            const users = await apiFetch('/api/users/all', {}, token);
             set({ users });
           }
         } catch {}

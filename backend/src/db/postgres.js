@@ -101,6 +101,16 @@ export class PostgresAdapter {
         CREATE TABLE IF NOT EXISTS messages (
           id TEXT PRIMARY KEY, sender_id TEXT, receiver_id TEXT,
           content TEXT NOT NULL, case_id TEXT, is_read INTEGER DEFAULT 0,
+          attachments TEXT DEFAULT '[]',
+          created_at TIMESTAMP DEFAULT NOW()
+        );
+        CREATE TABLE IF NOT EXISTS connection_requests (
+          id TEXT PRIMARY KEY, sender_id TEXT NOT NULL, receiver_id TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending', message TEXT,
+          created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW()
+        );
+        CREATE TABLE IF NOT EXISTS connections (
+          id TEXT PRIMARY KEY, user1_id TEXT NOT NULL, user2_id TEXT NOT NULL,
           created_at TIMESTAMP DEFAULT NOW()
         );
         CREATE TABLE IF NOT EXISTS journal_entries (

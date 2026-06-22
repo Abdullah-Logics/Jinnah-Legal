@@ -4,7 +4,7 @@ import { run, query, queryOne } from '../db/adapter.js';
 import { auth, optionalAuth } from '../middleware/auth.js';
 import { toPublic } from './auth.js';
 import {
-  validate, messageSchema, invoiceSchema, timeEntrySchema,
+  validate, messageSchema, connectionRequestSchema, invoiceSchema, timeEntrySchema,
   journalSchema, journalUpdateSchema, adminVerifySchema, userUpdateSchema,
   firmRegisterSchema,
 } from '../middleware/validate.js';
@@ -53,6 +53,14 @@ apiRouter.patch('/users/:id', validate(userUpdateSchema), asyncHandler(async (re
   res.json(toPublic(await queryOne('SELECT * FROM users WHERE id = ?', [req.params.id])));
 }));
 
+apiRouter.get('/users/search', asyncHandler(async (req, res) => {
+  const { email } = req.query;
+  if (!email) throw new AppError('Email query param required', 400);
+  const u = await queryOne('SELECT * FROM users WHERE email=?', [email]);
+  if (!u) return res.status(404).json({ error: 'User not found' });
+  res.json(toPublic(u));
+}));
+
 // ── MESSAGES ──────────────────────────────────────────────
 apiRouter.get('/messages', asyncHandler(async (req, res) => {
   const { id } = req.user;
@@ -73,16 +81,62 @@ apiRouter.get('/messages', asyncHandler(async (req, res) => {
 }));
 
 apiRouter.post('/messages', validate(messageSchema), asyncHandler(async (req, res) => {
-  const { receiverId, content, caseId } = req.body;
+  const { receiverId, content, caseId, attachments } = req.body;
   const id = uuid();
-  await run('INSERT INTO messages (id,sender_id,receiver_id,content,case_id) VALUES (?,?,?,?,?)',
-    [id, req.user.id, receiverId, content, caseId||null]);
+  await run('INSERT INTO messages (id,sender_id,receiver_id,content,case_id,attachments) VALUES (?,?,?,?,?,?)',
+    [id, req.user.id, receiverId, content, caseId||null, attachments||'[]']);
   res.status(201).json(await queryOne('SELECT * FROM messages WHERE id = ?', [id]));
 }));
 
 apiRouter.patch('/messages/:id/read', asyncHandler(async (req, res) => {
   await run('UPDATE messages SET is_read=1 WHERE id=? AND receiver_id=?', [req.params.id, req.user.id]);
   res.json({ ok: true });
+}));
+
+// ── CONNECTION REQUESTS ─────────────────────────────────────
+apiRouter.get('/requests', asyncHandler(async (req, res) => {
+  const { id } = req.user;
+  const sent = await query('SELECT r.*, u.name as receiver_name, u.avatar as receiver_avatar FROM connection_requests r JOIN users u ON u.id=r.receiver_id WHERE r.sender_id=? ORDER BY r.created_at DESC', [id]);
+  const received = await query('SELECT r.*, u.name as sender_name, u.avatar as sender_avatar FROM connection_requests r JOIN users u ON u.id=r.sender_id WHERE r.receiver_id=? ORDER BY r.created_at DESC', [id]);
+  res.json({ sent, received });
+}));
+
+apiRouter.post('/requests', validate(connectionRequestSchema), asyncHandler(async (req, res) => {
+  const { receiverId, message } = req.body;
+  const { id } = req.user;
+  if (id === receiverId) throw new AppError('Cannot send request to yourself', 400);
+  const existing = await queryOne('SELECT id FROM connection_requests WHERE ((sender_id=? AND receiver_id=?) OR (sender_id=? AND receiver_id=?)) AND status=?', [id, receiverId, receiverId, id, 'pending']);
+  if (existing) throw new AppError('Request already pending', 409);
+  const conn = await queryOne('SELECT id FROM connections WHERE (user1_id=? AND user2_id=?) OR (user1_id=? AND user2_id=?)', [id, receiverId, receiverId, id]);
+  if (conn) throw new AppError('Already connected', 409);
+  const reqId = uuid();
+  await run('INSERT INTO connection_requests (id,sender_id,receiver_id,status,message) VALUES (?,?,?,?,?)', [reqId, id, receiverId, 'pending', message||'']);
+  res.status(201).json(await queryOne('SELECT * FROM connection_requests WHERE id = ?', [reqId]));
+}));
+
+apiRouter.patch('/requests/:id', asyncHandler(async (req, res) => {
+  const { status } = req.body;
+  if (!['accepted', 'declined'].includes(status)) throw new AppError('Invalid status', 400);
+  const request = await queryOne('SELECT * FROM connection_requests WHERE id=? AND receiver_id=?', [req.params.id, req.user.id]);
+  if (!request) throw new AppError('Request not found', 404);
+  if (request.status !== 'pending') throw new AppError('Request already processed', 400);
+  if (status === 'accepted') {
+    const connId = uuid();
+    await run('INSERT INTO connections (id,user1_id,user2_id) VALUES (?,?,?)', [connId, request.sender_id, request.receiver_id]);
+  }
+  await run('UPDATE connection_requests SET status=?, updated_at=datetime(\'now\') WHERE id=?', [status, req.params.id]);
+  res.json(await queryOne('SELECT * FROM connection_requests WHERE id = ?', [req.params.id]));
+}));
+
+apiRouter.get('/connections', asyncHandler(async (req, res) => {
+  const { id } = req.user;
+  const rows = await query(
+    `SELECT c.*, u.name as connected_name, u.avatar as connected_avatar, u.role as connected_role
+     FROM connections c JOIN users u ON (u.id=c.user1_id OR u.id=c.user2_id)
+     WHERE (c.user1_id=? OR c.user2_id=?) AND u.id!=? ORDER BY c.created_at DESC`,
+    [id, id, id]
+  );
+  res.json(rows);
 }));
 
 // ── INVOICES ──────────────────────────────────────────────

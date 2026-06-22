@@ -113,6 +113,12 @@ export const messageSchema = z.object({
   receiverId: z.string().min(1),
   content: z.string().min(1, 'Message content is required').max(10000),
   caseId: z.string().optional().nullable(),
+  attachments: z.string().optional().default('[]'),
+});
+
+export const connectionRequestSchema = z.object({
+  receiverId: z.string().min(1),
+  message: z.string().max(500).optional().default(''),
 });
 
 export const invoiceSchema = z.object({

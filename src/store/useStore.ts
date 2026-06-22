@@ -70,6 +70,31 @@ export interface Message {
   timestamp: string;
   read: boolean;
   caseId?: string;
+  attachments?: string;
+}
+
+export interface ConnectionRequest {
+  id: string;
+  sender_id: string;
+  receiver_id: string;
+  status: 'pending' | 'accepted' | 'declined';
+  message: string;
+  created_at: string;
+  updated_at: string;
+  sender_name?: string;
+  sender_avatar?: string;
+  receiver_name?: string;
+  receiver_avatar?: string;
+}
+
+export interface Connection {
+  id: string;
+  user1_id: string;
+  user2_id: string;
+  created_at: string;
+  connected_name: string;
+  connected_avatar: string;
+  connected_role: string;
 }
 
 export interface JournalEntry {
@@ -196,7 +221,7 @@ interface AppState {
 
   // Message actions
   loadMessages: (withUserId?: string) => Promise<void>;
-  sendMessage: (message: Omit<Message, 'id' | 'timestamp' | 'read'>) => Promise<void>;
+  sendMessage: (message: Omit<Message, 'id' | 'timestamp' | 'read'> & { attachments?: string }) => Promise<void>;
   markAsRead: (messageId: string) => Promise<void>;
 
   // Journal actions
@@ -204,6 +229,14 @@ interface AppState {
   addJournalEntry: (entry: Omit<JournalEntry, 'id'>) => Promise<void>;
   updateJournalEntry: (entryId: string, updates: Partial<JournalEntry>) => Promise<void>;
   deleteJournalEntry: (entryId: string) => Promise<void>;
+
+  // Connection request actions
+  requests: { sent: ConnectionRequest[]; received: ConnectionRequest[] };
+  connections: Connection[];
+  loadRequests: () => Promise<void>;
+  sendRequest: (receiverId: string, message?: string) => Promise<void>;
+  respondToRequest: (requestId: string, status: 'accepted' | 'declined') => Promise<void>;
+  loadConnections: () => Promise<void>;
 
   // Invoice actions
   loadInvoices: () => Promise<void>;
@@ -239,6 +272,8 @@ export const useStore = create<AppState>()(
       clients: [],
       messages: [],
       journals: [],
+      requests: { sent: [], received: [] },
+      connections: [],
       invoices: [],
       timeEntries: [],
 
@@ -355,7 +390,7 @@ export const useStore = create<AppState>()(
         const { token } = get();
         const msg = await apiFetch('/api/messages', {
           method: 'POST',
-          body: JSON.stringify({ receiverId: message.receiverId, content: message.content, caseId: message.caseId }),
+          body: JSON.stringify({ receiverId: message.receiverId, content: message.content, caseId: message.caseId, attachments: message.attachments }),
         }, token);
         const norm = {
           id: msg.id,
@@ -365,6 +400,7 @@ export const useStore = create<AppState>()(
           timestamp: msg.created_at,
           read: false,
           caseId: msg.case_id,
+          attachments: msg.attachments,
         };
         set(state => ({ messages: [...state.messages, norm] }));
       },
@@ -399,6 +435,35 @@ export const useStore = create<AppState>()(
         const { token } = get();
         await apiFetch(`/api/journal/${entryId}`, { method: 'DELETE' }, token);
         set(state => ({ journals: state.journals.filter(j => j.id !== entryId) }));
+      },
+
+      loadRequests: async () => {
+        const { token } = get();
+        try {
+          const data = await apiFetch('/api/requests', {}, token) as { sent: ConnectionRequest[]; received: ConnectionRequest[] };
+          set({ requests: data });
+        } catch {}
+      },
+
+      sendRequest: async (receiverId, message) => {
+        const { token } = get();
+        await apiFetch('/api/requests', { method: 'POST', body: JSON.stringify({ receiverId, message: message || '' }) }, token);
+        get().loadRequests();
+      },
+
+      respondToRequest: async (requestId, status) => {
+        const { token } = get();
+        await apiFetch(`/api/requests/${requestId}`, { method: 'PATCH', body: JSON.stringify({ status }) }, token);
+        get().loadRequests();
+        if (status === 'accepted') get().loadConnections();
+      },
+
+      loadConnections: async () => {
+        const { token } = get();
+        try {
+          const data = await apiFetch('/api/connections', {}, token) as Connection[];
+          set({ connections: data });
+        } catch {}
       },
 
       loadInvoices: async () => {

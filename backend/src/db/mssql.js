@@ -126,6 +126,22 @@ export class MssqlAdapter {
         sender_id NVARCHAR(36), receiver_id NVARCHAR(36),
         content NVARCHAR(MAX) NOT NULL, case_id NVARCHAR(36),
         is_read BIT DEFAULT 0,
+        attachments NVARCHAR(MAX) DEFAULT '[]',
+        created_at DATETIME2 DEFAULT GETDATE()
+      )`,
+      `IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='connection_requests' AND xtype='U')
+      CREATE TABLE connection_requests (
+        id NVARCHAR(36) PRIMARY KEY,
+        sender_id NVARCHAR(36) NOT NULL, receiver_id NVARCHAR(36) NOT NULL,
+        status NVARCHAR(50) NOT NULL DEFAULT 'pending',
+        message NVARCHAR(MAX),
+        created_at DATETIME2 DEFAULT GETDATE(),
+        updated_at DATETIME2 DEFAULT GETDATE()
+      )`,
+      `IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='connections' AND xtype='U')
+      CREATE TABLE connections (
+        id NVARCHAR(36) PRIMARY KEY,
+        user1_id NVARCHAR(36) NOT NULL, user2_id NVARCHAR(36) NOT NULL,
         created_at DATETIME2 DEFAULT GETDATE()
       )`,
       `IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='journal_entries' AND xtype='U')

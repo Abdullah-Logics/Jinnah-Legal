@@ -133,6 +133,16 @@ export class SqliteAdapter {
       CREATE TABLE IF NOT EXISTS messages (
         id TEXT PRIMARY KEY, sender_id TEXT, receiver_id TEXT,
         content TEXT NOT NULL, case_id TEXT, is_read INTEGER DEFAULT 0,
+        attachments TEXT DEFAULT '[]',
+        created_at TEXT DEFAULT (datetime('now'))
+      );
+      CREATE TABLE IF NOT EXISTS connection_requests (
+        id TEXT PRIMARY KEY, sender_id TEXT NOT NULL, receiver_id TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending', message TEXT,
+        created_at TEXT DEFAULT (datetime('now')), updated_at TEXT DEFAULT (datetime('now'))
+      );
+      CREATE TABLE IF NOT EXISTS connections (
+        id TEXT PRIMARY KEY, user1_id TEXT NOT NULL, user2_id TEXT NOT NULL,
         created_at TEXT DEFAULT (datetime('now'))
       );
       CREATE TABLE IF NOT EXISTS journal_entries (
@@ -173,6 +183,7 @@ export class SqliteAdapter {
     try { this.db.run("ALTER TABLE documents ADD COLUMN case_id TEXT"); } catch {}
     try { this.db.run("ALTER TABLE documents ADD COLUMN updated_at TEXT DEFAULT (datetime('now'))"); } catch {}
     try { this.db.run("ALTER TABLE journal_entries ADD COLUMN content TEXT DEFAULT ''"); } catch {}
+    try { this.db.run("ALTER TABLE messages ADD COLUMN attachments TEXT DEFAULT '[]'"); } catch {}
     try { this.db.run("DELETE FROM ai_sessions WHERE id LIKE 'doc-%' OR id LIKE 'research-%'"); } catch {}
     try { this.db.run("DELETE FROM ai_chat_history WHERE session_id LIKE 'doc-%' OR session_id LIKE 'research-%'"); } catch {}
     this._save();

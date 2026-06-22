@@ -18,6 +18,7 @@ import LawyerResearch from './pages/lawyer/Research';
 import LawyerDocuments from './pages/lawyer/Documents';
 import LawyerTimeTracking from './pages/lawyer/TimeTracking';
 import LawyerClients from './pages/lawyer/Clients';
+import LawyerRequests from './pages/lawyer/Requests';
 import LawyerCalendar from './pages/lawyer/Calendar';
 import LawyerMessages from './pages/lawyer/Messages';
 import LawyerProfile from './pages/lawyer/Profile';
@@ -35,6 +36,7 @@ import ClientCalendar from './pages/client/Calendar';
 import ClientProfile from './pages/client/Profile';
 import ClientAIAssistant from './pages/client/AIAssistant';
 import ClientDocuments from './pages/client/Documents';
+import ClientRequests from './pages/client/Requests';
 
 // Admin Portal
 import AdminDashboard from './pages/admin/Dashboard';
@@ -89,6 +91,7 @@ function App() {
             <Route path="documents" element={<LawyerDocuments />} />
             <Route path="time-tracking" element={<LawyerTimeTracking />} />
             <Route path="clients" element={<LawyerClients />} />
+            <Route path="requests" element={<LawyerRequests />} />
             <Route path="calendar" element={<LawyerCalendar />} />
             <Route path="messages" element={<LawyerMessages />} />
             <Route path="profile" element={<LawyerProfile />} />
@@ -108,6 +111,7 @@ function App() {
             <Route path="lawyer/:id" element={<ClientLawyerProfile />} />
             <Route path="billing" element={<ClientBilling />} />
             <Route path="messages" element={<ClientMessages />} />
+            <Route path="requests" element={<ClientRequests />} />
             <Route path="calendar" element={<ClientCalendar />} />
             <Route path="profile" element={<ClientProfile />} />
             <Route path="ai-assistant" element={<ClientAIAssistant />} />

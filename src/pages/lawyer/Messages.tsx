@@ -1,22 +1,37 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useStore } from '../../store/useStore';
-import { Search, Send, Paperclip, Phone, Video, MoreVertical, Check, CheckCheck } from 'lucide-react';
+import { Search, Send, Paperclip, Phone, Video, MoreVertical, Check, CheckCheck, Camera, Mic, FileText, X, Image as ImageIcon } from 'lucide-react';
 import { format } from 'date-fns';
 
+const API = import.meta.env.DEV ? 'http://localhost:3001' : 'https://headphones-june-exterior-performer.trycloudflare.com';
+
 export default function LawyerMessages() {
-  const { currentUser, users, cases, messages, loadMessages, loadCases, sendMessage, markAsRead } = useStore();
+  const { currentUser, users, cases, connections, messages, loadMessages, loadCases, loadConnections, sendMessage, markAsRead } = useStore();
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [attachments, setAttachments] = useState<{ name: string; url: string; type: string; size: number }[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const prevMsgCount = useRef(0);
 
-  useEffect(() => { loadMessages(); loadCases(); }, [loadMessages, loadCases]);
+  useEffect(() => { loadMessages(); loadCases(); loadConnections(); }, [loadMessages, loadCases, loadConnections]);
 
-  const myClientIds = new Set(
-    cases.filter(c => c.lawyerId === currentUser?.id).map(c => c.clientId)
-  );
-  const myContacts = users.filter(u => u.role === 'client' && myClientIds.has(u.id));
+  useEffect(() => {
+    if (messages.length > prevMsgCount.current) {
+      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+    }
+    prevMsgCount.current = messages.length;
+  }, [messages.length]);
+
+  // Contacts: case-based clients + accepted connections
+  const myClientIds = new Set(cases.filter(c => c.lawyerId === currentUser?.id).map(c => c.clientId));
+  const connectedUserIds = new Set(connections.map(c => c.user1_id === currentUser?.id ? c.user2_id : c.user1_id));
+  const allContactIds = new Set([...myClientIds, ...connectedUserIds]);
+  const myContacts = users.filter(u => allContactIds.has(u.id));
   
   const filteredContacts = myContacts.filter(c =>
     c.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -30,10 +45,6 @@ export default function LawyerMessages() {
   ).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [conversation]);
-
-  useEffect(() => {
     if (selectedUser) {
       conversation
         .filter(m => m.receiverId === currentUser?.id && !m.read)
@@ -41,14 +52,40 @@ export default function LawyerMessages() {
     }
   }, [selectedUser, conversation, currentUser?.id, markAsRead]);
 
+  const uploadFile = async (file: File) => {
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch(`${API}/api/upload/chat`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        body: formData,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAttachments(prev => [...prev, data]);
+      }
+    } catch {}
+    setUploading(false);
+  };
+
+  const handleFilePick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) uploadFile(file);
+    e.target.value = '';
+  };
+
   const handleSend = () => {
-    if (!newMessage.trim() || !selectedUser) return;
+    if ((!newMessage.trim() && attachments.length === 0) || !selectedUser) return;
     sendMessage({
       senderId: currentUser?.id || '',
       receiverId: selectedUser,
-      content: newMessage
+      content: newMessage,
+      attachments: attachments.length > 0 ? JSON.stringify(attachments) : undefined,
     });
     setNewMessage('');
+    setAttachments([]);
   };
 
   const getUnreadCount = (userId: string) => {
@@ -61,6 +98,29 @@ export default function LawyerMessages() {
       (m.senderId === userId && m.receiverId === currentUser?.id)
     );
     return userMessages[userMessages.length - 1];
+  };
+
+  const parseAttachments = (attachmentsStr?: string) => {
+    if (!attachmentsStr) return [];
+    try { return JSON.parse(attachmentsStr); } catch { return []; }
+  };
+
+  const renderAttachment = (att: { name: string; url: string; type: string; size: number }, isMine: boolean) => {
+    if (att.type.startsWith('image/')) {
+      return <img src={att.url} alt={att.name} className="max-w-full rounded-lg mb-1 max-h-60 object-cover cursor-pointer" onClick={() => window.open(att.url)} />;
+    }
+    if (att.type.startsWith('audio/')) {
+      return <audio src={att.url} controls className="w-full max-w-[200px] mb-1" />;
+    }
+    if (att.type.startsWith('video/')) {
+      return <video src={att.url} controls className="max-w-full rounded-lg mb-1 max-h-60" />;
+    }
+    return (
+      <a href={att.url} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs mb-1 ${isMine ? 'bg-emerald-700 text-white' : 'bg-slate-200 text-slate-700'}`}>
+        <FileText size={14} />
+        <span className="truncate max-w-[150px]">{att.name}</span>
+      </a>
+    );
   };
 
   return (
@@ -83,6 +143,9 @@ export default function LawyerMessages() {
             </div>
           </div>
           <div className="flex-1 overflow-y-auto">
+            {filteredContacts.length === 0 && (
+              <div className="p-4 text-center text-sm text-slate-400">No contacts found</div>
+            )}
             {filteredContacts.map(contact => {
               const lastMsg = getLastMessage(contact.id);
               const unread = getUnreadCount(contact.id);
@@ -167,6 +230,7 @@ export default function LawyerMessages() {
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {conversation.map((msg, i) => {
                 const isMine = msg.senderId === currentUser?.id;
+                const msgAttachments = parseAttachments(msg.attachments);
                 return (
                   <motion.div
                     key={msg.id}
@@ -175,13 +239,22 @@ export default function LawyerMessages() {
                     className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}
                   >
                     <div className={`max-w-[80%] ${isMine ? 'order-2' : ''}`}>
-                      <div className={`px-4 py-2 rounded-2xl ${
-                        isMine 
-                          ? 'bg-emerald-600 text-white rounded-br-none' 
-                          : 'bg-slate-100 text-slate-900 rounded-bl-none'
-                      }`}>
-                        <p>{msg.content}</p>
-                      </div>
+                      {msgAttachments.length > 0 && (
+                        <div className={`mb-1 ${isMine ? 'text-right' : ''}`}>
+                          {msgAttachments.map((att, i) => (
+                            <div key={i}>{renderAttachment(att, isMine)}</div>
+                          ))}
+                        </div>
+                      )}
+                      {msg.content && (
+                        <div className={`px-4 py-2 rounded-2xl ${
+                          isMine 
+                            ? 'bg-emerald-600 text-white rounded-br-none' 
+                            : 'bg-slate-100 text-slate-900 rounded-bl-none'
+                        }`}>
+                          <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                        </div>
+                      )}
                       <div className={`flex items-center gap-1 mt-1 ${isMine ? 'justify-end' : ''}`}>
                         <span className="text-xs text-slate-400">
                           {format(new Date(msg.timestamp), 'HH:mm')}
@@ -199,11 +272,31 @@ export default function LawyerMessages() {
               <div ref={messagesEndRef} />
             </div>
 
+            {/* Attachment preview */}
+            {attachments.length > 0 && (
+              <div className="px-4 pt-2 flex flex-wrap gap-2 border-t border-slate-100">
+                {attachments.map((att, i) => (
+                  <div key={i} className="flex items-center gap-2 bg-slate-50 rounded-lg px-3 py-1.5 text-xs text-slate-600">
+                    {att.type.startsWith('image/') ? <ImageIcon size={14} /> : <FileText size={14} />}
+                    <span className="truncate max-w-[120px]">{att.name}</span>
+                    <button onClick={() => setAttachments(prev => prev.filter((_, j) => j !== i))} className="text-red-400 hover:text-red-600">
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {/* Input */}
             <div className="p-4 border-t border-slate-100">
               <div className="flex items-center gap-2">
-                <button className="p-2 hover:bg-slate-100 rounded-lg transition">
+                <input type="file" ref={fileInputRef} onChange={handleFilePick} className="hidden" accept="image/*,.pdf,.doc,.docx,.txt,.mp3,.wav,.ogg,.webm,.mp4" />
+                <input type="file" ref={cameraInputRef} onChange={handleFilePick} className="hidden" accept="image/*" capture="environment" />
+                <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="p-2 hover:bg-slate-100 rounded-lg transition disabled:opacity-50">
                   <Paperclip size={20} className="text-slate-500" />
+                </button>
+                <button onClick={() => cameraInputRef.current?.click()} disabled={uploading} className="p-2 hover:bg-slate-100 rounded-lg transition disabled:opacity-50">
+                  <Camera size={20} className="text-slate-500" />
                 </button>
                 <input
                   type="text"
@@ -215,10 +308,10 @@ export default function LawyerMessages() {
                 />
                 <button
                   onClick={handleSend}
-                  disabled={!newMessage.trim()}
+                  disabled={(!newMessage.trim() && attachments.length === 0) || uploading}
                   className="p-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-50 transition"
                 >
-                  <Send size={20} />
+                  {uploading ? <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin block" /> : <Send size={20} />}
                 </button>
               </div>
             </div>

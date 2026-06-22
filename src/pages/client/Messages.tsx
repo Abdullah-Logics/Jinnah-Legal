@@ -1,19 +1,28 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useStore } from '../../store/useStore';
-import { Search, Send, Paperclip, Phone, Video, MoreVertical, Check, CheckCheck } from 'lucide-react';
+import { Search, Send, Paperclip, Phone, Video, MoreVertical, Check, CheckCheck, Camera, FileText, X, Image as ImageIcon } from 'lucide-react';
 import { format } from 'date-fns';
 
+const API = import.meta.env.DEV ? 'http://localhost:3001' : 'https://headphones-june-exterior-performer.trycloudflare.com';
+
 export default function ClientMessages() {
-  const { currentUser, users, messages, loadMessages, sendMessage, markAsRead } = useStore();
+  const { currentUser, users, connections, messages, loadMessages, loadConnections, sendMessage, markAsRead } = useStore();
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [attachments, setAttachments] = useState<{ name: string; url: string; type: string; size: number }[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { loadMessages(); }, [loadMessages]);
+  useEffect(() => { loadMessages(); loadConnections(); }, [loadMessages, loadConnections]);
 
-  const myContacts = users.filter(u => u.role === 'lawyer');
+  // Contacts: all lawyers + accepted connections
+  const connectedUserIds = new Set(connections.map(c => c.user1_id === currentUser?.id ? c.user2_id : c.user1_id));
+  const allContactIds = new Set([...users.filter(u => u.role === 'lawyer').map(u => u.id), ...connectedUserIds]);
+  const myContacts = users.filter(u => allContactIds.has(u.id));
   const filteredContacts = myContacts.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()));
   const selectedContact = users.find(u => u.id === selectedUser);
   
@@ -22,9 +31,7 @@ export default function ClientMessages() {
     (m.senderId === selectedUser && m.receiverId === currentUser?.id)
   ).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [conversation]);
+  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [conversation]);
 
   useEffect(() => {
     if (selectedUser) {
@@ -32,16 +39,64 @@ export default function ClientMessages() {
     }
   }, [selectedUser, conversation, currentUser?.id, markAsRead]);
 
+  const uploadFile = async (file: File) => {
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch(`${API}/api/upload/chat`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        body: formData,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAttachments(prev => [...prev, data]);
+      }
+    } catch {}
+    setUploading(false);
+  };
+
+  const handleFilePick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) uploadFile(file);
+    e.target.value = '';
+  };
+
   const handleSend = () => {
-    if (!newMessage.trim() || !selectedUser) return;
-    sendMessage({ senderId: currentUser?.id || '', receiverId: selectedUser, content: newMessage });
+    if ((!newMessage.trim() && attachments.length === 0) || !selectedUser) return;
+    sendMessage({ senderId: currentUser?.id || '', receiverId: selectedUser, content: newMessage, attachments: attachments.length > 0 ? JSON.stringify(attachments) : undefined });
     setNewMessage('');
+    setAttachments([]);
   };
 
   const getUnreadCount = (userId: string) => messages.filter(m => m.senderId === userId && m.receiverId === currentUser?.id && !m.read).length;
   const getLastMessage = (userId: string) => {
     const userMessages = messages.filter(m => (m.senderId === currentUser?.id && m.receiverId === userId) || (m.senderId === userId && m.receiverId === currentUser?.id));
     return userMessages[userMessages.length - 1];
+  };
+
+  const parseAttachments = (attachmentsStr?: string) => {
+    if (!attachmentsStr) return [];
+    try { return JSON.parse(attachmentsStr); } catch { return []; }
+  };
+
+  const renderAttachment = (att: { name: string; url: string; type: string; size: number }, isMine: boolean) => {
+    if (att.type.startsWith('image/')) {
+      return <img src={att.url} alt={att.name} className="max-w-full rounded-lg mb-1 max-h-60 object-cover cursor-pointer" onClick={() => window.open(att.url)} />;
+    }
+    if (att.type.startsWith('audio/')) {
+      return <audio src={att.url} controls className="w-full max-w-[200px] mb-1" />;
+    }
+    if (att.type.startsWith('video/')) {
+      return <video src={att.url} controls className="max-w-full rounded-lg mb-1 max-h-60" />;
+    }
+    return (
+      <a href={att.url} target="_blank" rel="noopener noreferrer" className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs mb-1 ${isMine ? 'bg-emerald-700 text-white' : 'bg-slate-200 text-slate-700'}`}>
+        <FileText size={14} />
+        <span className="truncate max-w-[150px]">{att.name}</span>
+      </a>
+    );
   };
 
   return (
@@ -52,10 +107,11 @@ export default function ClientMessages() {
           <div className="p-4 border-b border-slate-100">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <input type="text" placeholder="Search lawyers..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm" />
+              <input type="text" placeholder="Search contacts..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm" />
             </div>
           </div>
           <div className="flex-1 overflow-y-auto">
+            {filteredContacts.length === 0 && <div className="p-4 text-center text-sm text-slate-400">No contacts found</div>}
             {filteredContacts.map(contact => {
               const lastMsg = getLastMessage(contact.id);
               const unread = getUnreadCount(contact.id);
@@ -100,12 +156,20 @@ export default function ClientMessages() {
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {conversation.map(msg => {
                 const isMine = msg.senderId === currentUser?.id;
+                const msgAttachments = parseAttachments(msg.attachments);
                 return (
                   <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-[80%]`}>
-                      <div className={`px-4 py-2 rounded-2xl ${isMine ? 'bg-emerald-600 text-white rounded-br-none' : 'bg-slate-100 text-slate-900 rounded-bl-none'}`}>
-                        <p>{msg.content}</p>
-                      </div>
+                      {msgAttachments.length > 0 && (
+                        <div className={`mb-1 ${isMine ? 'text-right' : ''}`}>
+                          {msgAttachments.map((att, i) => <div key={i}>{renderAttachment(att, isMine)}</div>)}
+                        </div>
+                      )}
+                      {msg.content && (
+                        <div className={`px-4 py-2 rounded-2xl ${isMine ? 'bg-emerald-600 text-white rounded-br-none' : 'bg-slate-100 text-slate-900 rounded-bl-none'}`}>
+                          <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                        </div>
+                      )}
                       <div className={`flex items-center gap-1 mt-1 ${isMine ? 'justify-end' : ''}`}>
                         <span className="text-xs text-slate-400">{format(new Date(msg.timestamp), 'HH:mm')}</span>
                         {isMine && (msg.read ? <CheckCheck size={14} className="text-emerald-500" /> : <Check size={14} className="text-slate-400" />)}
@@ -116,11 +180,27 @@ export default function ClientMessages() {
               })}
               <div ref={messagesEndRef} />
             </div>
+            {attachments.length > 0 && (
+              <div className="px-4 pt-2 flex flex-wrap gap-2 border-t border-slate-100">
+                {attachments.map((att, i) => (
+                  <div key={i} className="flex items-center gap-2 bg-slate-50 rounded-lg px-3 py-1.5 text-xs text-slate-600">
+                    {att.type.startsWith('image/') ? <ImageIcon size={14} /> : <FileText size={14} />}
+                    <span className="truncate max-w-[120px]">{att.name}</span>
+                    <button onClick={() => setAttachments(prev => prev.filter((_, j) => j !== i))} className="text-red-400 hover:text-red-600"><X size={14} /></button>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="p-4 border-t border-slate-100">
               <div className="flex items-center gap-2">
-                <button className="p-2 hover:bg-slate-100 rounded-lg"><Paperclip size={20} className="text-slate-500" /></button>
+                <input type="file" ref={fileInputRef} onChange={handleFilePick} className="hidden" accept="image/*,.pdf,.doc,.docx,.txt,.mp3,.wav,.ogg,.webm,.mp4" />
+                <input type="file" ref={cameraInputRef} onChange={handleFilePick} className="hidden" accept="image/*" capture="environment" />
+                <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="p-2 hover:bg-slate-100 rounded-lg transition disabled:opacity-50"><Paperclip size={20} className="text-slate-500" /></button>
+                <button onClick={() => cameraInputRef.current?.click()} disabled={uploading} className="p-2 hover:bg-slate-100 rounded-lg transition disabled:opacity-50"><Camera size={20} className="text-slate-500" /></button>
                 <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSend()} placeholder="Type a message..." className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-                <button onClick={handleSend} disabled={!newMessage.trim()} className="p-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-50"><Send size={20} /></button>
+                <button onClick={handleSend} disabled={(!newMessage.trim() && attachments.length === 0) || uploading} className="p-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-50 transition">
+                  {uploading ? <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin block" /> : <Send size={20} />}
+                </button>
               </div>
             </div>
           </div>
@@ -129,7 +209,7 @@ export default function ClientMessages() {
             <div className="text-center">
               <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4"><Send size={32} className="text-slate-300" /></div>
               <p className="text-lg font-medium">Select a conversation</p>
-              <p className="text-sm">Choose a lawyer to start messaging</p>
+              <p className="text-sm">Choose a contact to start messaging</p>
             </div>
           </div>
         )}

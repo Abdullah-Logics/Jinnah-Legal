@@ -98,6 +98,21 @@ uploadRouter.get('/:id/content', requireAuth, asyncHandler(async (req, res) => {
   res.json({ content: '', doc });
 }));
 
+uploadRouter.post('/chat', requireAuth, upload.single('file'), asyncHandler(async (req, res) => {
+  if (!req.file) throw new AppError('No file uploaded', 400);
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain', 'audio/webm', 'audio/mp4', 'audio/ogg', 'audio/mpeg', 'video/webm', 'video/mp4'];
+  if (!allowedTypes.includes(req.file.mimetype)) {
+    throw new AppError('File type not allowed for chat. Allowed: images, PDF, DOC, TXT, audio, video.', 400);
+  }
+  const fileUrl = `/uploads/${req.file.filename}`;
+  res.json({
+    name: req.file.originalname,
+    url: fileUrl,
+    type: req.file.mimetype,
+    size: req.file.size,
+  });
+}));
+
 uploadRouter.put('/:id', requireAuth, asyncHandler(async (req, res) => {
   const doc = await queryOne('SELECT * FROM documents WHERE id=? AND user_id=?', [req.params.id, req.user.id]);
   if (!doc) return res.status(404).json({ error: 'Document not found' });

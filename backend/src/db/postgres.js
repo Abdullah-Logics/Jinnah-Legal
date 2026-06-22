@@ -1,9 +1,22 @@
 import pg from 'pg';
+import { lookup } from 'dns/promises';
 
 function buildPgQuery(sqlText, params = []) {
   let i = 0;
   const text = sqlText.replace(/\?/g, () => `$${++i}`);
   return { text, params };
+}
+
+async function resolveHost(host) {
+  try {
+    const { address: v6 } = await lookup(host, { family: 6, hints: 0x200 /* AI_V4MAPPED */ }).catch(() => ({}));
+    if (v6) return v6;
+  } catch { /* try v4 */ }
+  try {
+    const { address: v4 } = await lookup(host, { family: 4 });
+    if (v4) return v4;
+  } catch { /* try connect via hostname */ }
+  return host;
 }
 
 export class PostgresAdapter {
@@ -12,8 +25,18 @@ export class PostgresAdapter {
   }
 
   async connect() {
-    const url = process.env.SUPABASE_URL || process.env.DATABASE_URL;
+    let url = process.env.SUPABASE_URL || process.env.DATABASE_URL;
     if (!url) throw new Error('SUPABASE_URL or DATABASE_URL is required');
+    // Pre-resolve hostname to handle IPv6-only hosts on platforms without IPv6 DNS
+    const match = url.match(/^postgresql:\/\/([^@]+)@([^:]+)(:\d+)?\/(.+)/);
+    if (match) {
+      const [_, auth, host, port, db] = match;
+      const resolvedHost = await resolveHost(host);
+      if (resolvedHost !== host) {
+        url = `postgresql://${auth}@${resolvedHost}${port || ':5432'}/${db}`;
+        console.log(`  Resolved ${host} → ${resolvedHost}`);
+      }
+    }
     this.pool = new pg.Pool({ connectionString: url, ssl: { rejectUnauthorized: false } });
     this.pool.on('error', err => console.error('PG pool error:', err.message));
     console.log(' PostgreSQL connected via Supabase');

@@ -40,6 +40,7 @@ export class SqliteAdapter {
       console.log('✅  SQLite (in-memory) ready → Vercel ephemeral mode');
       console.log('⚠️  Set DATABASE_URL for persistent PostgreSQL');
       await this._createSchema();
+      await this._seedFromBackup();
       return;
     }
 
@@ -105,6 +106,33 @@ export class SqliteAdapter {
       this.db.close();
       this.db = null;
       console.log('✅ SQLite connection closed');
+    }
+  }
+
+  async _seedFromBackup() {
+    try {
+      const { existsSync: _exists, readFileSync: _read } = await import('fs');
+      const { resolve } = await import('path');
+      const seedPath = resolve(__dirname, '../../seed/seed.json');
+      if (!_exists(seedPath)) return;
+      const existing = this.db.exec("SELECT COUNT(*) as c FROM users");
+      if (existing[0]?.values[0][0] > 0) return;
+      const data = JSON.parse(_read(seedPath, 'utf-8'));
+      const tables = ['users','firms','firm_requests','cases','messages',
+        'connection_requests','connections','journal_entries',
+        'invoices','time_entries','documents','ai_sessions','ai_chat_history'];
+      for (const table of tables) {
+        const rows = data[table];
+        if (!rows?.length) continue;
+        const cols = Object.keys(rows[0]);
+        const ph = cols.map(() => '?').join(',');
+        const stmt = this.db.prepare(`INSERT OR IGNORE INTO "${table}" (${cols.map(c=>'"'+c+'"').join(',')}) VALUES (${ph})`);
+        for (const r of rows) stmt.run(cols.map(c => r[c] ?? null));
+        stmt.free();
+      }
+      console.log('✅ Seed data loaded from backup');
+    } catch (err) {
+      console.error('Seed from backup failed:', err.message);
     }
   }
 

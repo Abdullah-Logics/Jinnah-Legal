@@ -285,6 +285,16 @@ export const useStore = create<AppState>()(
         });
         localStorage.setItem('token', data.token);
         set({ currentUser: data.user, isAuthenticated: true, token: data.token });
+        // Preload data in parallel so dashboards render instantly
+        const { token } = get();
+        const role = data.user.role;
+        try {
+          const [usersData, casesData] = await Promise.all([
+            apiFetch(role === 'admin' ? '/api/admin/users' : '/api/users/all', {}, token),
+            apiFetch('/api/cases', {}, token),
+          ]);
+          set({ users: usersData, cases: casesData });
+        } catch {}
         return true;
       },
 
@@ -559,6 +569,8 @@ export const useStore = create<AppState>()(
         currentUser: state.currentUser,
         isAuthenticated: state.isAuthenticated,
         token: state.token,
+        users: state.users,
+        cases: state.cases,
       }),
     }
   )

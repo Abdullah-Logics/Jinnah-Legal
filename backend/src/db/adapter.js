@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { v4 as uuid } from 'uuid';
+import { seedFromBackup } from './seed.js';
 
 let _adapter = null;
 
@@ -27,6 +28,7 @@ export async function getAdapter() {
     const { PostgresAdapter } = await import('./postgres.js');
     _adapter = new PostgresAdapter();
     await _adapter.connect();
+    await seedFromBackup(_adapter);
   } else if (process.env.MSSQL_SERVER) {
     const { MssqlAdapter } = await import('./mssql.js');
     _adapter = new MssqlAdapter();

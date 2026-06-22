@@ -282,6 +282,7 @@ export const useStore = create<AppState>()(
           method: 'POST',
           body: JSON.stringify({ email, password: _password }),
         });
+        localStorage.setItem('token', data.token);
         set({ currentUser: data.user, isAuthenticated: true, token: data.token });
         return true;
       },

@@ -26,6 +26,8 @@ export async function createApp() {
 
   const app = express();
 
+  app.set('trust proxy', 1);
+
   app.use(helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' },
     contentSecurityPolicy: process.env.NODE_ENV === 'production' ? undefined : false,

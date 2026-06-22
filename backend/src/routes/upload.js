@@ -27,15 +27,20 @@ const upload = multer({
   storage,
   limits: { fileSize: 50 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    const allowed = ['.pdf', '.doc', '.docx', '.txt', '.jpg', '.jpeg', '.png', '.xls', '.xlsx', '.csv'];
+    const allowed = ['.pdf', '.doc', '.docx', '.txt', '.jpg', '.jpeg', '.png', '.gif', '.webp', '.xls', '.xlsx', '.csv'];
     const ext = path.extname(file.originalname).toLowerCase();
     if (allowed.includes(ext)) cb(null, true);
     else cb(new Error('File type not allowed'));
   },
 });
 
+const chatUpload = multer({
+  storage,
+  limits: { fileSize: 50 * 1024 * 1024 },
+});
+
 export const uploadRouter = Router();
-export { upload };
+export { upload, chatUpload };
 
 uploadRouter.post('/public', upload.single('file'), asyncHandler(async (req, res) => {
   if (!req.file) throw new AppError('No file uploaded', 400);
@@ -98,7 +103,7 @@ uploadRouter.get('/:id/content', requireAuth, asyncHandler(async (req, res) => {
   res.json({ content: '', doc });
 }));
 
-uploadRouter.post('/chat', requireAuth, upload.single('file'), asyncHandler(async (req, res) => {
+uploadRouter.post('/chat', requireAuth, chatUpload.single('file'), asyncHandler(async (req, res) => {
   if (!req.file) throw new AppError('No file uploaded', 400);
   const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain', 'audio/webm', 'audio/mp4', 'audio/ogg', 'audio/mpeg', 'video/webm', 'video/mp4'];
   if (!allowedTypes.includes(req.file.mimetype)) {

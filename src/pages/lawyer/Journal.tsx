@@ -139,17 +139,19 @@ export default function LawyerJournal() {
 
   // Load content for current date when journals arrive or date changes
   const prevDateKey = useRef('');
+  const contentLoaded = useRef(false);
   useEffect(() => {
     if (!editor) return;
     const entry = journals.find(j => j.userId === currentUser?.id && j.date === dateKey);
-    // Only update if date changed or this is the first load
-    if (prevDateKey.current === dateKey && activeDateKey.current === dateKey) return;
+    // Skip only if date hasn't changed AND content was already loaded
+    if (prevDateKey.current === dateKey && contentLoaded.current) return;
     prevDateKey.current = dateKey;
     activeDateKey.current = dateKey;
     editor.commands.setContent(entry?.content || '', { emitUpdate: false });
     setTodos(entry?.todos || []);
     setPlans(entry?.plans || '');
     setEntryCreated(entry?.createdAt || (entry ? new Date().toISOString() : null));
+    contentLoaded.current = true;
   }, [dateKey, journals, editor, currentUser?.id]);
 
   useEffect(() => {

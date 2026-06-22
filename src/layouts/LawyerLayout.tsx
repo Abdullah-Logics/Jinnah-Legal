@@ -24,16 +24,16 @@ import {
 
 const navItems = [
   { path: '/lawyer', icon: LayoutDashboard, label: 'Dashboard', end: true },
-  { path: '/lawyer/ai-brain', icon: Brain, label: 'AI Second Brain' },
+  { path: '/lawyer/messages', icon: MessageSquare, label: 'Messages' },
+  { path: '/lawyer/calendar', icon: Calendar, label: 'Calendar' },
   { path: '/lawyer/journal', icon: BookOpen, label: 'Journal' },
   { path: '/lawyer/cases', icon: Briefcase, label: 'Case Hub' },
-  { path: '/lawyer/research', icon: Search, label: 'AI Research' },
-  { path: '/lawyer/documents', icon: FileText, label: 'Documents' },
-  { path: '/lawyer/time-tracking', icon: Clock, label: 'Time & Billing' },
   { path: '/lawyer/clients', icon: Users, label: 'Clients' },
-  { path: '/lawyer/requests', icon: UserPlus, label: 'Requests' },
-  { path: '/lawyer/calendar', icon: Calendar, label: 'Calendar' },
-  { path: '/lawyer/messages', icon: MessageSquare, label: 'Messages' },
+  { path: '/lawyer/documents', icon: FileText, label: 'Documents' },
+  { path: '/lawyer/ai-brain', icon: Brain, label: 'AI Brain' },
+  { path: '/lawyer/research', icon: Search, label: 'AI Research' },
+  { path: '/lawyer/time-tracking', icon: Clock, label: 'Time & Billing' },
+  { path: '/lawyer/requests', icon: UserPlus, label: 'Network' },
   { path: '/lawyer/profile', icon: User, label: 'Profile' },
 ];
 

@@ -122,6 +122,15 @@ export class SqliteAdapter {
         admin_id TEXT,
         created_at TEXT DEFAULT (datetime('now'))
       );
+      CREATE TABLE IF NOT EXISTS firm_requests (
+        id TEXT PRIMARY KEY,
+        lawyer_id TEXT NOT NULL,
+        firm_id TEXT NOT NULL,
+        status TEXT DEFAULT 'pending',
+        type TEXT NOT NULL DEFAULT 'join',
+        created_at TEXT DEFAULT (datetime('now')),
+        updated_at TEXT DEFAULT (datetime('now'))
+      );
       CREATE TABLE IF NOT EXISTS cases (
         id TEXT PRIMARY KEY, title TEXT NOT NULL, description TEXT,
         client_id TEXT, lawyer_id TEXT,

@@ -22,14 +22,14 @@ import {
 
 const navItems = [
   { path: '/client', icon: LayoutDashboard, label: 'Dashboard', end: true },
-  { path: '/client/ai-assistant', icon: Bot, label: 'AI Assistant' },
-  { path: '/client/cases', icon: Briefcase, label: 'My Cases' },
-  { path: '/client/find-lawyer', icon: Search, label: 'Find Lawyer' },
-  { path: '/client/billing', icon: CreditCard, label: 'Billing' },
-  { path: '/client/calendar', icon: Calendar, label: 'Calendar' },
-  { path: '/client/requests', icon: UserPlus, label: 'Requests' },
-  { path: '/client/documents', icon: FileText, label: 'Documents' },
   { path: '/client/messages', icon: MessageSquare, label: 'Messages' },
+  { path: '/client/calendar', icon: Calendar, label: 'Calendar' },
+  { path: '/client/cases', icon: Briefcase, label: 'My Cases' },
+  { path: '/client/documents', icon: FileText, label: 'Documents' },
+  { path: '/client/find-lawyer', icon: Search, label: 'Find Lawyer' },
+  { path: '/client/requests', icon: UserPlus, label: 'Network' },
+  { path: '/client/billing', icon: CreditCard, label: 'Billing' },
+  { path: '/client/ai-assistant', icon: Bot, label: 'AI Assistant' },
   { path: '/client/profile', icon: User, label: 'Profile' },
 ];
 

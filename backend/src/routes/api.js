@@ -61,6 +61,11 @@ apiRouter.get('/users/search', asyncHandler(async (req, res) => {
   res.json(toPublic(u));
 }));
 
+apiRouter.get('/users/all', asyncHandler(async (req, res) => {
+  const rows = await query('SELECT id,name,email,phone,city,avatar,role,firm_id FROM users WHERE id != ? ORDER BY name', [req.user.id]);
+  res.json(rows);
+}));
+
 // ── MESSAGES ──────────────────────────────────────────────
 apiRouter.get('/messages', asyncHandler(async (req, res) => {
   const { id } = req.user;
@@ -137,6 +142,57 @@ apiRouter.get('/connections', asyncHandler(async (req, res) => {
     [id, id, id]
   );
   res.json(rows);
+}));
+
+// ── FIRM REQUESTS ─────────────────────────────────────────
+apiRouter.post('/firms/requests', asyncHandler(async (req, res) => {
+  const { firmId, type } = req.body;
+  const { id, role } = req.user;
+  if (role !== 'lawyer') throw new AppError('Only lawyers can send firm requests', 403);
+  if (!['join', 'withdraw'].includes(type)) throw new AppError('Type must be join or withdraw', 400);
+  const firm = await queryOne('SELECT * FROM firms WHERE id=?', [firmId]);
+  if (!firm) throw new AppError('Firm not found', 404);
+  if (type === 'join' && req.user.firm_id) throw new AppError('Already in a firm', 400);
+  if (type === 'withdraw' && req.user.firm_id !== firmId) throw new AppError('Not a member of this firm', 400);
+  const existing = await queryOne('SELECT id FROM firm_requests WHERE lawyer_id=? AND firm_id=? AND status=?', [id, firmId, 'pending']);
+  if (existing) throw new AppError('Request already pending', 409);
+  const reqId = uuid();
+  await run('INSERT INTO firm_requests (id,lawyer_id,firm_id,type) VALUES (?,?,?,?)', [reqId, id, firmId, type]);
+  res.status(201).json(await queryOne('SELECT * FROM firm_requests WHERE id = ?', [reqId]));
+}));
+
+apiRouter.get('/firms/requests', asyncHandler(async (req, res) => {
+  const { id, role } = req.user;
+  let rows;
+  if (role === 'lawyer') {
+    rows = await query('SELECT fr.*, f.name as firm_name FROM firm_requests fr JOIN firms f ON f.id=fr.firm_id WHERE fr.lawyer_id=? ORDER BY fr.created_at DESC', [id]);
+  } else if (role === 'firm_admin') {
+    const firm = await queryOne('SELECT id FROM firms WHERE admin_id=?', [id]);
+    if (!firm) return res.json([]);
+    rows = await query('SELECT fr.*, u.name as lawyer_name, u.email as lawyer_email FROM firm_requests fr JOIN users u ON u.id=fr.lawyer_id WHERE fr.firm_id=? ORDER BY fr.created_at DESC', [firm.id]);
+  } else {
+    return res.json([]);
+  }
+  res.json(rows);
+}));
+
+apiRouter.patch('/firms/requests/:id', asyncHandler(async (req, res) => {
+  const { status } = req.body;
+  if (!['approved', 'declined'].includes(status)) throw new AppError('Invalid status', 400);
+  const request = await queryOne('SELECT * FROM firm_requests WHERE id=?', [req.params.id]);
+  if (!request) throw new AppError('Request not found', 404);
+  if (request.status !== 'pending') throw new AppError('Request already processed', 400);
+  const firm = await queryOne('SELECT * FROM firms WHERE id=?', [request.firm_id]);
+  if (!firm || firm.admin_id !== req.user.id) throw new AppError('Not authorized', 403);
+  if (status === 'approved') {
+    if (request.type === 'join') {
+      await run("UPDATE users SET firm_id=? WHERE id=?", [request.firm_id, request.lawyer_id]);
+    } else if (request.type === 'withdraw') {
+      await run("UPDATE users SET firm_id=NULL WHERE id=?", [request.lawyer_id]);
+    }
+  }
+  await run("UPDATE firm_requests SET status=?, updated_at=datetime('now') WHERE id=?", [status, req.params.id]);
+  res.json(await queryOne('SELECT * FROM firm_requests WHERE id = ?', [req.params.id]));
 }));
 
 // ── INVOICES ──────────────────────────────────────────────

@@ -136,6 +136,7 @@ const API = import.meta.env.DEV
   : 'https://indianapolis-reseller-moreover-columns.trycloudflare.com';
 
 function normalizeJournalEntry(e: Record<string, unknown>): JournalEntry {
+  const ts = (e.created_at || e.createdAt) as string | undefined;
   return {
     id: e.id as string,
     userId: (e.user_id || e.userId) as string,
@@ -144,7 +145,7 @@ function normalizeJournalEntry(e: Record<string, unknown>): JournalEntry {
     todos: e.todos as { id: string; text: string; completed: boolean }[] || [],
     plans: e.plans as string || '',
     content: (e.content as string) || '',
-    createdAt: (e.created_at || e.createdAt) as string | undefined,
+    createdAt: ts ? (ts.includes('Z') ? ts : ts + 'Z') : undefined,
   };
 }
 
@@ -378,13 +379,11 @@ export const useStore = create<AppState>()(
             senderId: m.sender_id ?? m.senderId,
             receiverId: m.receiver_id ?? m.receiverId,
             content: m.content,
-            timestamp: m.created_at ?? m.timestamp,
+            timestamp: (m.created_at || m.timestamp || '').includes('Z') ? (m.created_at ?? m.timestamp) : (m.created_at ?? m.timestamp) + 'Z',
             read: !!(m.is_read ?? m.read),
             caseId: m.case_id ?? m.caseId,
             attachments: m.attachments,
           }));
-          // If fetching ALL messages, replace state wholly
-          // If fetching a single conversation, merge so other chats aren't lost
           if (withUserId) {
             const other = existing.filter(m => m.senderId !== withUserId && m.receiverId !== withUserId);
             set({ messages: [...other, ...normalised] });
@@ -400,12 +399,13 @@ export const useStore = create<AppState>()(
           method: 'POST',
           body: JSON.stringify({ receiverId: message.receiverId, content: message.content, caseId: message.caseId, attachments: message.attachments }),
         }, token);
+        const ts = (msg.created_at || '').includes('Z') ? msg.created_at : msg.created_at + 'Z';
         const norm = {
           id: msg.id,
           senderId: msg.sender_id,
           receiverId: msg.receiver_id,
           content: msg.content,
-          timestamp: msg.created_at,
+          timestamp: ts,
           read: false,
           caseId: msg.case_id,
           attachments: msg.attachments,

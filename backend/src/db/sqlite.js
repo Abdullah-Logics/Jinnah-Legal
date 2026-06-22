@@ -1,4 +1,7 @@
-import initSqlJs from 'sql.js';
+// On Vercel, use asm.js variant (no WASM binary needed)
+const sqlInit = process.env.VERCEL
+  ? () => import('sql.js/dist/sql-asm.js').then(m => m.default())
+  : () => import('sql.js').then(m => m.default());
 import { readFileSync, writeFileSync, mkdirSync, existsSync, copyFileSync, readdirSync, unlinkSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -28,7 +31,7 @@ export class SqliteAdapter {
   constructor() { this.db = null; this.SQL = null; this._writeCount = 0; }
 
   async connect() {
-    this.SQL = await initSqlJs();
+    this.SQL = await sqlInit();
 
     // On Vercel (no persistent filesystem), use in-memory DB
     if (process.env.VERCEL) {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import { BubbleMenu } from '@tiptap/react/menus';
 import StarterKit from '@tiptap/starter-kit';
@@ -15,7 +15,7 @@ import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough,
   List, ListOrdered, CheckSquare, Quote, Code, Pilcrow,
   Heading1, Heading2, Heading3, MapPin, Plus, Trash2, Image,
-  Clock, Gavel, ArrowUpDown,
+  Clock, Gavel, ArrowUpDown, Printer,
 } from 'lucide-react';
 
 const SLASH_COMMANDS = [
@@ -51,12 +51,11 @@ export default function LawyerJournal() {
   const [scheduling, setScheduling] = useState(false);
   const [plans, setPlans] = useState('');
   const [showHistory, setShowHistory] = useState(false);
-  const journalsLoaded = useRef(false);
 
   useEffect(() => { loadJournals(); loadCases(); }, [loadJournals, loadCases]);
 
   const dateKey = format(selectedDate, 'yyyy-MM-dd');
-  const todayEntry = journals.find(j => j.userId === currentUser?.id && j.date === dateKey);
+  const todayEntry = useMemo(() => journals.find(j => j.userId === currentUser?.id && j.date === dateKey), [journals, currentUser?.id, dateKey]);
 
   const myCases = cases.filter(c => c.lawyerId === currentUser?.id);
   const dayEvents = myCases.flatMap(c => [
@@ -74,22 +73,27 @@ export default function LawyerJournal() {
   const saveEntry = useCallback(async (contentHtml: string, todoList?: { id: string; text: string; completed: boolean }[]) => {
     setSaving(true);
     const finalTodos = todoList ?? todos;
+    const today = journals.find(j => j.userId === currentUser?.id && j.date === dateKey);
     const entry = {
       userId: currentUser?.id || '',
       date: dateKey,
-      notes: todayEntry?.notes || '',
+      notes: today?.notes || '',
       todos: finalTodos,
       plans: plans,
       content: contentHtml,
     };
-    if (todayEntry) {
-      await updateJournalEntry(todayEntry.id, entry);
+    if (today) {
+      await updateJournalEntry(today.id, entry);
     } else {
       await addJournalEntry(entry);
     }
     setSaving(false);
-  }, [currentUser?.id, dateKey, todayEntry, todos, addJournalEntry, updateJournalEntry]);
+  }, [currentUser?.id, dateKey, journals, todos, plans, addJournalEntry, updateJournalEntry]);
+  const saveEntryRef = useRef(saveEntry);
+  saveEntryRef.current = saveEntry;
 
+  // ── Editor ──
+  const activeDateKey = useRef('');
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -101,9 +105,8 @@ export default function LawyerJournal() {
         placeholder: "Start writing your journal... Use '/' for headings, lists, todos & more",
       }),
     ],
-    content: todayEntry?.content || '',
+    content: '',
     onCreate: ({ editor: ed }) => {
-      if (!entryCreated) setEntryCreated(new Date().toISOString());
       ed.view.dom.addEventListener('keydown', (event: KeyboardEvent) => {
         if (event.key === '/' && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
           const sel = ed.state.selection;
@@ -125,7 +128,7 @@ export default function LawyerJournal() {
       if (!entryCreated) setEntryCreated(new Date().toISOString());
       const html = ed.getHTML();
       if (saveTimer.current) clearTimeout(saveTimer.current);
-      saveTimer.current = setTimeout(() => saveEntry(html), 1000);
+      saveTimer.current = setTimeout(() => saveEntryRef.current(html), 1000);
     },
     editorProps: {
       attributes: {
@@ -134,25 +137,20 @@ export default function LawyerJournal() {
     },
   });
 
+  // Load content for current date when journals arrive or date changes
+  const prevDateKey = useRef('');
   useEffect(() => {
-    if (todayEntry) {
-      journalsLoaded.current = true;
-      setTodos(todayEntry.todos || []);
-      setPlans(todayEntry.plans || '');
-      setEntryCreated(todayEntry.createdAt || new Date().toISOString());
-      if (editor) {
-        const current = editor.getHTML();
-        if (current !== todayEntry.content) {
-          editor.commands.setContent(todayEntry.content || '', { emitUpdate: false });
-        }
-      }
-    } else if (journalsLoaded.current) {
-      setTodos([]);
-      setPlans('');
-      setEntryCreated(null);
-      if (editor) editor.commands.setContent('', { emitUpdate: false });
-    }
-  }, [dateKey, todayEntry]);
+    if (!editor) return;
+    const entry = journals.find(j => j.userId === currentUser?.id && j.date === dateKey);
+    // Only update if date changed or this is the first load
+    if (prevDateKey.current === dateKey && activeDateKey.current === dateKey) return;
+    prevDateKey.current = dateKey;
+    activeDateKey.current = dateKey;
+    editor.commands.setContent(entry?.content || '', { emitUpdate: false });
+    setTodos(entry?.todos || []);
+    setPlans(entry?.plans || '');
+    setEntryCreated(entry?.createdAt || (entry ? new Date().toISOString() : null));
+  }, [dateKey, journals, editor, currentUser?.id]);
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -185,19 +183,19 @@ export default function LawyerJournal() {
     const updated = [...todos, { id: Date.now().toString(), text: newTodo, completed: false }];
     setTodos(updated);
     setNewTodo('');
-    if (editor) saveEntry(editor.getHTML(), updated);
+    if (editor) saveEntryRef.current(editor.getHTML(), updated);
   };
 
   const toggleTodo = (id: string) => {
     const updated = todos.map(t => t.id === id ? { ...t, completed: !t.completed } : t);
     setTodos(updated);
-    if (editor) saveEntry(editor.getHTML(), updated);
+    if (editor) saveEntryRef.current(editor.getHTML(), updated);
   };
 
   const removeTodo = (id: string) => {
     const updated = todos.filter(t => t.id !== id);
     setTodos(updated);
-    if (editor) saveEntry(editor.getHTML(), updated);
+    if (editor) saveEntryRef.current(editor.getHTML(), updated);
   };
 
   const allUpcoming = myCases.flatMap(c => [
@@ -228,6 +226,13 @@ export default function LawyerJournal() {
       loadCases();
     } catch {}
     setScheduling(false);
+  };
+
+  const insertTimestamp = () => {
+    if (!editor) return;
+    const ts = format(new Date(), 'h:mm a — MMMM d, yyyy');
+    editor.chain().focus().setParagraph().insertContent(`🕐 ${ts}`).run();
+    saveEntryRef.current(html);
   };
 
   if (!editor) return null;
@@ -346,11 +351,26 @@ export default function LawyerJournal() {
               </span>
             )}
           </div>
-          <div className="text-3xl md:text-4xl font-bold text-slate-900 flex items-center gap-3">
+          <div className="text-3xl md:text-4xl font-bold text-slate-900 flex items-center gap-2 flex-wrap">
             {format(selectedDate, 'MMMM d, yyyy')}
-            {todayEntry && (
+            <div className="flex items-center gap-1 ml-auto">
               <button
-                onClick={() => {
+                onClick={insertTimestamp}
+                className="p-2 rounded-xl text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 transition"
+                title="Insert current time & date"
+              >
+                <Clock size={18} />
+              </button>
+              <button
+                onClick={() => window.print()}
+                className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+                title="Print journal"
+              >
+                <Printer size={18} />
+              </button>
+              {todayEntry && (
+                <button
+                  onClick={() => {
                     if (window.confirm('Delete this journal entry?')) {
                     deleteJournalEntry(todayEntry.id);
                     setEntryCreated(null);
@@ -358,13 +378,14 @@ export default function LawyerJournal() {
                     setPlans('');
                     if (editor) editor.commands.setContent('', { emitUpdate: false });
                   }
-                }}
-                className="p-2 rounded-xl text-red-400 hover:bg-red-50 hover:text-red-600 transition"
-                title="Delete entry"
-              >
-                <Trash2 size={18} />
-              </button>
-            )}
+                  }}
+                  className="p-2 rounded-xl text-red-400 hover:bg-red-50 hover:text-red-600 transition"
+                  title="Delete entry"
+                >
+                  <Trash2 size={18} />
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -398,7 +419,7 @@ export default function LawyerJournal() {
                 <textarea
                   value={plans}
                   onChange={e => setPlans(e.target.value)}
-                  onBlur={() => { if (editor) saveEntry(editor.getHTML()); }}
+                  onBlur={() => { if (editor) saveEntryRef.current(editor.getHTML()); }}
                   placeholder="What do you plan to do today? Court prep, client calls, filings..."
                   className="w-full bg-transparent border-0 text-sm text-slate-700 placeholder-slate-400 focus:outline-none resize-none min-h-[60px]"
                 />

@@ -10,12 +10,13 @@ import Highlight from '@tiptap/extension-highlight';
 import { useStore } from '../../store/useStore';
 import { format, addDays, startOfWeek, isSameDay, formatDistanceToNow } from 'date-fns';
 import DrawingCanvas from '../../components/DrawingCanvas';
+import ShareDialog, { useShareDialog } from '../../components/ShareDialog';
 import {
   BookOpen, Check, Calendar, ChevronLeft, ChevronRight,
   Bold, Italic, Underline as UnderlineIcon, Strikethrough,
   List, ListOrdered, CheckSquare, Quote, Code, Pilcrow,
   Heading1, Heading2, Heading3, MapPin, Plus, Trash2, Image,
-  Clock, Gavel, ArrowUpDown, Printer,
+  Clock, Gavel, ArrowUpDown, Printer, Share2,
 } from 'lucide-react';
 
 const SLASH_COMMANDS = [
@@ -51,6 +52,15 @@ export default function LawyerJournal() {
   const [scheduling, setScheduling] = useState(false);
   const [plans, setPlans] = useState('');
   const [showHistory, setShowHistory] = useState(false);
+  const { shareState, openShare, closeShare } = useShareDialog();
+
+  const getShareContacts = () => {
+    const st = useStore.getState();
+    const myClientIds = new Set(st.cases.filter(c => c.lawyerId === st.currentUser?.id).map(c => c.clientId));
+    const connectedUserIds = new Set(st.connections.map(c => c.user1_id === st.currentUser?.id ? c.user2_id : c.user1_id));
+    const allIds = new Set([...myClientIds, ...connectedUserIds]);
+    return st.users.filter(u => allIds.has(u.id)).map(u => ({ id: u.id, name: u.name, avatar: u.avatar }));
+  };
 
   useEffect(() => { loadJournals(); loadCases(); }, [loadJournals, loadCases]);
 
@@ -153,6 +163,14 @@ export default function LawyerJournal() {
     setEntryCreated(entry?.createdAt || (entry ? new Date().toISOString() : null));
     contentLoaded.current = true;
   }, [dateKey, journals, editor, currentUser?.id]);
+
+  const shareEntry = () => {
+    openShare(
+      { type: 'journal', title: `Journal: ${format(selectedDate, 'MMM d, yyyy')}`, details: { content: editor?.getHTML() || '', plans, todos } },
+      getShareContacts(),
+      () => { setSaving(true); setTimeout(() => setSaving(false), 500); }
+    );
+  };
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -358,6 +376,13 @@ export default function LawyerJournal() {
             {format(selectedDate, 'MMMM d, yyyy')}
             <div className="flex items-center gap-1 ml-auto">
               <button
+                onClick={shareEntry}
+                className="p-2 rounded-xl text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 transition"
+                title="Share with client"
+              >
+                <Share2 size={18} />
+              </button>
+              <button
                 onClick={insertTimestamp}
                 className="p-2 rounded-xl text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 transition"
                 title="Insert current time & date"
@@ -419,13 +444,20 @@ export default function LawyerJournal() {
                 <label className="flex items-center gap-2 text-sm font-medium text-amber-800 mb-2">
                   <CheckSquare size={16} /> Plans for Today
                 </label>
-                <textarea
-                  value={plans}
-                  onChange={e => setPlans(e.target.value)}
-                  onBlur={() => { if (editor) saveEntryRef.current(editor.getHTML()); }}
-                  placeholder="What do you plan to do today? Court prep, client calls, filings..."
-                  className="w-full bg-transparent border-0 text-sm text-slate-700 placeholder-slate-400 focus:outline-none resize-none min-h-[60px]"
-                />
+                <div className="flex gap-2">
+                  <textarea
+                    value={plans}
+                    onChange={e => setPlans(e.target.value)}
+                    onBlur={() => { if (editor) saveEntryRef.current(editor.getHTML()); }}
+                    placeholder="What do you plan to do today? Court prep, client calls, filings..."
+                    className="flex-1 bg-transparent border-0 text-sm text-slate-700 placeholder-slate-400 focus:outline-none resize-none min-h-[60px]"
+                  />
+                  {plans.trim() && (
+                    <button onClick={() => openShare({ type: 'todo', title: 'Plans for Today', details: { plans } }, getShareContacts())} className="p-2 self-start text-slate-400 hover:text-emerald-600 transition flex-shrink-0" title="Share plans">
+                      <Share2 size={16} />
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-0 p-6 md:p-8 pt-4">
@@ -490,6 +522,7 @@ export default function LawyerJournal() {
                       {todo.completed && <Check size={12} />}
                     </button>
                     <span className={`flex-1 text-sm ${todo.completed ? 'line-through text-slate-400' : 'text-slate-700'}`}>{todo.text}</span>
+                    <button onClick={() => openShare({ type: 'todo', title: todo.text, details: { completed: todo.completed } }, getShareContacts())} className="p-1 text-slate-400 hover:text-emerald-500 transition flex-shrink-0 opacity-0 group-hover:opacity-100"><Share2 size={12} /></button>
                     <button onClick={() => removeTodo(todo.id)} className="p-1 text-slate-400 hover:text-red-500 transition flex-shrink-0"><Trash2 size={14} /></button>
                   </div>
                 ))}
@@ -573,6 +606,14 @@ export default function LawyerJournal() {
           )}
         </div>
       </div>
+
+      <ShareDialog
+        open={shareState.open}
+        payload={shareState.payload}
+        contacts={shareState.contacts}
+        onClose={closeShare}
+        onDone={shareState.onDone}
+      />
     </div>
   );
 }

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { FileText, Search, Download, Eye, ArrowLeft, Plus, Loader, Save } from 'lucide-react';
+import { FileText, Search, Download, Eye, ArrowLeft, Plus, Loader, Save, Share2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useStore } from '../../store/useStore';
+import ShareDialog, { useShareDialog } from '../../components/ShareDialog';
 
 interface Doc {
   id: string;
@@ -15,7 +16,14 @@ interface Doc {
 }
 
 export default function ClientDocuments() {
-  const { token } = useStore();
+  const { token, currentUser, cases, users, loadCases } = useStore();
+  const { shareState, openShare, closeShare } = useShareDialog();
+
+  const getShareContacts = () => {
+    const lawyerIds = new Set(cases.filter(c => c.clientId === currentUser?.id).map(c => c.lawyerId));
+    return users.filter(u => lawyerIds.has(u.id)).map(u => ({ id: u.id, name: u.name, avatar: u.avatar }));
+  };
+
   const [search, setSearch] = useState('');
   const [docs, setDocs] = useState<Doc[]>([]);
   const [view, setView] = useState<'list' | 'viewer'>('list');
@@ -24,14 +32,19 @@ export default function ClientDocuments() {
 
   const API = import.meta.env.DEV ? 'http://localhost:3001' : import.meta.env.VITE_API_URL || '';
 
+  const shareDoc = (doc: Doc) => {
+    openShare({ type: 'document', title: doc.name, details: { url: doc.url } }, getShareContacts());
+  };
+
   useEffect(() => {
+    loadCases();
     (async () => {
       try {
         const res = await fetch(`${API}/api/upload`, { headers: { Authorization: `Bearer ${token}` } });
         if (res.ok) setDocs(await res.json());
       } catch {}
     })();
-  }, [API, token]);
+  }, [API, token, loadCases]);
 
   const openViewer = async (doc: Doc) => {
     try {
@@ -74,7 +87,7 @@ export default function ClientDocuments() {
         </div>
         <div className="bg-white rounded-2xl p-6 md:p-10 shadow-sm border border-slate-200 min-h-[400px]">
           {docContent ? (
-            <pre className="whitespace-pre-wrap font-serif text-slate-800 leading-relaxed text-base">{docContent}</pre>
+            <pre className="whitespace-pre-wrap font-serif text-slate-800 leading-relaxed text-sm md:text-base">{docContent}</pre>
           ) : (
             <div className="text-center py-16 text-slate-400">
               <FileText size={48} className="mx-auto mb-3 opacity-50" />
@@ -121,15 +134,19 @@ export default function ClientDocuments() {
             </div>
           ) : (
             filtered.map(doc => (
-              <div key={doc.id} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-slate-50">
-                <div className="col-span-5 flex items-center gap-3 min-w-0">
+              <div key={doc.id} className="flex flex-col md:grid md:grid-cols-12 md:gap-4 p-4 hover:bg-slate-50">
+                <div className="flex items-center gap-3 min-w-0 md:col-span-5">
                   <FileText size={20} className="text-emerald-600 flex-shrink-0" />
                   <span className="text-sm font-medium text-slate-700 truncate">{doc.name}</span>
                 </div>
-                <div className="col-span-2 text-sm text-slate-500">{doc.name.split('.').pop()?.toUpperCase()}</div>
-                <div className="col-span-2 text-sm text-slate-500">{new Date(doc.created_at).toLocaleDateString()}</div>
-                <div className="col-span-1 text-sm text-slate-500">{formatSize(doc.size)}</div>
-                <div className="col-span-2 flex items-center gap-1">
+                <div className="hidden md:block md:col-span-2 text-sm text-slate-500">{doc.name.split('.').pop()?.toUpperCase()}</div>
+                <div className="hidden md:block md:col-span-2 text-sm text-slate-500">{new Date(doc.created_at).toLocaleDateString()}</div>
+                <div className="hidden md:block md:col-span-1 text-sm text-slate-500">{formatSize(doc.size)}</div>
+                <div className="flex items-center gap-1 md:col-span-2 mt-2 md:mt-0">
+                  <span className="md:hidden text-xs text-slate-400 mr-auto">{formatSize(doc.size)} &middot; {new Date(doc.created_at).toLocaleDateString()}</span>
+                  <button onClick={() => shareDoc(doc)} className="p-2 hover:bg-emerald-100 rounded-lg text-slate-500 hover:text-emerald-600 transition" title="Share with lawyer">
+                    <Share2 size={16} />
+                  </button>
                   <button onClick={() => openViewer(doc)} className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-emerald-600 transition" title="View">
                     <Eye size={16} />
                   </button>
@@ -142,6 +159,14 @@ export default function ClientDocuments() {
           )}
         </div>
       </div>
+
+      <ShareDialog
+        open={shareState.open}
+        payload={shareState.payload}
+        contacts={shareState.contacts}
+        onClose={closeShare}
+        onDone={shareState.onDone}
+      />
     </div>
   );
 }

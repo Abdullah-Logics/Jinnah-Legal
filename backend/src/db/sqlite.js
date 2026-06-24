@@ -214,6 +214,17 @@ export class SqliteAdapter {
         hours REAL NOT NULL, description TEXT, date TEXT NOT NULL, rate REAL,
         created_at TEXT DEFAULT (datetime('now'))
       );
+      CREATE TABLE IF NOT EXISTS calls (
+        id TEXT PRIMARY KEY,
+        caller_id TEXT NOT NULL,
+        callee_id TEXT NOT NULL,
+        type TEXT NOT NULL DEFAULT 'audio',
+        status TEXT NOT NULL DEFAULT 'missed',
+        duration INTEGER DEFAULT 0,
+        started_at TEXT,
+        ended_at TEXT,
+        created_at TEXT DEFAULT (datetime('now'))
+      );
       CREATE TABLE IF NOT EXISTS documents (
         id TEXT PRIMARY KEY, user_id TEXT,
         name TEXT NOT NULL, url TEXT NOT NULL, size INTEGER NOT NULL,
@@ -237,6 +248,7 @@ export class SqliteAdapter {
     try { this.db.run("ALTER TABLE documents ADD COLUMN updated_at TEXT DEFAULT (datetime('now'))"); } catch {}
     try { this.db.run("ALTER TABLE journal_entries ADD COLUMN content TEXT DEFAULT ''"); } catch {}
     try { this.db.run("ALTER TABLE messages ADD COLUMN attachments TEXT DEFAULT '[]'"); } catch {}
+    try { this.db.run("ALTER TABLE messages ADD COLUMN share_data TEXT"); } catch {}
     try { this.db.run("DELETE FROM ai_sessions WHERE id LIKE 'doc-%' OR id LIKE 'research-%'"); } catch {}
     try { this.db.run("DELETE FROM ai_chat_history WHERE session_id LIKE 'doc-%' OR session_id LIKE 'research-%'"); } catch {}
     this._save();

@@ -1,10 +1,13 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useStore } from './store/useStore';
 import { AnimatePresence } from 'framer-motion';
+import { CallProvider } from './context/CallContext';
+import CallOverlay from './components/CallOverlay';
 
 
 // Pages
 import Landing from './pages/Landing';
+import WeeklyReport from './pages/WeeklyReport';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import ForgotPassword from './pages/auth/ForgotPassword';
@@ -67,8 +70,11 @@ function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode;
 }
 
 function App() {
+  const currentUser = useStore(s => s.currentUser);
   return (
     <Router>
+      <CallProvider userId={currentUser?.id || null}>
+      <CallOverlay />
       <AnimatePresence mode="wait">
         <Routes>
           {/* Public Routes */}
@@ -93,6 +99,7 @@ function App() {
             <Route path="clients" element={<LawyerClients />} />
             <Route path="requests" element={<LawyerRequests />} />
             <Route path="calendar" element={<LawyerCalendar />} />
+            <Route path="weekly-report" element={<WeeklyReport />} />
             <Route path="messages" element={<LawyerMessages />} />
             <Route path="profile" element={<LawyerProfile />} />
             <Route path="ai-brain" element={<LawyerAIBrain />} />
@@ -113,6 +120,7 @@ function App() {
             <Route path="messages" element={<ClientMessages />} />
             <Route path="requests" element={<ClientRequests />} />
             <Route path="calendar" element={<ClientCalendar />} />
+            <Route path="weekly-report" element={<WeeklyReport />} />
             <Route path="profile" element={<ClientProfile />} />
             <Route path="ai-assistant" element={<ClientAIAssistant />} />
             <Route path="documents" element={<ClientDocuments />} />
@@ -137,6 +145,7 @@ function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AnimatePresence>
+      </CallProvider>
     </Router>
   );
 }

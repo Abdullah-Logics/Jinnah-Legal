@@ -5,9 +5,10 @@ import {
   ArrowLeft, Save, Sparkles, Edit3, BookTemplate, FolderOpen,
   X, Eye, ChevronDown, Printer, CaseSensitive,
   Bold, Italic, Underline, Heading1, Heading2, Heading3,
-  List, ListOrdered, AlignLeft, AlignCenter, AlignRight,
+  List, ListOrdered, AlignLeft, AlignCenter, AlignRight, Share2,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
+import ShareDialog, { useShareDialog } from '../../components/ShareDialog';
 
 interface Doc {
   id: string;
@@ -293,6 +294,13 @@ Through
 
 export default function LawyerDocuments() {
   const { currentUser, cases, users, firms, token, loadCases, loadUsers } = useStore();
+  const { shareState, openShare, closeShare } = useShareDialog();
+
+  const getShareContacts = () => {
+    const myClientIds = new Set(cases.filter(c => c.lawyerId === currentUser?.id).map(c => c.clientId));
+    return users.filter(u => myClientIds.has(u.id)).map(u => ({ id: u.id, name: u.name, avatar: u.avatar }));
+  };
+
   const [search, setSearch] = useState('');
   const [docs, setDocs] = useState<Doc[]>([]);
   const [view, setView] = useState<'list' | 'editor'>('list');
@@ -910,8 +918,8 @@ export default function LawyerDocuments() {
             </div>
           ) : (
             filtered.map(doc => (
-              <div key={doc.id} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-slate-50">
-                <div className="col-span-5 flex items-center gap-3 min-w-0">
+              <div key={doc.id} className="flex flex-col md:grid md:grid-cols-12 md:gap-4 p-4 hover:bg-slate-50">
+                <div className="flex items-center gap-3 min-w-0 md:col-span-5">
                   <FileText size={20} className="text-emerald-600 flex-shrink-0" />
                   <button
                     onClick={() => openEditor(doc)}
@@ -923,10 +931,18 @@ export default function LawyerDocuments() {
                     <span className="text-[10px] px-1.5 py-0.5 bg-emerald-100 text-emerald-600 rounded font-medium flex-shrink-0">draft</span>
                   )}
                 </div>
-                <div className="col-span-2 text-sm text-slate-500">{doc.name.split('.').pop()?.toUpperCase()}</div>
-                <div className="col-span-2 text-sm text-slate-500">{new Date(doc.created_at).toLocaleDateString()}</div>
-                <div className="col-span-1 text-sm text-slate-500">{formatSize(doc.size)}</div>
-                <div className="col-span-2 flex items-center gap-1">
+                <div className="hidden md:block md:col-span-2 text-sm text-slate-500">{doc.name.split('.').pop()?.toUpperCase()}</div>
+                <div className="hidden md:block md:col-span-2 text-sm text-slate-500">{new Date(doc.created_at).toLocaleDateString()}</div>
+                <div className="hidden md:block md:col-span-1 text-sm text-slate-500">{formatSize(doc.size)}</div>
+                <div className="flex items-center gap-1 md:col-span-2 mt-2 md:mt-0">
+                  <span className="md:hidden text-xs text-slate-400 mr-auto">{formatSize(doc.size)} &middot; {new Date(doc.created_at).toLocaleDateString()}</span>
+                  <button
+                    onClick={() => openShare({ type: 'document', title: doc.name, details: { url: doc.url } }, getShareContacts())}
+                    className="p-2 hover:bg-emerald-100 rounded-lg text-slate-500 hover:text-emerald-600 transition"
+                    title="Share"
+                  >
+                    <Share2 size={16} />
+                  </button>
                   <button
                     onClick={() => openEditor(doc)}
                     className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-emerald-600 transition"
@@ -950,6 +966,14 @@ export default function LawyerDocuments() {
           )}
         </div>
       </div>
+
+      <ShareDialog
+        open={shareState.open}
+        payload={shareState.payload}
+        contacts={shareState.contacts}
+        onClose={closeShare}
+        onDone={shareState.onDone}
+      />
     </div>
   );
 }

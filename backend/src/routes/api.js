@@ -87,10 +87,10 @@ apiRouter.get('/messages', asyncHandler(async (req, res) => {
 }));
 
 apiRouter.post('/messages', validate(messageSchema), asyncHandler(async (req, res) => {
-  const { receiverId, content, caseId, attachments } = req.body;
+  const { receiverId, content, caseId, attachments, shareData } = req.body;
   const id = uuid();
-  await run('INSERT INTO messages (id,sender_id,receiver_id,content,case_id,attachments) VALUES (?,?,?,?,?,?)',
-    [id, req.user.id, receiverId, content, caseId||null, attachments||'[]']);
+  await run('INSERT INTO messages (id,sender_id,receiver_id,content,case_id,attachments,share_data) VALUES (?,?,?,?,?,?,?)',
+    [id, req.user.id, receiverId, content, caseId||null, attachments||'[]', shareData||null]);
   res.status(201).json(await queryOne('SELECT * FROM messages WHERE id = ?', [id]));
 }));
 
@@ -143,6 +143,63 @@ apiRouter.get('/connections', asyncHandler(async (req, res) => {
     [id, id, id]
   );
   res.json(rows);
+}));
+
+// ── WEEKLY REPORT ─────────────────────────────────────────
+apiRouter.get('/weekly-report', asyncHandler(async (req, res) => {
+  const { id, role } = req.user;
+  const { caseId } = req.query;
+  const today = new Date();
+  const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  const todayStr = today.toISOString().split('T')[0];
+
+  // Get cases
+  let cases;
+  if (caseId) {
+    const c = await queryOne('SELECT * FROM cases WHERE id = ?', [caseId]);
+    if (!c) throw new AppError('Case not found', 404);
+    if (role === 'lawyer' && c.lawyer_id !== id) throw new AppError('Unauthorized', 403);
+    if (role === 'client' && c.client_id !== id) throw new AppError('Unauthorized', 403);
+    cases = [c];
+  } else if (role === 'lawyer') {
+    cases = await query('SELECT * FROM cases WHERE lawyer_id = ?', [id]);
+  } else if (role === 'client') {
+    cases = await query('SELECT * FROM cases WHERE client_id = ?', [id]);
+  } else {
+    cases = await query('SELECT * FROM cases');
+  }
+
+  const report = { weekStart: todayStr, weekEnd: nextWeek, cases: [] };
+
+  for (const c of cases) {
+    const courtDates = safeJson(c.court_dates, []);
+    const timeline = safeJson(c.timeline, []);
+    const upcomingCourtDates = courtDates.filter(cd => cd.date >= todayStr && cd.date <= nextWeek);
+    const upcomingTimeline = timeline.filter(t => t.date >= todayStr && t.date <= nextWeek);
+
+    // Get related journal entries for this case
+    let journalEntries = [];
+    try {
+      journalEntries = await query(
+        `SELECT * FROM journal_entries WHERE user_id=? AND date>=? AND date<=? ORDER BY date`,
+        [id, todayStr, nextWeek]
+      );
+    } catch {}
+
+    if (upcomingCourtDates.length > 0 || upcomingTimeline.length > 0 || journalEntries.length > 0) {
+      report.cases.push({
+        id: c.id, title: c.title, status: c.status, type: c.type,
+        courtDates: upcomingCourtDates,
+        timeline: upcomingTimeline,
+        journalEntries: journalEntries.map(j => ({
+          id: j.id, date: j.date, notes: j.notes,
+          todos: safeJson(j.todos, []),
+        })),
+      });
+    }
+  }
+
+  res.json(report);
 }));
 
 // ── FIRM REQUESTS ─────────────────────────────────────────

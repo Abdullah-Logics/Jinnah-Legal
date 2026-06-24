@@ -2,8 +2,9 @@ import { useParams, Link } from 'react-router-dom';
 import { useEffect } from 'react';
 import { useStore } from '../../store/useStore';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Briefcase, User, Calendar, FileText, MessageSquare, Clock, Download, CheckCircle, XCircle } from 'lucide-react';
+import { ArrowLeft, Briefcase, User, Calendar, FileText, MessageSquare, Clock, Download, CheckCircle, XCircle, Share2 } from 'lucide-react';
 import { format } from 'date-fns';
+import ShareDialog, { useShareDialog } from '../../components/ShareDialog';
 
 export default function ClientCaseDetail() {
   const { id } = useParams();
@@ -13,6 +14,12 @@ export default function ClientCaseDetail() {
   
   const caseData = cases.find(c => c.id === id);
   const lawyer = users.find(u => u.id === caseData?.lawyerId);
+
+  const { shareState, openShare, closeShare } = useShareDialog();
+  const share = (type: 'hearing' | 'document' | 'calendar', title: string, details?: Record<string, any>) => {
+    const contacts = lawyer ? [{ id: lawyer.id, name: lawyer.name, avatar: lawyer.avatar }] : [];
+    openShare({ type, title, details }, contacts);
+  };
 
   const handleRespond = async (clientStatus: 'approved' | 'rejected') => {
     if (!id) return;
@@ -89,16 +96,21 @@ export default function ClientCaseDetail() {
             <h2 className="text-lg font-bold text-slate-900 mb-4">Case Timeline</h2>
             <div className="space-y-4">
               {caseData.timeline.length > 0 ? caseData.timeline.map((event, i) => (
-                <div key={i} className="flex gap-4">
+                <div key={i} className="flex gap-4 group">
                   <div className="flex flex-col items-center">
                     <div className="w-3 h-3 bg-emerald-500 rounded-full" />
                     {i < caseData.timeline.length - 1 && <div className="w-0.5 flex-1 bg-emerald-200" />}
                   </div>
-                  <div className="pb-4">
+                  <div className="pb-4 flex-1">
                     <p className="text-xs text-slate-400 mb-1">{format(new Date(event.date), 'MMM d, yyyy')}</p>
                     <h3 className="font-medium text-slate-900">{event.event}</h3>
                     <p className="text-sm text-slate-500">{event.description}</p>
                   </div>
+                  <button onClick={() => share('calendar', event.event, { date: format(new Date(event.date), 'MMM d, yyyy'), description: event.description })}
+                    className="p-1.5 self-start mt-1 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 transition"
+                    title="Share with lawyer">
+                    <Share2 size={14} />
+                  </button>
                 </div>
               )) : (
                 <p className="text-center text-slate-400 py-4">No timeline events yet</p>
@@ -111,7 +123,7 @@ export default function ClientCaseDetail() {
             <h2 className="text-lg font-bold text-slate-900 mb-4">Documents</h2>
             <div className="space-y-3">
               {caseData.documents.length > 0 ? caseData.documents.map(doc => (
-                <div key={doc.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
+                <div key={doc.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl group">
                   <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
                     <FileText className="text-emerald-600" size={20} />
                   </div>
@@ -119,6 +131,11 @@ export default function ClientCaseDetail() {
                     <h3 className="font-medium text-slate-900 truncate">{doc.name}</h3>
                     <p className="text-xs text-slate-400">{format(new Date(doc.uploadedAt), 'MMM d, yyyy')}</p>
                   </div>
+                  <button onClick={() => share('document', doc.name, { url: doc.url })}
+                    className="p-2 hover:bg-emerald-100 rounded-lg transition text-slate-400 hover:text-emerald-600 opacity-0 group-hover:opacity-100"
+                    title="Share with lawyer">
+                    <Share2 size={16} />
+                  </button>
                   <button className="p-2 hover:bg-slate-200 rounded-lg transition">
                     <Download size={18} className="text-slate-500" />
                   </button>
@@ -210,13 +227,18 @@ export default function ClientCaseDetail() {
             <h2 className="text-lg font-bold text-slate-900 mb-4">Upcoming Court Dates</h2>
             <div className="space-y-3">
               {caseData.courtDates.length > 0 ? caseData.courtDates.map((date, i) => (
-                <div key={i} className="p-3 bg-slate-50 rounded-xl">
+                <div key={i} className="p-3 bg-slate-50 rounded-xl relative group">
                   <div className="flex items-center gap-2 mb-1">
                     <Calendar size={16} className="text-emerald-600" />
-                    <span className="font-medium text-slate-900">{format(new Date(date.date), 'MMM d, yyyy')}</span>
+                    <span className="font-medium text-slate-900">{format(new Date(date.date), 'MMM d, yyyy')}{date.time ? ` at ${date.time}` : ''}</span>
                   </div>
                   <p className="text-sm text-slate-600">{date.court}</p>
                   <p className="text-xs text-slate-400">{date.notes}</p>
+                  <button onClick={() => share('hearing', `Hearing at ${date.court}`, { date: format(new Date(date.date), 'MMM d, yyyy'), time: date.time, court: date.court, notes: date.notes })}
+                    className="absolute top-2 right-2 p-1.5 bg-white rounded-lg opacity-0 group-hover:opacity-100 hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 transition shadow-sm border border-slate-200"
+                    title="Share with lawyer">
+                    <Share2 size={14} />
+                  </button>
                 </div>
               )) : (
                 <p className="text-center text-slate-400 py-4">No court dates scheduled</p>
@@ -225,6 +247,13 @@ export default function ClientCaseDetail() {
           </div>
         </div>
       </div>
+      <ShareDialog
+        open={shareState.open}
+        payload={shareState.payload}
+        contacts={shareState.contacts}
+        onClose={closeShare}
+        onDone={shareState.onDone}
+      />
     </div>
   );
 }

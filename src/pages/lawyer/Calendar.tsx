@@ -1,11 +1,18 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useStore } from '../../store/useStore';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock, MapPin, BookOpen, Check, Gavel } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, Clock, MapPin, BookOpen, Check, Gavel, Share2 } from 'lucide-react';
+import ShareDialog, { useShareDialog } from '../../components/ShareDialog';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isToday } from 'date-fns';
 
 export default function LawyerCalendar() {
-  const { currentUser, cases, journals, loadJournals, loadCases } = useStore();
+  const { currentUser, cases, users, journals, loadJournals, loadCases } = useStore();
+  const { shareState, openShare, closeShare } = useShareDialog();
+
+  const getShareContacts = () => {
+    const clientIds = new Set(cases.filter(c => c.lawyerId === currentUser?.id).map(c => c.clientId));
+    return users.filter(u => clientIds.has(u.id)).map(u => ({ id: u.id, name: u.name, avatar: u.avatar }));
+  };
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showAddEvent, setShowAddEvent] = useState(false);
@@ -26,13 +33,17 @@ export default function LawyerCalendar() {
       title: `Court: ${c.title}`,
       type: 'court' as const,
       location: d.court,
-      notes: d.notes
+      notes: d.notes,
+      clientId: c.clientId,
+      caseId: c.id,
     })),
     ...c.timeline.map(t => ({
       date: new Date(t.date),
       title: t.event,
       type: 'event' as const,
-      notes: t.description
+      notes: t.description,
+      clientId: c.clientId,
+      caseId: c.id,
     }))
   ]);
 
@@ -43,6 +54,10 @@ export default function LawyerCalendar() {
   // Pad to start on Sunday
   const startDay = monthStart.getDay();
   const paddedDays = Array(startDay).fill(null).concat(monthDays);
+
+  const shareEvent = (ev: typeof allEvents[0]) => {
+    openShare({ type: ev.type === 'court' ? 'hearing' : 'calendar', title: ev.title, details: { date: format(ev.date, 'MMM d, yyyy'), location: ev.location, notes: ev.notes } }, getShareContacts());
+  };
 
   const selectedDateEvents = allEvents.filter(e => isSameDay(e.date, selectedDate));
   const dateKey = format(selectedDate, 'yyyy-MM-dd');
@@ -81,23 +96,19 @@ export default function LawyerCalendar() {
               if (!eventCase || !eventDate) return;
               setEventSaving(true);
               try {
-              const token = localStorage.getItem('token') || useStore.getState().token;
-              const base = import.meta.env.DEV ? 'http://localhost:3001' : import.meta.env.VITE_API_URL || '';
+                const c = cases.find(x => x.id === eventCase);
+                if (!c) return;
+                const { updateCase } = useStore.getState();
                 if (eventType === 'hearing') {
-                  await fetch(`${base}/api/cases/${eventCase}/court-dates`, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                    body: JSON.stringify({ date: eventDate, court: eventLocation, notes: eventTitle }),
-                  });
+                  const dates = [...c.courtDates, { date: eventDate, court: eventLocation, notes: eventTitle }];
+                  await updateCase(eventCase, { courtDates: dates });
                 } else {
-                  await fetch(`${base}/api/cases/${eventCase}/timeline`, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                    body: JSON.stringify({ date: eventDate, event: eventTitle, description: eventLocation }),
-                  });
+                  const timeline = [...c.timeline, { date: eventDate, event: eventTitle, description: eventLocation }];
+                  await updateCase(eventCase, { timeline });
                 }
                 setShowAddEvent(false);
                 setEventTitle('');
                 setEventLocation('');
-                loadCases();
               } catch {}
               setEventSaving(false);
             }}
@@ -195,10 +206,16 @@ export default function LawyerCalendar() {
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: i * 0.1 }}
-                className={`p-4 rounded-xl ${
+                className={`p-4 rounded-xl relative group ${
                   event.type === 'court' ? 'bg-red-50 border-l-4 border-red-500' : 'bg-emerald-50 border-l-4 border-emerald-500'
                 }`}
               >
+                <button onClick={() => shareEvent(event)}
+                  className="absolute top-2 right-2 p-1.5 bg-white rounded-lg opacity-0 group-hover:opacity-100 hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 transition shadow-sm border border-slate-200"
+                  title="Share with client"
+                >
+                  <Share2 size={14} />
+                </button>
                 <h4 className="font-medium text-slate-900">{event.title}</h4>
                 {event.type === 'court' && (
                   <div className="flex items-center gap-1 text-sm text-slate-500 mt-1">
@@ -288,5 +305,12 @@ export default function LawyerCalendar() {
         </div>
       </div>
     </div>
+      <ShareDialog
+        open={shareState.open}
+        payload={shareState.payload}
+        contacts={shareState.contacts}
+        onClose={closeShare}
+        onDone={shareState.onDone}
+      />
   );
 }

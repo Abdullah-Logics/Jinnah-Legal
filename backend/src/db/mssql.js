@@ -129,6 +129,10 @@ export class MssqlAdapter {
         attachments NVARCHAR(MAX) DEFAULT '[]',
         created_at DATETIME2 DEFAULT GETDATE()
       )`,
+      `IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='messages_share' AND xtype='U')
+      BEGIN
+        ALTER TABLE messages ADD share_data NVARCHAR(MAX);
+      END`,
       `IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='connection_requests' AND xtype='U')
       CREATE TABLE connection_requests (
         id NVARCHAR(36) PRIMARY KEY,

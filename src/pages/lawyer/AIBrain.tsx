@@ -1,12 +1,24 @@
 import { useState, useRef, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Brain, Send, Sparkles, Loader, Plus, MessageSquare, Trash2, FileDown, PanelLeftClose, PanelLeft } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Brain, Send, Loader, Plus, MessageSquare, Trash2, FileDown, Menu, ArrowLeft, Sparkles } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 
 interface Message { id: string; role: 'user' | 'ai'; content: string; }
 interface Session { id: string; title: string; created_at: string; }
 
-const GREETING = { id: '0', role: 'ai' as const, content: "Assalam o Alaikum! I'm your AI Second Brain, designed to assist you with legal research, document drafting, case strategy, and more. I can also manage your cases, calendar, documents, and more. How can I help you today?" };
+const GREETING: Message = {
+  id: '0',
+  role: 'ai',
+  content: 'Assalam o Alaikum! I am your AI Second Brain — here to help with legal research, drafting, and strategy. How can I assist you today?',
+};
+
+const SUGGESTIONS = [
+  'Draft a legal notice',
+  'Research precedents',
+  'Summarize PPC 420',
+  'Cross-examination questions',
+  'Analyze this contract',
+];
 
 export default function LawyerAIBrain() {
   const { token } = useStore();
@@ -15,23 +27,13 @@ export default function LawyerAIBrain() {
   const [isTyping, setIsTyping] = useState(false);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [activeSession, setActiveSession] = useState<string | null>(null);
-  const [showSidebar, setShowSidebar] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const API = import.meta.env.DEV ? 'http://localhost:3001' : import.meta.env.VITE_API_URL || '';
 
-  const suggestions = [
-    "Draft a legal notice for property dispute",
-    "Research precedents for fraud cases under PPC",
-    "Summarize Pakistan Penal Code Section 420",
-    "Prepare cross-examination questions for witness",
-    "Analyze contract for potential risks",
-  ];
-
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
-
   useEffect(() => { loadSessions(); }, []);
-
   useEffect(() => {
     if (activeSession) loadHistory(activeSession);
     else setMessages([GREETING]);
@@ -47,9 +49,7 @@ export default function LawyerAIBrain() {
     try {
       const res = await fetch(`${API}/api/ai/sessions`, { headers: headers() });
       if (!res.ok) return;
-      const data = await res.json();
-      setSessions(data);
-      if (data.length > 0 && !activeSession) setActiveSession(data[0].id);
+      setSessions(await res.json());
     } catch {}
   };
 
@@ -71,12 +71,16 @@ export default function LawyerAIBrain() {
 
   const newSession = async () => {
     try {
-      const res = await fetch(`${API}/api/ai/sessions`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers() } });
+      const res = await fetch(`${API}/api/ai/sessions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...headers() },
+      });
       if (!res.ok) return;
       const session = await res.json();
       setSessions(prev => [session, ...prev]);
       setActiveSession(session.id);
       setMessages([GREETING]);
+      setSidebarOpen(false);
     } catch {}
   };
 
@@ -89,13 +93,21 @@ export default function LawyerAIBrain() {
     } catch {}
   };
 
+  const selectSession = (id: string) => {
+    setActiveSession(id);
+    setSidebarOpen(false);
+  };
+
   const handleSend = async (text?: string) => {
     const msg = text || input;
     if (!msg.trim() || isTyping) return;
 
     let sid = activeSession;
     if (!sid) {
-      const res = await fetch(`${API}/api/ai/sessions`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers() } });
+      const res = await fetch(`${API}/api/ai/sessions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...headers() },
+      });
       if (!res.ok) return;
       const s = await res.json();
       sid = s.id;
@@ -103,77 +115,124 @@ export default function LawyerAIBrain() {
       setActiveSession(s.id);
     }
 
-    setMessages(prev => [...prev, { id: Date.now().toString(), role: 'user', content: msg }]);
+    const userMsg: Message = { id: Date.now().toString(), role: 'user', content: msg };
+    setMessages(prev => [...prev, userMsg]);
     setInput('');
     setIsTyping(true);
+
+    const historyForApi = messages
+      .filter(m => m.id !== '0')
+      .map(m => ({ role: m.role === 'ai' ? 'assistant' as const : 'user' as const, content: m.content }));
+
     try {
       const res = await fetch(`${API}/api/ai/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...headers() },
-        body: JSON.stringify({ message: msg, history: messages.slice(1).map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.content })), sessionId: sid }),
+        body: JSON.stringify({ message: msg, history: historyForApi, sessionId: sid }),
       });
       const data = await res.json();
-      setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: 'ai', content: data.response || 'Sorry, I could not process your request.' }]);
+      setMessages(prev => [...prev, {
+        id: (Date.now() + 1).toString(),
+        role: 'ai',
+        content: data.response || 'Sorry, I could not process your request.',
+      }]);
     } catch {
-      setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: 'ai', content: 'Connection error. Please ensure the backend server is running.' }]);
+      setMessages(prev => [...prev, {
+        id: (Date.now() + 1).toString(),
+        role: 'ai',
+        content: 'Connection error. Please ensure the backend server is running.',
+      }]);
     } finally {
       setIsTyping(false);
     }
   };
 
+  const showSuggestions = messages.length === 1 && messages[0].id === '0';
+
   return (
-    <div className="h-[calc(100vh-7rem)] lg:h-[calc(100vh-3rem)] flex gap-4">
-      {/* Sidebar */}
-      <div className={`${showSidebar ? 'w-72' : 'w-0'} transition-all overflow-hidden flex-shrink-0`}>
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 h-full flex flex-col">
-          <div className="p-3 border-b border-slate-100 flex items-center gap-2">
-            <button onClick={newSession} className="flex-1 flex items-center justify-center gap-2 bg-emerald-600 text-white py-2 rounded-xl text-sm font-medium hover:bg-emerald-700 transition">
-              <Plus size={16} /> New Chat
-            </button>
-            <button onClick={() => setShowSidebar(false)} className="p-2 hover:bg-slate-100 rounded-lg text-slate-400"><PanelLeftClose size={18} /></button>
-          </div>
-          <div className="flex-1 overflow-y-auto p-2 space-y-1">
-            {sessions.map(s => (
-              <div key={s.id} className={`flex items-center gap-2 p-2 rounded-xl cursor-pointer group ${activeSession === s.id ? 'bg-emerald-50 border border-emerald-200' : 'hover:bg-slate-50'}`} onClick={() => setActiveSession(s.id)}>
-                <MessageSquare size={16} className="text-slate-400 flex-shrink-0" />
-                <span className="flex-1 text-sm truncate text-slate-700">{s.title}</span>
-                <button onClick={(e) => { e.stopPropagation(); deleteSession(s.id); }} className="p-1 hover:bg-red-50 rounded-lg text-slate-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition">
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Main Chat */}
-      <div className="flex-1 flex flex-col">
-        {!showSidebar && (
-          <button onClick={() => setShowSidebar(true)} className="mb-2 p-2 hover:bg-slate-100 rounded-lg text-slate-400 w-fit"><PanelLeft size={18} /></button>
+    <div className="h-full flex">
+      {/* Mobile overlay */}
+      <AnimatePresence>
+        {sidebarOpen && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="lg:hidden fixed inset-0 bg-black/40 z-30"
+            onClick={() => setSidebarOpen(false)}
+          />
         )}
+      </AnimatePresence>
 
-        <div className="bg-gradient-to-r from-emerald-600 to-emerald-800 rounded-2xl p-6 text-white mb-4">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center"><Brain size={28} /></div>
-            <div>
-              <h1 className="text-2xl font-bold">AI Second Brain</h1>
-              <p className="text-emerald-200">Powered by Gemini — Legal research, drafting, strategy & automation</p>
+      {/* Sessions sidebar */}
+      <aside className={`
+        fixed lg:static inset-y-0 left-0 z-40 w-80 bg-white flex flex-col border-r border-slate-200
+        transform transition-transform duration-300 ease-in-out
+        lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
+        <div className="flex items-center justify-between px-4 pt-5 pb-3">
+          <h2 className="text-xl font-bold text-slate-900">AI Brain</h2>
+          <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-2 hover:bg-slate-100 rounded-xl">
+            <ArrowLeft size={20} className="text-slate-500" />
+          </button>
+        </div>
+
+        <div className="px-4 pb-3">
+          <button onClick={newSession}
+            className="w-full flex items-center justify-center gap-2 bg-emerald-600 text-white py-2.5 rounded-xl text-sm font-medium hover:bg-emerald-700 active:bg-emerald-800 transition">
+            <Plus size={16} /> New Session
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto overscroll-contain divide-y divide-slate-100">
+          {sessions.length === 0 ? (
+            <div className="py-20 text-center text-slate-400 text-sm px-6">
+              <MessageSquare size={32} className="mx-auto mb-3 text-slate-300" />
+              No sessions yet
             </div>
+          ) : sessions.map(s => (
+            <div key={s.id} onClick={() => selectSession(s.id)}
+              className={`flex items-center gap-3 px-4 py-3.5 cursor-pointer transition-colors ${activeSession === s.id ? 'bg-emerald-50 border-l-[3px] border-l-emerald-500' : 'hover:bg-slate-50 border-l-[3px] border-l-transparent'}`}>
+              <Brain size={16} className="text-slate-400 flex-shrink-0" />
+              <span className={`flex-1 text-sm truncate ${activeSession === s.id ? 'font-semibold text-slate-900' : 'text-slate-700'}`}>{s.title}</span>
+              <button onClick={e => { e.stopPropagation(); deleteSession(s.id); }}
+                className="p-1.5 hover:bg-red-50 rounded-lg text-slate-400 hover:text-red-500 transition flex-shrink-0">
+                <Trash2 size={13} />
+              </button>
+            </div>
+          ))}
+        </div>
+      </aside>
+
+      {/* Chat panel */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Header */}
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-200 flex-shrink-0 bg-white">
+          <button onClick={() => setSidebarOpen(true)}
+            className="lg:hidden p-1.5 hover:bg-slate-100 rounded-xl transition flex-shrink-0">
+            <Menu size={20} className="text-slate-600" />
+          </button>
+          <div className="w-9 h-9 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
+            <Brain size={20} className="text-emerald-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-base font-semibold text-slate-900">AI Second Brain</h1>
+            <p className="text-xs text-slate-400">Legal research, drafting & strategy</p>
           </div>
         </div>
 
-        <div className="flex-1 bg-white rounded-2xl shadow-sm border border-slate-100 flex flex-col overflow-hidden">
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {messages.map(msg => (
-              <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`flex gap-3 max-w-[85%] ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                  <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center ${msg.role === 'ai' ? 'bg-emerald-100' : 'bg-slate-100'}`}>
-                    {msg.role === 'ai' ? <Brain className="text-emerald-600" size={20} /> : <span className="text-slate-600 font-bold">L</span>}
-                  </div>
-                  <div className={`px-4 py-3 rounded-2xl ${msg.role === 'user' ? 'bg-emerald-600 text-white rounded-tr-none' : 'bg-slate-100 text-slate-900 rounded-tl-none'}`}>
-                    <div className="whitespace-pre-wrap text-sm">{msg.content}</div>
-                    {msg.role === 'ai' && msg.id !== '0' && (
-                      <button onClick={async () => {
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-4">
+          {messages.map(msg => (
+            <motion.div key={msg.id}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div className={`flex gap-2.5 max-w-[88%] ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold ${msg.role === 'ai' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'}`}>
+                  {msg.role === 'ai' ? <Brain size={16} /> : 'L'}
+                </div>
+                <div className={`rounded-2xl px-4 py-3 ${msg.role === 'user' ? 'bg-emerald-600 text-white rounded-tr-sm' : 'bg-slate-100 text-slate-900 rounded-tl-sm'}`}>
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed">{msg.content}</p>
+                  {msg.role === 'ai' && msg.id !== '0' && (
+                    <button onClick={async () => {
                         const name = prompt('Document name:', 'Legal Draft');
                         if (!name) return;
                         await fetch(`${API}/api/upload/draft`, {
@@ -181,47 +240,61 @@ export default function LawyerAIBrain() {
                           headers: { 'Content-Type': 'application/json', ...headers() },
                           body: JSON.stringify({ name, content: msg.content }),
                         });
-                      }} className="mt-2 flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-700 font-medium">
-                        <FileDown size={14} /> Save as Draft
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-            {isTyping && (
-              <div className="flex justify-start">
-                <div className="flex gap-3">
-                  <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center"><Brain className="text-emerald-600" size={20} /></div>
-                  <div className="px-4 py-3 rounded-2xl bg-slate-100 rounded-tl-none flex items-center gap-2">
-                    <Loader className="animate-spin text-emerald-600" size={16} />
-                    <span className="text-sm text-slate-500">Researching...</span>
-                  </div>
+                      }}
+                      className="mt-2 flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-700 font-medium">
+                      <FileDown size={13} /> Save as Draft
+                    </button>
+                  )}
                 </div>
               </div>
-            )}
-            <div ref={bottomRef} />
-          </div>
+            </motion.div>
+          ))}
 
-          {messages.length === 1 && (
-            <div className="px-4 pb-2">
-              <p className="text-xs text-slate-500 mb-2 flex items-center gap-1"><Sparkles size={12} /> Quick actions:</p>
-              <div className="flex flex-wrap gap-2">
-                {suggestions.map((s, i) => (
-                  <button key={i} onClick={() => handleSend(s)} className="text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-full transition-colors">{s}</button>
+          {showSuggestions && (
+            <div className="flex flex-col items-center pt-2">
+              <div className="flex items-center gap-2 text-slate-400 mb-3">
+                <Sparkles size={14} />
+                <span className="text-xs font-medium">Quick actions:</span>
+              </div>
+              <div className="flex flex-wrap gap-2 justify-center">
+                {SUGGESTIONS.map(prompt => (
+                  <button key={prompt} onClick={() => handleSend(prompt)}
+                    className="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700 transition">
+                    {prompt}
+                  </button>
                 ))}
               </div>
             </div>
           )}
 
-          <div className="border-t border-slate-100 p-4">
-            <div className="flex gap-3">
-              <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
-                placeholder="Ask for legal research, drafting, case strategy, or automation..." className="flex-1 bg-slate-50 rounded-xl px-4 py-3 text-sm outline-none border border-slate-200 focus:border-emerald-400" />
-              <button onClick={() => handleSend()} disabled={!input.trim() || isTyping} className="w-12 h-12 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl flex items-center justify-center transition-colors">
-                <Send size={18} />
-              </button>
+          {isTyping && (
+            <div className="flex justify-start">
+              <div className="flex gap-2.5">
+                <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                  <Brain size={16} className="text-emerald-600" />
+                </div>
+                <div className="px-4 py-3 rounded-2xl rounded-tl-sm bg-slate-100 flex items-center gap-2">
+                  <Loader className="animate-spin text-emerald-600" size={14} />
+                  <span className="text-sm text-slate-500">Researching...</span>
+                </div>
+              </div>
             </div>
+          )}
+          <div ref={bottomRef} />
+        </div>
+
+        {/* Input */}
+        <div className="border-t border-slate-200 p-3 bg-white flex-shrink-0">
+          <div className="flex gap-2">
+            <input value={input} onChange={e => setInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
+              placeholder="Ask your AI second brain..."
+              className="flex-1 bg-slate-50 rounded-xl px-4 py-3 text-sm outline-none border border-slate-200 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+            />
+            <button onClick={() => handleSend()} disabled={!input.trim() || isTyping}
+              className="w-12 h-12 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-40 text-white rounded-xl flex items-center justify-center transition-colors flex-shrink-0">
+              <Send size={18} />
+            </button>
           </div>
         </div>
       </div>

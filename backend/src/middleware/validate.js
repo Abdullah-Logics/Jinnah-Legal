@@ -114,6 +114,7 @@ export const messageSchema = z.object({
   content: z.string().max(10000).default(''),
   caseId: z.string().optional().nullable(),
   attachments: z.string().optional().default('[]'),
+  shareData: z.string().optional().nullable(),
 });
 
 export const connectionRequestSchema = z.object({

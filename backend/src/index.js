@@ -1,12 +1,19 @@
+import { createServer } from 'http';
 import { createApp } from './app.js';
 import { closeAdapter } from './db/adapter.js';
+import { setupSignaling } from './signaling.js';
+import { getCorsOrigin } from './config/env.js';
 
 const PORT = process.env.PORT || 3001;
 
 async function main() {
   const app = await createApp();
+  const httpServer = createServer();
+  const corsOrigins = getCorsOrigin();
+  setupSignaling(httpServer, corsOrigins);
+  httpServer.on('request', app);
 
-  const server = app.listen(PORT, '0.0.0.0', () => {
+  const server = httpServer.listen(PORT, '0.0.0.0', () => {
     console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log(' 🏛️  Jinnah Legal Backend');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');

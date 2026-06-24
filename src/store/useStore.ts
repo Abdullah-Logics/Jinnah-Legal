@@ -71,6 +71,7 @@ export interface Message {
   read: boolean;
   caseId?: string;
   attachments?: string;
+  shareData?: string;
 }
 
 export interface ConnectionRequest {
@@ -222,7 +223,7 @@ interface AppState {
 
   // Message actions
   loadMessages: (withUserId?: string) => Promise<void>;
-  sendMessage: (message: Omit<Message, 'id' | 'timestamp' | 'read'> & { attachments?: string }) => Promise<void>;
+  sendMessage: (message: Omit<Message, 'id' | 'timestamp' | 'read'> & { attachments?: string; shareData?: string }) => Promise<void>;
   markAsRead: (messageId: string) => Promise<void>;
 
   // Journal actions
@@ -393,6 +394,7 @@ export const useStore = create<AppState>()(
             read: !!(m.is_read ?? m.read),
             caseId: m.case_id ?? m.caseId,
             attachments: m.attachments,
+            shareData: m.share_data ?? m.shareData,
           }));
           if (withUserId) {
             const other = existing.filter(m => m.senderId !== withUserId && m.receiverId !== withUserId);
@@ -407,7 +409,11 @@ export const useStore = create<AppState>()(
         const { token } = get();
         const msg = await apiFetch('/api/messages', {
           method: 'POST',
-          body: JSON.stringify({ receiverId: message.receiverId, content: message.content, caseId: message.caseId, attachments: message.attachments }),
+          body: JSON.stringify({
+            receiverId: message.receiverId, content: message.content,
+            caseId: message.caseId, attachments: message.attachments,
+            shareData: message.shareData,
+          }),
         }, token);
         const ts = (msg.created_at || '').includes('Z') ? msg.created_at : msg.created_at + 'Z';
         const norm = {
@@ -419,6 +425,7 @@ export const useStore = create<AppState>()(
           read: false,
           caseId: msg.case_id,
           attachments: msg.attachments,
+          shareData: msg.share_data ?? msg.shareData,
         };
         set(state => ({ messages: [...state.messages, norm] }));
       },

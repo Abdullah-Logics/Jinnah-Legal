@@ -4,9 +4,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, Briefcase, User, Calendar, FileText, MessageSquare,
   Clock, Plus, Download, Edit, Trash2, Loader, X, Save,
+  Share2, CheckCircle,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useState, useRef, useEffect } from 'react';
+import ShareDialog, { useShareDialog } from '../../components/ShareDialog';
 
 export default function LawyerCaseDetail() {
   const { id } = useParams();
@@ -24,8 +26,14 @@ export default function LawyerCaseDetail() {
   const [deleting, setDeleting] = useState(false);
 
   const [editForm, setEditForm] = useState({ title: '', description: '', type: '', status: '' });
-  const [courtForm, setCourtForm] = useState({ date: '', court: '', notes: '' });
+  const [courtForm, setCourtForm] = useState({ date: '', time: '', court: '', notes: '' });
   const [timelineForm, setTimelineForm] = useState({ date: '', event: '', description: '' });
+
+  const { shareState, openShare, closeShare } = useShareDialog();
+  const share = (type: 'hearing' | 'document' | 'calendar', title: string, details?: Record<string, any>) => {
+    const contacts = client ? [{ id: client.id, name: client.name, avatar: client.avatar }] : [];
+    openShare({ type, title, details }, contacts);
+  };
 
   const caseData = cases.find(c => c.id === id);
   const client = users.find(u => u.id === caseData?.clientId);
@@ -149,16 +157,21 @@ export default function LawyerCaseDetail() {
             </div>
             <div className="space-y-4">
               {caseData.timeline.length > 0 ? caseData.timeline.map((event, i) => (
-                <div key={i} className="flex gap-4">
+                <div key={i} className="flex gap-4 group">
                   <div className="flex flex-col items-center">
                     <div className="w-3 h-3 bg-emerald-500 rounded-full" />
                     {i < caseData.timeline.length - 1 && <div className="w-0.5 flex-1 bg-emerald-200" />}
                   </div>
-                  <div className="pb-4">
+                  <div className="pb-4 flex-1">
                     <p className="text-xs text-slate-400 mb-1">{format(new Date(event.date), 'MMM d, yyyy')}</p>
                     <h3 className="font-medium text-slate-900">{event.event}</h3>
                     <p className="text-sm text-slate-500">{event.description}</p>
                   </div>
+                  <button onClick={() => share('calendar', event.event, { date: format(new Date(event.date), 'MMM d, yyyy'), description: event.description })}
+                    className="p-1.5 self-start mt-1 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 transition"
+                    title="Share with client">
+                    <Share2 size={14} />
+                  </button>
                 </div>
               )) : (
                 <p className="text-center text-slate-400 py-4">No timeline events yet</p>
@@ -198,7 +211,7 @@ export default function LawyerCaseDetail() {
             />
             <div className="space-y-3">
               {caseData.documents.length > 0 ? caseData.documents.map(doc => (
-                <div key={doc.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
+                <div key={doc.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl group">
                   <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
                     <FileText className="text-emerald-600" size={20} />
                   </div>
@@ -206,6 +219,11 @@ export default function LawyerCaseDetail() {
                     <h3 className="font-medium text-slate-900 truncate">{doc.name}</h3>
                     <p className="text-xs text-slate-400">Uploaded {format(new Date(doc.created_at || doc.uploadedAt), 'MMM d, yyyy')}</p>
                   </div>
+                  <button onClick={() => share('document', doc.name, { url: doc.url })}
+                    className="p-2 hover:bg-emerald-100 rounded-lg transition text-slate-400 hover:text-emerald-600 opacity-0 group-hover:opacity-100"
+                    title="Share with client">
+                    <Share2 size={16} />
+                  </button>
                   <a href={doc.url} target="_blank" rel="noopener noreferrer" className="p-2 hover:bg-slate-200 rounded-lg transition">
                     <Download size={18} className="text-slate-500" />
                   </a>
@@ -263,13 +281,18 @@ export default function LawyerCaseDetail() {
             </div>
             <div className="space-y-3">
               {caseData.courtDates.length > 0 ? caseData.courtDates.map((d, i) => (
-                <div key={i} className="p-3 bg-slate-50 rounded-xl">
+                <div key={i} className="p-3 bg-slate-50 rounded-xl relative group">
                   <div className="flex items-center gap-2 mb-1">
                     <Calendar size={16} className="text-emerald-600" />
-                    <span className="font-medium text-slate-900">{format(new Date(d.date), 'MMM d, yyyy')}</span>
+                    <span className="font-medium text-slate-900">{format(new Date(d.date), 'MMM d, yyyy')}{d.time ? ` at ${d.time}` : ''}</span>
                   </div>
                   <p className="text-sm text-slate-600">{d.court}</p>
                   <p className="text-xs text-slate-400">{d.notes}</p>
+                  <button onClick={() => share('hearing', `Hearing at ${d.court}`, { date: format(new Date(d.date), 'MMM d, yyyy'), time: d.time, court: d.court, notes: d.notes })}
+                    className="absolute top-2 right-2 p-1.5 bg-white rounded-lg opacity-0 group-hover:opacity-100 hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 transition shadow-sm border border-slate-200"
+                    title="Share with client">
+                    <Share2 size={14} />
+                  </button>
                 </div>
               )) : (
                 <p className="text-center text-slate-400 py-4">No court dates scheduled</p>
@@ -281,6 +304,12 @@ export default function LawyerCaseDetail() {
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
             <h2 className="text-lg font-bold text-slate-900 mb-4">Actions</h2>
             <div className="space-y-2">
+              {caseData.status !== 'closed' && caseData.status !== 'won' && caseData.status !== 'lost' && (
+                <button onClick={() => updateCase(caseData.id, { status: 'closed' })}
+                  className="flex items-center gap-2 w-full p-3 bg-emerald-50 rounded-xl hover:bg-emerald-100 transition text-emerald-700">
+                  <CheckCircle size={18} /> Complete Case
+                </button>
+              )}
               <button onClick={openEdit} className="flex items-center gap-2 w-full p-3 bg-slate-50 rounded-xl hover:bg-slate-100 transition text-slate-700">
                 <Edit size={18} /> Edit Case
               </button>
@@ -382,10 +411,17 @@ export default function LawyerCaseDetail() {
                 <button onClick={() => setShowCourtDate(false)} className="p-2 hover:bg-slate-100 rounded-lg"><X size={20} /></button>
               </div>
               <div className="p-6 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Date</label>
-                  <input type="date" value={courtForm.date} onChange={e => setCourtForm({ ...courtForm, date: e.target.value })}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Date</label>
+                    <input type="date" value={courtForm.date} onChange={e => setCourtForm({ ...courtForm, date: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Time</label>
+                    <input type="time" value={courtForm.time} onChange={e => setCourtForm({ ...courtForm, time: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">Court</label>
@@ -451,6 +487,13 @@ export default function LawyerCaseDetail() {
           </motion.div>
         )}
       </AnimatePresence>
+      <ShareDialog
+        open={shareState.open}
+        payload={shareState.payload}
+        contacts={shareState.contacts}
+        onClose={closeShare}
+        onDone={shareState.onDone}
+      />
     </div>
   );
 }

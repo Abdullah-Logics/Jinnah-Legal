@@ -165,6 +165,8 @@ export class PostgresAdapter {
         created_at TIMESTAMP DEFAULT NOW()
       );
       `);
+      // Migrations for existing tables
+      try { await client.query("ALTER TABLE messages ADD COLUMN share_data TEXT"); } catch {}
       console.log(' PostgreSQL schema ready');
     } finally {
       client.release();

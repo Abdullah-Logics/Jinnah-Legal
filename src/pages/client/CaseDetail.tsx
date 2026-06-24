@@ -39,7 +39,7 @@ export default function ClientCaseDetail() {
   }
 
   return (
-    <div className="space-y-6">
+    <><div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
         <Link to="/client/cases" className="p-2 hover:bg-slate-100 rounded-lg transition">
@@ -254,6 +254,6 @@ export default function ClientCaseDetail() {
         onClose={closeShare}
         onDone={shareState.onDone}
       />
-    </div>
+    </div></>
   );
 }

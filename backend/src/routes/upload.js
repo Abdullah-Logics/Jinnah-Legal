@@ -144,7 +144,7 @@ uploadRouter.put('/:id', requireAuth, asyncHandler(async (req, res) => {
   if (name) await run('UPDATE documents SET name=? WHERE id=?', [name, req.params.id]);
   if (content !== undefined) await run('UPDATE documents SET content=? WHERE id=?', [content, req.params.id]);
   if (case_id !== undefined) await run('UPDATE documents SET case_id=? WHERE id=?', [case_id, req.params.id]);
-  await run('UPDATE documents SET updated_at=datetime(\'now\') WHERE id=?', [req.params.id]);
+  await run('UPDATE documents SET updated_at=? WHERE id=?', [new Date().toISOString(), req.params.id]);
   const updated = await queryOne('SELECT * FROM documents WHERE id=?', [req.params.id]);
   res.json(updated);
 }));

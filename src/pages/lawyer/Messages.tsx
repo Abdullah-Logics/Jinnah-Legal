@@ -263,7 +263,7 @@ export default function LawyerMessages() {
           lg:flex lg:w-80 lg:min-w-[320px] lg:max-w-[320px]
         `}
       >
-        <div className="flex items-center gap-3 px-4 pt-5 pb-3">
+        <div className="flex items-center gap-3 px-4 pt-5 pb-2">
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold text-slate-900 leading-tight">Messages</h1>
             <p className="text-xs text-slate-400 mt-0.5">
@@ -272,20 +272,20 @@ export default function LawyerMessages() {
           </div>
         </div>
 
-        <div className="px-4 pb-3">
+        <div className="px-4 pb-2">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={15} />
             <input
               type="text"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder="Search contacts…"
-              className="w-full pl-9 pr-4 py-2.5 bg-slate-100 border border-transparent rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white text-sm transition"
+              className="w-full pl-9 pr-4 py-2 bg-slate-100 border border-transparent rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white text-sm transition placeholder:text-slate-400"
             />
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto overscroll-contain divide-y divide-slate-100">
+        <div className="flex-1 overflow-y-auto overscroll-contain">
           {filteredContacts.length === 0 ? (
             <div className="py-20 text-center text-slate-400 text-sm px-6">
               <Search size={32} className="mx-auto mb-3 text-slate-300" />
@@ -360,62 +360,62 @@ export default function LawyerMessages() {
       >
         {selectedUser && selectedContact ? (
           <>
-            <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 bg-white border-b border-slate-200 flex-shrink-0">
+            <div className="sticky top-0 z-20 flex items-center gap-2 sm:gap-3 px-2 sm:px-4 py-2.5 bg-gradient-to-r from-emerald-700 to-emerald-800 flex-shrink-0 shadow-md">
               <button
                 onClick={goBackToContacts}
-                className="lg:hidden p-2 -ml-1 hover:bg-slate-100 rounded-xl transition flex-shrink-0"
+                className="lg:hidden p-2 -ml-1 hover:bg-white/10 rounded-xl transition flex-shrink-0"
                 aria-label="Back to contacts"
               >
-                <ArrowLeft size={20} className="text-slate-600" />
+                <ArrowLeft size={22} className="text-white" />
               </button>
 
               <div className="relative flex-shrink-0">
                 <img
                   src={selectedContact.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedContact.name)}&background=e2e8f0&color=64748b`}
                   alt={selectedContact.name}
-                  className="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover"
+                  className="w-10 h-10 sm:w-11 sm:h-11 rounded-full object-cover ring-2 ring-white/30"
                 />
                 <span
-                  className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white ${isContactOnline(selectedUser) ? 'bg-emerald-500' : 'bg-slate-300'}`}
+                  className={`absolute bottom-0 right-0 w-3 h-3 rounded-full ring-2 ring-emerald-700 ${isContactOnline(selectedUser) ? 'bg-emerald-400' : 'bg-slate-400'}`}
                 />
               </div>
 
               <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-slate-900 text-sm truncate leading-tight">{selectedContact.name}</h3>
-                <p className={`text-xs mt-0.5 ${isContactOnline(selectedUser) ? 'text-emerald-600' : 'text-slate-400'}`}>
+                <h3 className="font-semibold text-white text-sm truncate leading-tight">{selectedContact.name}</h3>
+                <p className={`text-xs mt-0.5 ${isContactOnline(selectedUser) ? 'text-emerald-200' : 'text-white/50'}`}>
                   {isContactOnline(selectedUser) ? 'Active now' : 'Offline'}
                 </p>
               </div>
 
-              <div className="flex items-center gap-0.5 flex-shrink-0">
+              <div className="flex items-center gap-1 flex-shrink-0">
                 <button
                   onClick={() => startCall(selectedUser, selectedContact.name, 'audio')}
-                  className="p-2 hover:bg-slate-100 rounded-xl transition"
+                  className="p-2.5 hover:bg-white/15 rounded-full transition flex items-center justify-center"
                   aria-label="Voice call"
                 >
-                  <Phone size={18} className="text-slate-500" />
+                  <Phone size={20} className="text-white" />
                 </button>
                 <button
                   onClick={() => startCall(selectedUser, selectedContact.name, 'video')}
-                  className="p-2 hover:bg-slate-100 rounded-xl transition"
+                  className="p-2.5 hover:bg-white/15 rounded-full transition flex items-center justify-center"
                   aria-label="Video call"
                 >
-                  <Video size={18} className="text-slate-500" />
+                  <Video size={20} className="text-white" />
                 </button>
-                <button className="p-2 hover:bg-slate-100 rounded-xl transition" aria-label="More options">
-                  <MoreVertical size={18} className="text-slate-500" />
+                <button className="p-2.5 hover:bg-white/15 rounded-full transition flex items-center justify-center" aria-label="More options">
+                  <MoreVertical size={20} className="text-white" />
                 </button>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto overscroll-contain px-2 sm:px-4 py-3 sm:py-4 space-y-0.5 bg-slate-50">
+            <div className="flex-1 overflow-y-auto overscroll-contain px-2 sm:px-4 py-3 sm:py-4 space-y-0.5 bg-gradient-to-b from-slate-100 to-slate-50">
               {groupedMessages.length === 0 && (
                 <div className="flex flex-col items-center justify-center h-full text-center py-16 text-slate-400">
-                  <div className="w-14 h-14 bg-slate-100 rounded-full flex items-center justify-center mb-4">
-                    <MessageSquare size={24} className="text-slate-300" />
+                  <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-4 shadow-sm border border-slate-200">
+                    <MessageSquare size={28} className="text-slate-300" />
                   </div>
-                  <p className="text-sm font-medium text-slate-600">No messages yet</p>
-                  <p className="text-xs mt-1">Say hello to {selectedContact.name}</p>
+                  <p className="text-sm font-semibold text-slate-500">No messages yet</p>
+                  <p className="text-xs mt-1 text-slate-400">Say hello to {selectedContact.name}</p>
                 </div>
               )}
 
@@ -427,12 +427,13 @@ export default function LawyerMessages() {
                     <div className="flex-1 h-px bg-slate-200" />
                   </div>
 
-                  {group.msgs.map(msg => {
+                  {group.msgs.map((msg, mi) => {
                     const isMine = msg.senderId === currentUser?.id;
                     const msgAttachments = parseAttachments(msg.attachments);
                     const reactions = messageReactions[msg.id] || [];
+                    const showTail = mi === group.msgs.length - 1 || group.msgs[mi + 1]?.senderId !== msg.senderId;
                     return (
-                      <div key={msg.id} className="relative group mb-0.5">
+                      <div key={msg.id} className={`relative group px-1 ${mi === group.msgs.length - 1 ? 'mb-0.5' : ''}`}>
                         <motion.div
                           initial={{ opacity: 0, y: 6 }}
                           animate={{ opacity: 1, y: 0 }}
@@ -440,7 +441,7 @@ export default function LawyerMessages() {
                           className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}
                         >
                           <div
-                            className="max-w-[85%] sm:max-w-[70%] md:max-w-[60%] lg:max-w-[55%] cursor-pointer"
+                            className={`max-w-[85%] sm:max-w-[70%] md:max-w-[60%] lg:max-w-[55%] cursor-pointer relative ${showTail ? '' : 'mb-0'}`}
                             onClick={() => setReactingTo(reactingTo === msg.id ? null : msg.id)}
                           >
                             {msgAttachments.length > 0 && (
@@ -458,6 +459,7 @@ export default function LawyerMessages() {
                                     ? 'bg-emerald-600 text-white rounded-2xl rounded-br-sm'
                                     : 'bg-white text-slate-900 rounded-2xl rounded-bl-sm shadow-sm border border-slate-100'
                                   }
+                                  ${showTail ? (isMine ? 'rounded-br-sm' : 'rounded-bl-sm') : ''}
                                 `}
                               >
                                 <p className="whitespace-pre-wrap break-words text-[13.5px] sm:text-sm leading-relaxed">{msg.content}</p>
@@ -557,7 +559,7 @@ export default function LawyerMessages() {
               )}
             </AnimatePresence>
 
-            <div className="px-3 sm:px-4 py-3 border-t border-slate-100 bg-white flex-shrink-0">
+            <div className="px-2 sm:px-4 py-2.5 border-t border-slate-200 bg-white flex-shrink-0 shadow-[0_-1px_3px_rgba(0,0,0,0.05)]">
               <div className="flex items-center gap-1 sm:gap-1.5">
                 <input type="file" ref={fileInputRef} onChange={handleFilePick} className="hidden" accept="image/*,.pdf,.doc,.docx,.txt,.mp3,.wav,.ogg,.webm,.mp4" />
                 <input type="file" ref={cameraInputRef} onChange={handleFilePick} className="hidden" accept="image/*" capture="environment" />
@@ -565,36 +567,27 @@ export default function LawyerMessages() {
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploading}
-                  className="p-2 hover:bg-slate-100 active:bg-slate-200 rounded-xl transition disabled:opacity-40 flex-shrink-0"
+                  className="p-2 hover:bg-slate-100 active:bg-slate-200 rounded-full transition disabled:opacity-40 flex-shrink-0"
                   aria-label="Attach file"
                 >
-                  <Paperclip size={19} className="text-slate-500" />
+                  <Paperclip size={20} className="text-slate-400" />
                 </button>
 
                 <button
                   onClick={() => cameraInputRef.current?.click()}
                   disabled={uploading}
-                  className="p-2 hover:bg-slate-100 active:bg-slate-200 rounded-xl transition disabled:opacity-40 flex-shrink-0"
+                  className="p-2 hover:bg-slate-100 active:bg-slate-200 rounded-full transition disabled:opacity-40 flex-shrink-0 sm:hidden"
                   aria-label="Take photo"
                 >
-                  <Camera size={19} className="text-slate-500" />
+                  <Camera size={20} className="text-slate-400" />
                 </button>
 
                 <button
                   onClick={() => setShowEmojiPicker(v => !v)}
-                  className={`p-2 rounded-xl transition flex-shrink-0 ${showEmojiPicker ? 'bg-emerald-100 text-emerald-600' : 'hover:bg-slate-100 text-slate-500'}`}
+                  className={`p-2 rounded-full transition flex-shrink-0 ${showEmojiPicker ? 'bg-emerald-100 text-emerald-600' : 'hover:bg-slate-100 text-slate-400'}`}
                   aria-label="Emoji"
                 >
-                  <Smile size={19} />
-                </button>
-
-                <button
-                  onClick={toggleRecording}
-                  disabled={uploading}
-                  className={`hidden sm:block p-2 rounded-xl transition disabled:opacity-40 flex-shrink-0 ${recording ? 'bg-red-100 animate-pulse' : 'hover:bg-slate-100'}`}
-                  aria-label={recording ? 'Stop recording' : 'Record voice message'}
-                >
-                  {recording ? <MicOff size={19} className="text-red-500" /> : <Mic size={19} className="text-slate-500" />}
+                  <Smile size={20} />
                 </button>
 
                 <input
@@ -603,18 +596,18 @@ export default function LawyerMessages() {
                   onChange={e => setNewMessage(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
                   placeholder="Type a message…"
-                  className="flex-1 min-w-0 px-3.5 py-2.5 bg-slate-100 border border-transparent rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white text-sm transition"
+                  className="flex-1 min-w-0 px-4 py-2.5 bg-slate-100 border border-transparent rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white text-sm transition placeholder:text-slate-400"
                 />
 
                 <button
                   onClick={handleSend}
                   disabled={(!newMessage.trim() && attachments.length === 0) || uploading}
-                  className="p-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-40 transition flex-shrink-0"
+                  className="p-2.5 bg-emerald-600 text-white rounded-full hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-40 transition flex-shrink-0 shadow-sm"
                   aria-label="Send message"
                 >
                   {uploading
-                    ? <span className="w-[18px] h-[18px] border-2 border-white border-t-transparent rounded-full animate-spin block" />
-                    : <Send size={18} />
+                    ? <span className="w-[19px] h-[19px] border-2 border-white border-t-transparent rounded-full animate-spin block" />
+                    : <Send size={19} />
                   }
                 </button>
               </div>

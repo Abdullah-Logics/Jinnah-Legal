@@ -1,8 +1,8 @@
 import { useCall } from '../context/CallContext';
-import { PhoneOff, Phone, Mic, MicOff, Volume2, VolumeX, WifiOff } from 'lucide-react';
+import { PhoneOff, Phone, Mic, MicOff, Volume2, VolumeX, WifiOff, Video, VideoOff } from 'lucide-react';
 
 export default function CallOverlay() {
-  const { call, endCall, acceptCall, rejectCall, toggleMute, toggleSpeaker, isMuted, isSpeakerOn, socketConnected } = useCall();
+  const { call, endCall, acceptCall, rejectCall, toggleMute, toggleSpeaker, toggleCallType, isMuted, isSpeakerOn, socketConnected } = useCall();
 
   if (call.status === 'idle') return null;
 
@@ -85,6 +85,9 @@ export default function CallOverlay() {
               </button>
               <button onClick={toggleSpeaker} className={`w-14 h-14 rounded-full flex items-center justify-center transition shadow-lg ${isSpeakerOn ? 'bg-emerald-500 text-white' : 'bg-white/20 text-white hover:bg-white/30'}`}>
                 {isSpeakerOn ? <Volume2 size={22} /> : <VolumeX size={22} />}
+              </button>
+              <button onClick={toggleCallType} className="w-14 h-14 rounded-full flex items-center justify-center bg-white/20 text-white hover:bg-white/30 transition shadow-lg">
+                {call.type === 'video' ? <VideoOff size={22} /> : <Video size={22} />}
               </button>
             </>
           )}

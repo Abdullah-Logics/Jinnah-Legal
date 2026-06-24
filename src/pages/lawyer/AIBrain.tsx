@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Brain, Send, Loader, Plus, MessageSquare, Trash2, FileDown, Menu, ArrowLeft, Sparkles } from 'lucide-react';
+import { Brain, Send, Loader, Plus, MessageSquare, Trash2, FileDown, Menu, ArrowLeft, Sparkles, Share2, Printer } from 'lucide-react';
 import { useStore } from '../../store/useStore';
+import ShareDialog, { useShareDialog } from '../../components/ShareDialog';
 
 interface Message { id: string; role: 'user' | 'ai'; content: string; }
 interface Session { id: string; title: string; created_at: string; }
@@ -29,6 +30,7 @@ export default function LawyerAIBrain() {
   const [activeSession, setActiveSession] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const { shareState, openShare, closeShare } = useShareDialog();
 
   const API = import.meta.env.DEV ? 'http://localhost:3001' : import.meta.env.VITE_API_URL || '';
 
@@ -149,6 +151,24 @@ export default function LawyerAIBrain() {
 
   const showSuggestions = messages.length === 1 && messages[0].id === '0';
 
+  const getShareContacts = () => {
+    try { const s = useStore.getState(); const all = s.users || []; return all.filter(u => u.id !== s.currentUser?.id).map(u => ({ id: u.id, name: u.name })); }
+    catch { return []; }
+  };
+
+  const shareConversation = () => {
+    const text = messages.filter(m => m.id !== '0').map(m => `${m.role === 'user' ? 'You' : 'AI'}: ${m.content}`).join('\n\n');
+    openShare({ type: 'journal', title: 'AI Research Conversation', description: `AI Brain session: ${messages.length - 1} messages`, details: { content: text } }, getShareContacts());
+  };
+
+  const printConversation = () => {
+    const w = window.open('', '_blank');
+    if (!w) return;
+    w.document.write(`<!DOCTYPE html><html><head><title>AI Research</title><style>body{font-family:system-ui;padding:2rem;max-width:800px;margin:auto;line-height:1.6}.msg{margin:1rem 0;padding:1rem;border-radius:8px}.user{background:#e8f5e9}.ai{background:#f5f5f5;border-left:3px solid #10b981}h1{color:#1a1a2e}@media print{body{padding:0}}</style></head><body><h1>AI Research Conversation</h1>${messages.filter(m=>m.id!=='0').map(m=>`<div class="msg ${m.role}"><strong>${m.role==='user'?'You':'AI Brain'}</strong><p>${m.content.replace(/\n/g,'<br>')}</p></div>`).join('')}</body></html>`);
+    w.document.close();
+    setTimeout(() => w.print(), 500);
+  };
+
   return (
     <div className="h-full flex">
       {/* Mobile overlay */}
@@ -216,6 +236,16 @@ export default function LawyerAIBrain() {
             <h1 className="text-base font-semibold text-slate-900">AI Second Brain</h1>
             <p className="text-xs text-slate-400">Legal research, drafting & strategy</p>
           </div>
+          {messages.length > 1 && (
+            <>
+              <button onClick={shareConversation} className="p-2 hover:bg-slate-100 rounded-xl transition flex-shrink-0" title="Share conversation">
+                <Share2 size={18} className="text-slate-500" />
+              </button>
+              <button onClick={printConversation} className="p-2 hover:bg-slate-100 rounded-xl transition flex-shrink-0" title="Print / Save as PDF">
+                <Printer size={18} className="text-slate-500" />
+              </button>
+            </>
+          )}
         </div>
 
         {/* Messages */}
@@ -298,6 +328,7 @@ export default function LawyerAIBrain() {
           </div>
         </div>
       </div>
+      <ShareDialog state={shareState} onClose={closeShare} />
     </div>
   );
 }

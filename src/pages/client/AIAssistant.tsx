@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bot, Send, Loader, Plus, MessageSquare, Trash2, Menu, ArrowLeft } from 'lucide-react';
+import { Bot, Send, Loader, Plus, MessageSquare, Trash2, Menu, ArrowLeft, Share2, Printer } from 'lucide-react';
 import { useStore } from '../../store/useStore';
+import ShareDialog, { useShareDialog } from '../../components/ShareDialog';
 
 interface Message { id: string; role: 'user' | 'ai'; content: string; }
 interface Session { id: string; title: string; created_at: string; }
@@ -21,6 +22,7 @@ export default function ClientAIAssistant() {
   const [activeSession, setActiveSession] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const { shareState, openShare, closeShare } = useShareDialog();
 
   const API = import.meta.env.DEV ? 'http://localhost:3001' : import.meta.env.VITE_API_URL || '';
 
@@ -206,6 +208,24 @@ export default function ClientAIAssistant() {
             <h1 className="text-base font-semibold text-slate-900">AI Legal Assistant</h1>
             <p className="text-xs text-slate-400">Your legal queries answered</p>
           </div>
+          {messages.length > 1 && (
+            <>
+              <button onClick={() => {
+                  const text = messages.filter(m=>m.id!=='0').map(m=>`${m.role==='user'?'You':'AI'}: ${m.content}`).join('\n\n');
+                  const contacts = useStore.getState().users?.filter(u=>u.id!==useStore.getState().currentUser?.id).map(u=>({id:u.id,name:u.name}))||[];
+                  openShare({type:'journal',title:'AI Assistant Conversation',description:`${messages.length-1} messages`,details:{content:text}},contacts);
+                }} className="p-2 hover:bg-slate-100 rounded-xl transition flex-shrink-0" title="Share conversation">
+                <Share2 size={18} className="text-slate-500" />
+              </button>
+              <button onClick={() => {
+                  const w = window.open('','_blank'); if(!w)return;
+                  w.document.write(`<!DOCTYPE html><html><head><title>AI Assistant</title><style>body{font-family:system-ui;padding:2rem;max-width:800px;margin:auto;line-height:1.6}.msg{margin:1rem 0;padding:1rem;border-radius:8px}.user{background:#e8f5e9}.ai{background:#f5f5f5;border-left:3px solid #10b981}h1{color:#1a1a2e}@media print{body{padding:0}}</style></head><body><h1>AI Assistant Conversation</h1>${messages.filter(m=>m.id!=='0').map(m=>`<div class="msg ${m.role}"><strong>${m.role==='user'?'You':'AI Assistant'}</strong><p>${m.content.replace(/\n/g,'<br>')}</p></div>`).join('')}</body></html>`);
+                  w.document.close(); setTimeout(()=>w.print(),500);
+                }} className="p-2 hover:bg-slate-100 rounded-xl transition flex-shrink-0" title="Print / Save as PDF">
+                <Printer size={18} className="text-slate-500" />
+              </button>
+            </>
+          )}
         </div>
 
         {/* Messages */}
@@ -256,6 +276,7 @@ export default function ClientAIAssistant() {
           </div>
         </div>
       </div>
+      <ShareDialog state={shareState} onClose={closeShare} />
     </div>
   );
 }

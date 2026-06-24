@@ -27,16 +27,6 @@ export class PostgresAdapter {
   async connect() {
     let url = process.env.SUPABASE_URL || process.env.DATABASE_URL;
     if (!url) throw new Error('SUPABASE_URL or DATABASE_URL is required');
-    // Pre-resolve hostname to handle IPv6-only hosts on platforms without IPv6 DNS
-    const match = url.match(/^postgresql:\/\/([^@]+)@([^:]+)(:\d+)?\/(.+)/);
-    if (match) {
-      const [_, auth, host, port, db] = match;
-      const resolvedHost = await resolveHost(host);
-      if (resolvedHost !== host) {
-        url = `postgresql://${auth}@${resolvedHost}${port || ':5432'}/${db}`;
-        console.log(`  Resolved ${host} → ${resolvedHost}`);
-      }
-    }
     this.pool = new pg.Pool({ connectionString: url, ssl: { rejectUnauthorized: false } });
     this.pool.on('error', err => console.error('PG pool error:', err.message));
     console.log(' PostgreSQL connected via Supabase');
@@ -114,10 +104,20 @@ export class PostgresAdapter {
           admin_id TEXT,
           created_at TIMESTAMP DEFAULT NOW()
         );
+        CREATE TABLE IF NOT EXISTS firm_requests (
+          id TEXT PRIMARY KEY,
+          lawyer_id TEXT NOT NULL,
+          firm_id TEXT NOT NULL,
+          status TEXT DEFAULT 'pending',
+          type TEXT NOT NULL DEFAULT 'join',
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+        );
         CREATE TABLE IF NOT EXISTS cases (
           id TEXT PRIMARY KEY, title TEXT NOT NULL, description TEXT,
           client_id TEXT, lawyer_id TEXT,
           status TEXT DEFAULT 'pending', type TEXT,
+          client_status TEXT DEFAULT 'pending',
           timeline TEXT DEFAULT '[]', documents TEXT DEFAULT '[]', court_dates TEXT DEFAULT '[]',
           created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW()
         );
@@ -153,15 +153,32 @@ export class PostgresAdapter {
           hours DOUBLE PRECISION NOT NULL, description TEXT, date TEXT NOT NULL, rate DOUBLE PRECISION,
           created_at TIMESTAMP DEFAULT NOW()
         );
-      CREATE TABLE IF NOT EXISTS ai_sessions (
+        CREATE TABLE IF NOT EXISTS documents (
+          id TEXT PRIMARY KEY, user_id TEXT,
+          name TEXT NOT NULL, url TEXT NOT NULL, size INTEGER NOT NULL,
+          content TEXT DEFAULT '', type TEXT DEFAULT 'draft', case_id TEXT,
+          created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW()
+        );
+        CREATE TABLE IF NOT EXISTS ai_sessions (
         id TEXT PRIMARY KEY, user_id TEXT NOT NULL,
         title TEXT NOT NULL DEFAULT 'New Chat',
         created_at TIMESTAMP DEFAULT NOW()
       );
-      CREATE TABLE IF NOT EXISTS ai_chat_history (
+        CREATE TABLE IF NOT EXISTS ai_chat_history (
         id TEXT PRIMARY KEY, user_id TEXT,
         role TEXT NOT NULL, content TEXT NOT NULL,
         session_id TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS calls (
+        id TEXT PRIMARY KEY,
+        caller_id TEXT NOT NULL,
+        callee_id TEXT NOT NULL,
+        type TEXT NOT NULL DEFAULT 'audio',
+        status TEXT NOT NULL DEFAULT 'missed',
+        duration INTEGER DEFAULT 0,
+        started_at TIMESTAMP,
+        ended_at TIMESTAMP,
         created_at TIMESTAMP DEFAULT NOW()
       );
       `);

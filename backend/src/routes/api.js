@@ -130,7 +130,7 @@ apiRouter.patch('/requests/:id', asyncHandler(async (req, res) => {
     const connId = uuid();
     await run('INSERT INTO connections (id,user1_id,user2_id) VALUES (?,?,?)', [connId, request.sender_id, request.receiver_id]);
   }
-  await run('UPDATE connection_requests SET status=?, updated_at=datetime(\'now\') WHERE id=?', [status, req.params.id]);
+  await run('UPDATE connection_requests SET status=?, updated_at=? WHERE id=?', [status, new Date().toISOString(), req.params.id]);
   res.json(await queryOne('SELECT * FROM connection_requests WHERE id = ?', [req.params.id]));
 }));
 
@@ -248,7 +248,7 @@ apiRouter.patch('/firms/requests/:id', asyncHandler(async (req, res) => {
       await run("UPDATE users SET firm_id=NULL WHERE id=?", [request.lawyer_id]);
     }
   }
-  await run("UPDATE firm_requests SET status=?, updated_at=datetime('now') WHERE id=?", [status, req.params.id]);
+  await run('UPDATE firm_requests SET status=?, updated_at=? WHERE id=?', [status, new Date().toISOString(), req.params.id]);
   res.json(await queryOne('SELECT * FROM firm_requests WHERE id = ?', [req.params.id]));
 }));
 

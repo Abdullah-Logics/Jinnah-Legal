@@ -9,3 +9,5 @@ data/
 .vercel
 backups/
 uploads/
+.env*
+.vercel-token

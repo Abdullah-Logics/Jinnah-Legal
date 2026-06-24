@@ -197,18 +197,18 @@ async function executeTool(name, args, req) {
 
     case 'createJournalEntry': {
       const { date, notes, todos, plans, content } = args;
-      const existing = await queryOne('SELECT id FROM journals WHERE user_id=? AND date=?', [req.user.id, date]);
+      const existing = await queryOne('SELECT id FROM journal_entries WHERE user_id=? AND date=?', [req.user.id, date]);
       const todoList = todos ? todos.split(',').map(t => t.trim()).filter(Boolean).map(t => ({ id: uuid(), text: t, completed: false })) : [];
       if (existing) {
-        const current = await queryOne('SELECT notes, todos, plans, content FROM journals WHERE id=?', [existing.id]);
+        const current = await queryOne('SELECT notes, todos, plans, content FROM journal_entries WHERE id=?', [existing.id]);
         const mergedTodos = todoList.length > 0 ? JSON.stringify(todoList) : current.todos;
         await run(
-          'UPDATE journals SET notes=COALESCE(?,notes), todos=COALESCE(?,todos), plans=COALESCE(?,plans), content=COALESCE(?,content), updated_at=? WHERE id=?',
+          'UPDATE journal_entries SET notes=COALESCE(?,notes), todos=COALESCE(?,todos), plans=COALESCE(?,plans), content=COALESCE(?,content), updated_at=? WHERE id=?',
           [notes ?? null, mergedTodos, plans ?? null, content ?? null, new Date().toISOString(), existing.id],
         );
       } else {
         await run(
-          'INSERT INTO journals (id, user_id, date, notes, todos, plans, content) VALUES (?,?,?,?,?,?,?)',
+          'INSERT INTO journal_entries (id, user_id, date, notes, todos, plans, content) VALUES (?,?,?,?,?,?,?)',
           [uuid(), req.user.id, date, notes || '', JSON.stringify(todoList), plans || '', content || ''],
         );
       }

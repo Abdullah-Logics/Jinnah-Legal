@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Calendar, Clock, BookOpen, Gavel, MapPin, FileText, Share2, Loader, ChevronLeft, ChevronRight } from 'lucide-react';
-import { format, addDays } from 'date-fns';
+import { format, addDays, startOfWeek } from 'date-fns';
 import { useStore } from '../store/useStore';
 import ShareDialog, { useShareDialog } from '../components/ShareDialog';
 
@@ -27,16 +27,25 @@ export default function WeeklyReport() {
 
   const API = import.meta.env.DEV ? 'http://localhost:3001' : import.meta.env.VITE_API_URL || '';
 
+  const fetchReport = async () => {
+    const baseDate = new Date();
+    baseDate.setDate(baseDate.getDate() + weekOffset * 7);
+    const ws = format(startOfWeek(baseDate, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+    const we = format(addDays(startOfWeek(baseDate, { weekStartsOn: 1 }), 6), 'yyyy-MM-dd');
+    try {
+      let url = `${API}/api/weekly-report?weekStart=${ws}&weekEnd=${we}`;
+      if (selectedCaseId && selectedCaseId !== 'all') url += `&caseId=${selectedCaseId}`;
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) setReport(await res.json());
+    } catch {}
+    setLoading(false);
+  };
+
   useEffect(() => {
-    (async () => {
-      setLoading(true);
-      try {
-        const url = selectedCaseId && selectedCaseId !== 'all' ? `${API}/api/weekly-report?caseId=${selectedCaseId}` : `${API}/api/weekly-report`;
-        const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-        if (res.ok) setReport(await res.json());
-      } catch {}
-      setLoading(false);
-    })();
+    setLoading(true);
+    fetchReport();
+    const interval = setInterval(fetchReport, 30000);
+    return () => clearInterval(interval);
   }, [API, token, selectedCaseId, weekOffset]);
 
   const { shareState, openShare, closeShare } = useShareDialog();
@@ -51,14 +60,24 @@ export default function WeeklyReport() {
       return u.id === myCase?.lawyerId;
     }).map(u => ({ id: u.id, name: u.name, avatar: u.avatar }));
     if (!contacts.length) return;
-    const details = {
-      courtDates: reportCase.courtDates.map(cd => ({ date: cd.date, court: cd.court, time: cd.time })),
-      timeline: reportCase.timeline.map(t => ({ date: t.date, event: t.event })),
-    };
-    openShare({ type: 'calendar', title: `Weekly Report: ${reportCase.title}`, details }, contacts);
+    openShare({
+      type: 'calendar',
+      title: `Weekly Report: ${reportCase.title}`,
+      description: `Week of ${report.weekStart} — ${report.weekEnd}`,
+      details: {
+        reportDate: new Date().toISOString(),
+        weekStart: report.weekStart,
+        weekEnd: report.weekEnd,
+        content: reportCase.courtDates.map(cd => `🗓 Court: ${cd.court} — ${format(new Date(cd.date), 'MMM d, yyyy')}${cd.time ? ` at ${cd.time}` : ''}${cd.notes ? ` (${cd.notes})` : ''}`).join('\n'),
+        courtDates: reportCase.courtDates.map(cd => ({ date: cd.date, court: cd.court, time: cd.time, notes: cd.notes })),
+        timeline: reportCase.timeline.map(t => ({ date: t.date, event: t.event, description: t.description })),
+      },
+    }, contacts);
   };
 
-  const weekStart = addDays(new Date(), weekOffset * 7);
+  const baseDate = new Date();
+  baseDate.setDate(baseDate.getDate() + weekOffset * 7);
+  const weekStart = startOfWeek(baseDate, { weekStartsOn: 1 });
   const weekEnd = addDays(weekStart, 6);
 
   return (

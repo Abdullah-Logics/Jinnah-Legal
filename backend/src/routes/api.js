@@ -148,10 +148,9 @@ apiRouter.get('/connections', asyncHandler(async (req, res) => {
 // ── WEEKLY REPORT ─────────────────────────────────────────
 apiRouter.get('/weekly-report', asyncHandler(async (req, res) => {
   const { id, role } = req.user;
-  const { caseId } = req.query;
-  const today = new Date();
-  const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-  const todayStr = today.toISOString().split('T')[0];
+  const { caseId, weekStart, weekEnd } = req.query;
+  const todayStr = weekStart || new Date().toISOString().split('T')[0];
+  const endStr = weekEnd || new Date(Date.now() + 7 * 864e5).toISOString().split('T')[0];
 
   // Get cases
   let cases;
@@ -169,20 +168,20 @@ apiRouter.get('/weekly-report', asyncHandler(async (req, res) => {
     cases = await query('SELECT * FROM cases');
   }
 
-  const report = { weekStart: todayStr, weekEnd: nextWeek, cases: [] };
+  const report = { weekStart: todayStr, weekEnd: endStr, cases: [] };
 
   for (const c of cases) {
     const courtDates = safeJson(c.court_dates, []);
     const timeline = safeJson(c.timeline, []);
-    const upcomingCourtDates = courtDates.filter(cd => cd.date >= todayStr && cd.date <= nextWeek);
-    const upcomingTimeline = timeline.filter(t => t.date >= todayStr && t.date <= nextWeek);
+    const upcomingCourtDates = courtDates.filter(cd => cd.date >= todayStr && cd.date <= endStr);
+    const upcomingTimeline = timeline.filter(t => t.date >= todayStr && t.date <= endStr);
 
     // Get related journal entries for this case
     let journalEntries = [];
     try {
       journalEntries = await query(
         `SELECT * FROM journal_entries WHERE user_id=? AND date>=? AND date<=? ORDER BY date`,
-        [id, todayStr, nextWeek]
+        [id, todayStr, endStr]
       );
     } catch {}
 

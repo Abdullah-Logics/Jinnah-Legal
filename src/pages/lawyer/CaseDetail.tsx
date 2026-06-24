@@ -27,7 +27,7 @@ export default function LawyerCaseDetail() {
 
   const [editForm, setEditForm] = useState({ title: '', description: '', type: '', status: '' });
   const [courtForm, setCourtForm] = useState({ date: '', time: '', court: '', notes: '' });
-  const [timelineForm, setTimelineForm] = useState({ date: '', event: '', description: '' });
+  const [timelineForm, setTimelineForm] = useState({ date: '', time: '', event: '', description: '' });
 
   const { shareState, openShare, closeShare } = useShareDialog();
   const share = (type: 'hearing' | 'document' | 'calendar', title: string, details?: Record<string, any>) => {
@@ -78,7 +78,7 @@ export default function LawyerCaseDetail() {
     const newTimeline = [...caseData.timeline, timelineForm];
     await updateCase(caseData.id, { timeline: newTimeline });
     setShowTimeline(false);
-    setTimelineForm({ date: '', event: '', description: '' });
+    setTimelineForm({ date: '', time: '', event: '', description: '' });
   };
 
   return (
@@ -460,10 +460,17 @@ export default function LawyerCaseDetail() {
                 <button onClick={() => setShowTimeline(false)} className="p-2 hover:bg-slate-100 rounded-lg"><X size={20} /></button>
               </div>
               <div className="p-6 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">Date</label>
-                  <input type="date" value={timelineForm.date} onChange={e => setTimelineForm({ ...timelineForm, date: e.target.value })}
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Date</label>
+                    <input type="date" value={timelineForm.date} onChange={e => setTimelineForm({ ...timelineForm, date: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Time</label>
+                    <input type="time" value={timelineForm.time} onChange={e => setTimelineForm({ ...timelineForm, time: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">Event</label>

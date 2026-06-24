@@ -19,6 +19,7 @@ export default function LawyerCalendar() {
   const [eventCase, setEventCase] = useState('');
   const [eventType, setEventType] = useState<'hearing' | 'meeting' | 'deadline'>('hearing');
   const [eventDate, setEventDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [eventTime, setEventTime] = useState('');
   const [eventTitle, setEventTitle] = useState('');
   const [eventLocation, setEventLocation] = useState('');
   const [eventSaving, setEventSaving] = useState(false);
@@ -89,6 +90,7 @@ export default function LawyerCalendar() {
             ))}
           </div>
           <input type="date" value={eventDate} onChange={e => setEventDate(e.target.value)} className="text-sm px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+          <input type="time" value={eventTime} onChange={e => setEventTime(e.target.value)} className="text-sm px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
           <input type="text" value={eventTitle} onChange={e => setEventTitle(e.target.value)} placeholder="Title / notes" className="text-sm px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 w-48" />
           {eventType === 'hearing' && <input type="text" value={eventLocation} onChange={e => setEventLocation(e.target.value)} placeholder="Court & location" className="text-sm px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 w-48" />}
           <button
@@ -100,15 +102,16 @@ export default function LawyerCalendar() {
                 if (!c) return;
                 const { updateCase } = useStore.getState();
                 if (eventType === 'hearing') {
-                  const dates = [...c.courtDates, { date: eventDate, court: eventLocation, notes: eventTitle }];
+                  const dates = [...c.courtDates, { date: eventDate, time: eventTime, court: eventLocation, notes: eventTitle }];
                   await updateCase(eventCase, { courtDates: dates });
                 } else {
-                  const timeline = [...c.timeline, { date: eventDate, event: eventTitle, description: eventLocation }];
+                  const timeline = [...c.timeline, { date: eventDate, time: eventTime, event: eventTitle, description: eventLocation }];
                   await updateCase(eventCase, { timeline });
                 }
                 setShowAddEvent(false);
                 setEventTitle('');
                 setEventLocation('');
+                setEventTime('');
               } catch {}
               setEventSaving(false);
             }}

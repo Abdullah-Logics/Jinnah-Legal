@@ -1,20 +1,13 @@
 services:
   - type: web
-    name: jinnah-legal
+    name: jinnah-signaling
     env: node
-    region: singapore
-    buildCommand: npm run render-build
-    startCommand: npm start
+    region: ohio
+    plan: free
+    buildCommand: cd backend && npm install
+    startCommand: node backend/standalone-signaling.js
     envVars:
-      - key: NODE_ENV
-        value: production
+      - key: CORS_ORIGIN
+        value: https://ai-lawyer-blush.vercel.app
       - key: PORT
-        value: "10000"
-      - key: VITE_API_URL
-        value: https://jinnah-legal.onrender.com
-      - key: JWT_SECRET
-        sync: false
-      - key: SUPABASE_URL
-        sync: false
-      - key: GEMINI_API_KEY
-        sync: false
+        value: "3002"

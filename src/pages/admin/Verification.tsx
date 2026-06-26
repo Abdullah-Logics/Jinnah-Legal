@@ -4,8 +4,16 @@ import { useStore } from '../../store/useStore';
 import {
   CheckCircle, XCircle, FileText, ExternalLink, User, Building,
   Search, ShieldCheck, ShieldX, Clock, ChevronDown, AlertCircle,
-  X, Loader2, BookOpen, Briefcase, MapPin, GraduationCap,
+  X, Loader2, BookOpen, Briefcase, MapPin, GraduationCap, Download,
 } from 'lucide-react';
+import api from '../../utils/api';
+
+const API = import.meta.env.DEV ? 'http://localhost:3001' : import.meta.env.VITE_API_URL || '';
+
+function resolveUrl(url: string) {
+  if (!url) return '#';
+  return url.startsWith('http') || url.startsWith('data:') ? url : `${API}${url}`;
+}
 
 export default function AdminVerification() {
   const { users, firms, loadUsers, loadFirms, verifyLawyer, currentUser, verifyFirm } = useStore();
@@ -14,12 +22,23 @@ export default function AdminVerification() {
   const [searchQuery, setSearchQuery] = useState('');
   const [confirmAction, setConfirmAction] = useState<{ id: string; type: 'approve' | 'reject'; kind: 'lawyer' | 'firm'; rejectionNote?: string } | null>(null);
   const [processing, setProcessing] = useState(false);
+  const [userDocs, setUserDocs] = useState<any[]>([]);
+  const [loadingDocs, setLoadingDocs] = useState(false);
   const isPlatformAdmin = currentUser?.role === 'admin';
 
   useEffect(() => {
     loadUsers();
     if (isPlatformAdmin) loadFirms();
   }, []);
+
+  useEffect(() => {
+    if (!selectedLawyer) { setUserDocs([]); return; }
+    setLoadingDocs(true);
+    api.get(`/api/admin/documents/${selectedLawyer}`)
+      .then(d => setUserDocs(Array.isArray(d) ? d : []))
+      .catch(() => setUserDocs([]))
+      .finally(() => setLoadingDocs(false));
+  }, [selectedLawyer]);
 
   const pendingLawyers = users.filter(u =>
     u.role === 'lawyer' &&
@@ -35,7 +54,6 @@ export default function AdminVerification() {
 
   const pendingFirms = firms.filter(f => f.verificationStatus === 'pending');
   const selected = users.find(u => u.id === selectedLawyer);
-  const documents = selected?.credentials?.documents || [];
 
   async function handleConfirm() {
     if (!confirmAction) return;
@@ -254,21 +272,26 @@ export default function AdminVerification() {
                     <div>
                       <h3 className="font-semibold text-slate-900 text-sm mb-2">Uploaded Documents</h3>
                       <div className="space-y-2">
-                        {documents.length > 0 ? documents.map((doc: string, i: number) => (
-                          <div key={i} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
-                            <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        {loadingDocs ? (
+                          <div className="flex items-center justify-center py-6 text-slate-400">
+                            <Loader2 size={18} className="animate-spin mr-2" />
+                            <span className="text-xs">Loading documents...</span>
+                          </div>
+                        ) : userDocs.length > 0 ? userDocs.map((doc: any) => (
+                          <a
+                            key={doc.id}
+                            href={resolveUrl(doc.url)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100 hover:bg-slate-100 transition group"
+                          >
+                            <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:bg-emerald-200 transition">
                               <FileText size={16} className="text-emerald-600" />
                             </div>
-                            <span className="flex-1 text-sm text-slate-700 truncate">{doc.split('/').pop()}</span>
-                            <a
-                              href={doc}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-1 text-emerald-600 text-xs font-medium hover:text-emerald-700 flex-shrink-0"
-                            >
-                              View <ExternalLink size={12} />
-                            </a>
-                          </div>
+                            <span className="flex-1 text-sm text-slate-700 truncate">{doc.name}</span>
+                            <span className="text-xs text-slate-400 flex-shrink-0">{doc.size ? `${(doc.size / 1024).toFixed(0)} KB` : ''}</span>
+                            <ExternalLink size={14} className="text-emerald-600 opacity-0 group-hover:opacity-100 transition flex-shrink-0" />
+                          </a>
                         )) : (
                           <div className="flex items-center gap-2 p-3 bg-amber-50 rounded-xl border border-amber-100">
                             <AlertCircle size={14} className="text-amber-500 flex-shrink-0" />

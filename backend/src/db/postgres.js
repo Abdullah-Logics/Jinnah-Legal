@@ -89,8 +89,15 @@ export class PostgresAdapter {
           verification_status TEXT DEFAULT 'pending',
           bar_number TEXT, license_number TEXT, specialization TEXT,
           experience INTEGER, education TEXT,
+          bio TEXT,
           is_firm_admin INTEGER DEFAULT 0,
           created_at TIMESTAMP DEFAULT NOW()
+        );
+        CREATE TABLE IF NOT EXISTS user_preferences (
+          id TEXT PRIMARY KEY,
+          user_id TEXT UNIQUE NOT NULL,
+          chat_wallpaper TEXT DEFAULT '',
+          FOREIGN KEY (user_id) REFERENCES users(id)
         );
         CREATE TABLE IF NOT EXISTS firms (
           id TEXT PRIMARY KEY,
@@ -235,6 +242,7 @@ export class PostgresAdapter {
       // Migrations for existing tables
       try { await client.query("ALTER TABLE messages ADD COLUMN share_data TEXT"); } catch {}
       try { await client.query("ALTER TABLE messages ADD COLUMN group_id TEXT"); } catch {}
+      try { await client.query("ALTER TABLE users ADD COLUMN bio TEXT"); } catch {}
       console.log(' PostgreSQL schema ready');
     } finally {
       client.release();

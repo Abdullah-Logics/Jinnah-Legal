@@ -152,8 +152,15 @@ export class SqliteAdapter {
         verification_status TEXT DEFAULT 'pending',
         bar_number TEXT, license_number TEXT, specialization TEXT,
         experience INTEGER, education TEXT,
+        bio TEXT,
         is_firm_admin INTEGER DEFAULT 0,
         created_at TEXT DEFAULT (datetime('now'))
+      );
+      CREATE TABLE IF NOT EXISTS user_preferences (
+        id TEXT PRIMARY KEY,
+        user_id TEXT UNIQUE NOT NULL,
+        chat_wallpaper TEXT DEFAULT '',
+        FOREIGN KEY (user_id) REFERENCES users(id)
       );
       CREATE TABLE IF NOT EXISTS firms (
         id TEXT PRIMARY KEY,
@@ -303,6 +310,7 @@ export class SqliteAdapter {
     try { this.db.run("ALTER TABLE messages ADD COLUMN group_id TEXT"); } catch {}
     try { this.db.run("DELETE FROM ai_sessions WHERE id LIKE 'doc-%' OR id LIKE 'research-%'"); } catch {}
     try { this.db.run("DELETE FROM ai_chat_history WHERE session_id LIKE 'doc-%' OR session_id LIKE 'research-%'"); } catch {}
+    try { this.db.run("ALTER TABLE users ADD COLUMN bio TEXT"); } catch {}
     this._save();
   }
 }

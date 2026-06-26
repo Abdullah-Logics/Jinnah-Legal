@@ -19,6 +19,7 @@ export function toPublic(u) {
     phone: u.phone || null,
     address: u.address || null,
     city: u.city || null,
+    bio: u.bio || null,
     firmId: u.firm_id || null,
     coordinates: u.lat ? { lat: u.lat, lng: u.lng } : undefined,
     subscriptionPlan: u.subscription_plan || 'free',

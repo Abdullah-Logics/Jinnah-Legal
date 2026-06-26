@@ -60,9 +60,9 @@ apiRouter.patch('/users/:id', validate(userUpdateSchema), asyncHandler(async (re
   const u = await queryOne('SELECT * FROM users WHERE id = ?', [req.params.id]);
   if (!u) throw new AppError('User not found', 404);
 
-  const { name, phone, address, city, avatar } = req.body;
-  await run('UPDATE users SET name=?,phone=?,address=?,city=?,avatar=? WHERE id=?',
-    [name||u.name, phone??u.phone, address??u.address, city??u.city, avatar??u.avatar, req.params.id]);
+  const { name, phone, address, city, avatar, bio } = req.body;
+  await run('UPDATE users SET name=?,phone=?,address=?,city=?,avatar=?,bio=? WHERE id=?',
+    [name||u.name, phone??u.phone, address??u.address, city??u.city, avatar??u.avatar, bio??u.bio, req.params.id]);
 
   res.json(toPublic(await queryOne('SELECT * FROM users WHERE id = ?', [req.params.id])));
 }));

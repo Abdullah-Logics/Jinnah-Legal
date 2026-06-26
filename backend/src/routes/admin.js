@@ -140,3 +140,12 @@ adminRouter.post('/warn/:userId', asyncHandler(async (req, res) => {
   );
   res.json({ ok: true, message: 'Warning sent' });
 }));
+
+adminRouter.get('/documents/:userId', asyncHandler(async (req, res) => {
+  await requireAdmin(req);
+  const docs = await query(
+    'SELECT id, name, url, size, type, created_at FROM documents WHERE user_id=? ORDER BY created_at DESC',
+    [req.params.userId]
+  );
+  res.json(docs);
+}));

@@ -67,6 +67,15 @@ export default function ClientMessages() {
   const [showContactInfo, setShowContactInfo] = useState(false);
   const [searchInChat, setSearchInChat] = useState('');
   const [searchInChatOpen, setSearchInChatOpen] = useState(false);
+  const [chatWallpaper] = useState(() => localStorage.getItem('chatWallpaper') || '');
+
+  const WALLPAPER_CLASSES: Record<string, string> = {
+    waves: 'bg-gradient-to-br from-cyan-100 via-blue-50 to-indigo-100',
+    sunset: 'bg-gradient-to-br from-orange-100 via-rose-50 to-pink-100',
+    forest: 'bg-gradient-to-br from-emerald-100 via-green-50 to-teal-100',
+    lavender: 'bg-gradient-to-br from-purple-100 via-violet-50 to-fuchsia-100',
+    dark: 'bg-gradient-to-br from-slate-800 via-slate-700 to-gray-800',
+  };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -464,7 +473,7 @@ export default function ClientMessages() {
               </div>
             )}
 
-            <div className={`flex-1 overflow-y-auto overscroll-contain px-2 sm:px-4 py-3 sm:py-4 space-y-0.5 bg-gradient-to-b from-slate-100 to-slate-50 ${showContactInfo ? 'hidden lg:block' : ''}`}>
+            <div className={`flex-1 overflow-y-auto overscroll-contain px-2 sm:px-4 py-3 sm:py-4 space-y-0.5 ${chatWallpaper ? WALLPAPER_CLASSES[chatWallpaper] || '' : 'bg-gradient-to-b from-slate-100 to-slate-50'} ${showContactInfo ? 'hidden lg:block' : ''}`}>
               {searchInChat && conversation.filter(m => !m.content?.toLowerCase().includes(searchInChat.toLowerCase())).length === conversation.length && conversation.length > 0 && (
                 <div className="flex flex-col items-center justify-center h-full text-center py-16 text-slate-400">
                   <Search size={28} className="mb-2 text-slate-300" />

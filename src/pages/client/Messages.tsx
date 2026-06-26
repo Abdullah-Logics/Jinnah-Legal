@@ -5,7 +5,7 @@ import {
   Search, Send, Paperclip, Phone, Video,
   Check, CheckCheck, Camera, Mic, MicOff, FileText, X,
   Image as ImageIcon, ArrowLeft, Smile, MessageSquare, AlertTriangle, UsersRound,
-  Info, Image,
+  Info, Image, MoreVertical,
 } from 'lucide-react';
 
 import ReportModal from '../../components/ReportModal';
@@ -67,6 +67,8 @@ export default function ClientMessages() {
   const [showContactInfo, setShowContactInfo] = useState(false);
   const [searchInChat, setSearchInChat] = useState('');
   const [searchInChatOpen, setSearchInChatOpen] = useState(false);
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
   const [chatWallpaper] = useState(() => localStorage.getItem('chatWallpaper') || '');
 
   const WALLPAPER_CLASSES: Record<string, string> = {
@@ -85,6 +87,16 @@ export default function ClientMessages() {
   const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => { loadMessages(); loadConnections(); loadUsers(); }, [loadMessages, loadConnections, loadUsers]);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node)) {
+        setMoreMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   useEffect(() => {
     if (!selectedUser) return;
@@ -432,21 +444,40 @@ export default function ClientMessages() {
                 >
                   <Video size={20} className="text-white" />
                 </button>
-                <button
-                  onClick={() => setShowReport(true)}
-                  className="p-2.5 hover:bg-red-400/30 rounded-full transition flex items-center justify-center"
-                  aria-label="Report user"
-                  title="Report this user"
-                >
-                  <AlertTriangle size={18} className="text-red-300 hover:text-red-200" />
-                </button>
-                <button
-                  onClick={() => setShowContactInfo(v => !v)}
-                  className={`p-2 rounded-full transition flex items-center justify-center ${showContactInfo ? 'bg-white/20' : 'hover:bg-white/15'}`}
-                  aria-label="Contact info"
-                >
-                  <Info size={18} className="text-white" />
-                </button>
+                <div className="relative" ref={moreMenuRef}>
+                  <button
+                    onClick={() => setMoreMenuOpen(v => !v)}
+                    className="p-2 hover:bg-white/15 rounded-full transition flex items-center justify-center"
+                    aria-label="More options"
+                  >
+                    <MoreVertical size={18} className="text-white" />
+                  </button>
+                  <AnimatePresence>
+                    {moreMenuOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        className="absolute right-0 top-full mt-1 w-44 bg-white rounded-xl shadow-xl border border-slate-200 py-1 z-30 overflow-hidden"
+                      >
+                        <button
+                          onClick={() => { setShowContactInfo(v => !v); setMoreMenuOpen(false); }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition"
+                        >
+                          <Info size={16} className="text-slate-400" />
+                          Contact Info
+                        </button>
+                        <button
+                          onClick={() => { setShowReport(true); setMoreMenuOpen(false); }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition"
+                        >
+                          <AlertTriangle size={16} />
+                          Report User
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               </div>
             </div>
 

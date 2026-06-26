@@ -79,10 +79,10 @@ export default function ClientLayout() {
       {/* Sidebar (Desktop) / Drawer (Mobile) */}
       <aside className={`
         fixed top-0 left-0 h-full w-72 bg-gradient-to-b from-emerald-600 via-emerald-700 to-slate-900 text-white z-50
-        transform transition-transform duration-300 ease-in-out
+        transform transition-transform duration-300 ease-in-out flex flex-col
         lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
-        <div className="p-4 flex items-center justify-between border-b border-white/10">
+        <div className="flex-shrink-0 p-4 flex items-center justify-between border-b border-white/10">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center">
               <Scale size={22} className="text-white" />
@@ -97,8 +97,8 @@ export default function ClientLayout() {
           </button>
         </div>
 
-        <div className="p-4 border-b border-white/10">
-          <div className="flex items-center gap-3">
+        <div className="flex-shrink-0 p-4 border-b border-white/10">
+          <NavLink to="/client/profile" onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 hover:opacity-80 transition">
             <img
               src={currentUser?.avatar || `https://ui-avatars.com/api/?name=${currentUser?.name}&background=random`}
               alt={currentUser?.name}
@@ -111,10 +111,10 @@ export default function ClientLayout() {
                 {currentUser?.subscriptionPlan} Plan
               </span>
             </div>
-          </div>
+          </NavLink>
         </div>
 
-        <nav className="p-3 flex-1 overflow-y-auto h-[calc(100%-180px)]">
+        <nav className="flex-1 overflow-y-auto overscroll-contain p-3">
           <ul className="space-y-1">
             {sidebarItems.map(item => (
               <li key={item.path}>
@@ -137,18 +137,17 @@ export default function ClientLayout() {
                 </NavLink>
               </li>
             ))}
+            <li className="pt-2 mt-2 border-t border-white/10">
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-3 w-full px-4 py-2.5 text-red-300 hover:bg-red-500/20 rounded-xl transition text-sm"
+              >
+                <LogOut size={18} />
+                <span>Logout</span>
+              </button>
+            </li>
           </ul>
         </nav>
-
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-white/10 bg-slate-900/50">
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-3 w-full px-4 py-2.5 text-red-300 hover:bg-red-500/20 rounded-xl transition text-sm"
-          >
-            <LogOut size={18} />
-            <span>Logout</span>
-          </button>
-        </div>
       </aside>
 
       {/* Main Content */}

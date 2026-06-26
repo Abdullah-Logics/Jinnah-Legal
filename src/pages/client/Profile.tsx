@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useStore } from '../../store/useStore';
 import { User, Mail, Phone, MapPin, Edit2, Save, Camera, CreditCard } from 'lucide-react';
+import CallHistory from '../../components/CallHistory';
 
 export default function ClientProfile() {
   const { currentUser, updateUser } = useStore();
@@ -59,6 +60,11 @@ export default function ClientProfile() {
             <Save size={20} /> Save Changes
           </button>
         )}
+      </div>
+
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+        <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2"><Phone size={20} className="text-emerald-600" /> Recent Calls</h2>
+        <CallHistory />
       </div>
 
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">

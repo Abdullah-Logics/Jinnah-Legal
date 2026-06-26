@@ -87,10 +87,10 @@ apiRouter.get('/messages', asyncHandler(async (req, res) => {
 }));
 
 apiRouter.post('/messages', validate(messageSchema), asyncHandler(async (req, res) => {
-  const { receiverId, content, caseId, attachments, shareData } = req.body;
+  const { receiverId, content, caseId, attachments, shareData, groupId } = req.body;
   const id = uuid();
-  await run('INSERT INTO messages (id,sender_id,receiver_id,content,case_id,attachments,share_data) VALUES (?,?,?,?,?,?,?)',
-    [id, req.user.id, receiverId, content, caseId||null, attachments||'[]', shareData||null]);
+  await run('INSERT INTO messages (id,sender_id,receiver_id,content,case_id,attachments,share_data,group_id) VALUES (?,?,?,?,?,?,?,?)',
+    [id, req.user.id, receiverId||null, content, caseId||null, attachments||'[]', shareData||null, groupId||null]);
   res.status(201).json(await queryOne('SELECT * FROM messages WHERE id = ?', [id]));
 }));
 

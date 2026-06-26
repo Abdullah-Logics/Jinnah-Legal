@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Users, UserCheck, CreditCard, BarChart3, Settings,
   Menu, X, LogOut, Bell, Scale, Gavel,
+  AlertTriangle, Shield, MessageSquare, Phone,
 } from 'lucide-react';
 
 const platformNav = [
@@ -12,6 +13,10 @@ const platformNav = [
   { path: '/admin/lawyers', icon: Gavel, label: 'Lawyers' },
   { path: '/admin/clients', icon: Users, label: 'Clients' },
   { path: '/admin/verification', icon: UserCheck, label: 'Verification' },
+  { path: '/admin/reports', icon: AlertTriangle, label: 'Reports' },
+  { path: '/admin/blocks', icon: Shield, label: 'Blocks' },
+  { path: '/admin/messages', icon: MessageSquare, label: 'Messages' },
+  { path: '/admin/call-logs', icon: Phone, label: 'Call Logs' },
   { path: '/admin/subscriptions', icon: CreditCard, label: 'Subscriptions' },
   { path: '/admin/analytics', icon: BarChart3, label: 'Analytics' },
   { path: '/admin/settings', icon: Settings, label: 'Settings' },

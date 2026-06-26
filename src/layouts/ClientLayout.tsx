@@ -4,12 +4,13 @@ import { useStore } from '../store/useStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Briefcase, Search, CreditCard, Calendar, MessageSquare,
-  User, UserPlus, Menu, X, LogOut, Bell, Scale, Bot, FileText, BarChart3,
+  User, UserPlus, Menu, X, LogOut, Bell, Scale, Bot, FileText, BarChart3, UsersRound,
 } from 'lucide-react';
 
 const sidebarItems = [
   { path: '/client', icon: LayoutDashboard, label: 'Dashboard', end: true },
   { path: '/client/messages', icon: MessageSquare, label: 'Messages' },
+  { path: '/client/groups', icon: UsersRound, label: 'Groups' },
   { path: '/client/calendar', icon: Calendar, label: 'Calendar' },
   { path: '/client/weekly-report', icon: BarChart3, label: 'Weekly Plan' },
   { path: '/client/cases', icon: Briefcase, label: 'My Cases' },

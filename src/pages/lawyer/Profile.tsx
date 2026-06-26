@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useStore } from '../../store/useStore';
 import { User, Mail, Phone, MapPin, Briefcase, GraduationCap, Award, Edit2, Camera, Save, Shield } from 'lucide-react';
+import CallHistory from '../../components/CallHistory';
 
 export default function LawyerProfile() {
   const { currentUser, updateUser } = useStore();
@@ -282,6 +283,15 @@ export default function LawyerProfile() {
             </div>
           </div>
         </motion.div>
+      </div>
+
+      {/* Call History */}
+      <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+        <h2 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+          <Phone size={20} className="text-emerald-600" />
+          Recent Calls
+        </h2>
+        <CallHistory />
       </div>
 
       {/* Save Button */}

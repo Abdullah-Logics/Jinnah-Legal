@@ -110,11 +110,12 @@ export const caseWithClientSchema = z.object({
 });
 
 export const messageSchema = z.object({
-  receiverId: z.string().min(1),
+  receiverId: z.string().optional().default(''),
   content: z.string().max(10000).default(''),
   caseId: z.string().optional().nullable(),
   attachments: z.string().optional().default('[]'),
   shareData: z.string().optional().nullable(),
+  groupId: z.string().optional().nullable(),
 });
 
 export const connectionRequestSchema = z.object({

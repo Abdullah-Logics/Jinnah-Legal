@@ -2,10 +2,12 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '../../store/useStore';
 import {
-  Search, Send, Paperclip, Phone, Video, MoreVertical,
+  Search, Send, Paperclip, Phone, Video,
   Check, CheckCheck, Camera, Mic, MicOff, FileText, X,
-  Image as ImageIcon, ArrowLeft, Smile, MessageSquare,
+  Image as ImageIcon, ArrowLeft, Smile, MessageSquare, AlertTriangle, UsersRound,
 } from 'lucide-react';
+import ReportModal from '../../components/ReportModal';
+import { Link } from 'react-router-dom';
 import { format, isToday, isYesterday } from 'date-fns';
 import { useCall } from '../../context/CallContext';
 import ShareCard, { parseShareData } from '../../components/ShareCard';
@@ -59,6 +61,7 @@ export default function ClientMessages() {
   const [reactingTo, setReactingTo] = useState<string | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [mobileView, setMobileView] = useState<'contacts' | 'chat'>('contacts');
+  const [showReport, setShowReport] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -269,6 +272,9 @@ export default function ClientMessages() {
               {totalUnread > 0 ? `${totalUnread} unread` : 'All caught up'}
             </p>
           </div>
+          <Link to="/client/groups" className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-xl text-xs font-medium hover:bg-emerald-200 transition whitespace-nowrap">
+            <UsersRound size={14} /> Groups
+          </Link>
         </div>
 
         <div className="px-4 pb-2">
@@ -401,8 +407,13 @@ export default function ClientMessages() {
                 >
                   <Video size={20} className="text-white" />
                 </button>
-                <button className="p-2.5 hover:bg-white/15 rounded-full transition flex items-center justify-center" aria-label="More options">
-                  <MoreVertical size={20} className="text-white" />
+                <button
+                  onClick={() => setShowReport(true)}
+                  className="p-2.5 hover:bg-red-400/30 rounded-full transition flex items-center justify-center"
+                  aria-label="Report user"
+                  title="Report this user"
+                >
+                  <AlertTriangle size={18} className="text-red-300 hover:text-red-200" />
                 </button>
               </div>
             </div>
@@ -626,6 +637,15 @@ export default function ClientMessages() {
           </div>
         )}
       </div>
+
+      {selectedContact && (
+        <ReportModal
+          isOpen={showReport}
+          onClose={() => setShowReport(false)}
+          reportedId={selectedUser!}
+          reportedName={selectedContact.name}
+        />
+      )}
     </div>
   );
 }

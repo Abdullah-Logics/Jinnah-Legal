@@ -181,9 +181,60 @@ export class PostgresAdapter {
         ended_at TIMESTAMP,
         created_at TIMESTAMP DEFAULT NOW()
       );
+      CREATE TABLE IF NOT EXISTS reports (
+        id TEXT PRIMARY KEY,
+        reporter_id TEXT NOT NULL,
+        reported_id TEXT NOT NULL,
+        reason TEXT NOT NULL,
+        description TEXT DEFAULT '',
+        status TEXT NOT NULL DEFAULT 'pending',
+        created_at TIMESTAMP DEFAULT NOW(),
+        resolved_by TEXT,
+        resolved_at TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS blocks (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        email TEXT NOT NULL,
+        phone TEXT DEFAULT '',
+        blocked_by TEXT NOT NULL,
+        reason TEXT DEFAULT '',
+        type TEXT NOT NULL DEFAULT 'user',
+        created_at TIMESTAMP DEFAULT NOW(),
+        unblocked_by TEXT,
+        unblocked_at TIMESTAMP
+      );
+      CREATE TABLE IF NOT EXISTS groups_table (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL DEFAULT 'group',
+        case_id TEXT,
+        avatar TEXT DEFAULT '',
+        created_by TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS group_members (
+        id TEXT PRIMARY KEY,
+        group_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'member',
+        joined_at TIMESTAMP DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS call_logs (
+        id TEXT PRIMARY KEY,
+        caller_id TEXT NOT NULL,
+        receiver_id TEXT NOT NULL,
+        type TEXT NOT NULL DEFAULT 'audio',
+        status TEXT NOT NULL,
+        duration INTEGER DEFAULT 0,
+        started_at TIMESTAMP,
+        ended_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
       `);
       // Migrations for existing tables
       try { await client.query("ALTER TABLE messages ADD COLUMN share_data TEXT"); } catch {}
+      try { await client.query("ALTER TABLE messages ADD COLUMN group_id TEXT"); } catch {}
       console.log(' PostgreSQL schema ready');
     } finally {
       client.release();

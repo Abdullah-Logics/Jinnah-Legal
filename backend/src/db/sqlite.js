@@ -120,7 +120,8 @@ export class SqliteAdapter {
       const data = JSON.parse(_read(seedPath, 'utf-8'));
       const tables = ['users','firms','firm_requests','cases','messages',
         'connection_requests','connections','journal_entries',
-        'invoices','time_entries','documents','ai_sessions','ai_chat_history'];
+        'invoices','time_entries','documents','ai_sessions','ai_chat_history',
+        'reports','blocks','groups_table','group_members','call_logs'];
       for (const table of tables) {
         const rows = data[table];
         if (!rows?.length) continue;
@@ -240,6 +241,56 @@ export class SqliteAdapter {
         content TEXT NOT NULL, session_id TEXT,
         created_at TEXT DEFAULT (datetime('now'))
       );
+      CREATE TABLE IF NOT EXISTS reports (
+        id TEXT PRIMARY KEY,
+        reporter_id TEXT NOT NULL,
+        reported_id TEXT NOT NULL,
+        reason TEXT NOT NULL,
+        description TEXT DEFAULT '',
+        status TEXT NOT NULL DEFAULT 'pending',
+        created_at TEXT DEFAULT (datetime('now')),
+        resolved_by TEXT,
+        resolved_at TEXT
+      );
+      CREATE TABLE IF NOT EXISTS blocks (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        email TEXT NOT NULL,
+        phone TEXT DEFAULT '',
+        blocked_by TEXT NOT NULL,
+        reason TEXT DEFAULT '',
+        type TEXT NOT NULL DEFAULT 'user',
+        created_at TEXT DEFAULT (datetime('now')),
+        unblocked_by TEXT,
+        unblocked_at TEXT
+      );
+      CREATE TABLE IF NOT EXISTS groups_table (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL DEFAULT 'group',
+        case_id TEXT,
+        avatar TEXT DEFAULT '',
+        created_by TEXT NOT NULL,
+        created_at TEXT DEFAULT (datetime('now'))
+      );
+      CREATE TABLE IF NOT EXISTS group_members (
+        id TEXT PRIMARY KEY,
+        group_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'member',
+        joined_at TEXT DEFAULT (datetime('now'))
+      );
+      CREATE TABLE IF NOT EXISTS call_logs (
+        id TEXT PRIMARY KEY,
+        caller_id TEXT NOT NULL,
+        receiver_id TEXT NOT NULL,
+        type TEXT NOT NULL DEFAULT 'audio',
+        status TEXT NOT NULL,
+        duration INTEGER DEFAULT 0,
+        started_at TEXT,
+        ended_at TEXT,
+        created_at TEXT DEFAULT (datetime('now'))
+      );
     `);
     try { this.db.run("ALTER TABLE cases ADD COLUMN client_status TEXT DEFAULT 'pending'"); } catch {}
     try { this.db.run("ALTER TABLE documents ADD COLUMN content TEXT DEFAULT ''"); } catch {}
@@ -249,6 +300,7 @@ export class SqliteAdapter {
     try { this.db.run("ALTER TABLE journal_entries ADD COLUMN content TEXT DEFAULT ''"); } catch {}
     try { this.db.run("ALTER TABLE messages ADD COLUMN attachments TEXT DEFAULT '[]'"); } catch {}
     try { this.db.run("ALTER TABLE messages ADD COLUMN share_data TEXT"); } catch {}
+    try { this.db.run("ALTER TABLE messages ADD COLUMN group_id TEXT"); } catch {}
     try { this.db.run("DELETE FROM ai_sessions WHERE id LIKE 'doc-%' OR id LIKE 'research-%'"); } catch {}
     try { this.db.run("DELETE FROM ai_chat_history WHERE session_id LIKE 'doc-%' OR session_id LIKE 'research-%'"); } catch {}
     this._save();

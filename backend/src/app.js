@@ -16,6 +16,10 @@ import { casesRouter } from './routes/cases.js';
 import { apiRouter } from './routes/api.js';
 import { aiRouter } from './routes/ai.js';
 import { uploadRouter } from './routes/upload.js';
+import { reportsRouter } from './routes/reports.js';
+import { adminRouter } from './routes/admin.js';
+import { groupsRouter } from './routes/groups.js';
+import { callLogsRouter } from './routes/call-logs.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -90,11 +94,15 @@ export async function createApp() {
     uptime: process.uptime(),
   }));
 
-  app.use('/api/auth',  authRouter);
-  app.use('/api/cases', casesRouter);
-  app.use('/api/ai',    aiRouter);
-  app.use('/api/upload', uploadRouter);
-  app.use('/api',       apiRouter);
+  app.use('/api/auth',      authRouter);
+  app.use('/api/cases',     casesRouter);
+  app.use('/api/ai',        aiRouter);
+  app.use('/api/upload',    uploadRouter);
+  app.use('/api/reports',   reportsRouter);
+  app.use('/api/admin',     adminRouter);
+  app.use('/api/groups',    groupsRouter);
+  app.use('/api/call-logs', callLogsRouter);
+  app.use('/api',           apiRouter);
 
   if (!process.env.VERCEL) {
     app.use('/uploads', express.static(path.join(__dirname, '../../uploads')));

@@ -37,16 +37,21 @@ interface CallContextValue {
 
 const CallContext = createContext<CallContextValue>(null!);
 
+let ringtoneCtx: AudioContext | null = null;
+let ringtoneOsc: OscillatorNode | null = null;
+let ringtoneInterval: ReturnType<typeof setInterval> | null = null;
+
 function createRingtone(): HTMLAudioElement | null {
   try {
     const ctx = new AudioContext();
+    ringtoneCtx = ctx;
     const osc = ctx.createOscillator();
+    ringtoneOsc = osc;
     const gain = ctx.createGain();
     osc.type = 'sine';
     osc.frequency.value = 440;
     gain.gain.value = 0.3;
     osc.connect(gain);
-    gain.connect(ctx.destination);
     osc.start();
     const duration = 0.5;
     const pause = 0.3;
@@ -60,7 +65,7 @@ function createRingtone(): HTMLAudioElement | null {
       }
     };
     schedule();
-    setInterval(() => {
+    ringtoneInterval = setInterval(() => {
       if (ctx.state === 'running') {
         offset = ctx.currentTime;
         gain.gain.cancelScheduledValues(ctx.currentTime);
@@ -206,6 +211,9 @@ export function CallProvider({ children, userId }: { children: React.ReactNode; 
       ringtoneRef.current.pause();
       ringtoneRef.current = null;
     }
+    if (ringtoneOsc) { try { ringtoneOsc.stop(); } catch {} ringtoneOsc = null; }
+    if (ringtoneInterval) { clearInterval(ringtoneInterval); ringtoneInterval = null; }
+    if (ringtoneCtx) { ringtoneCtx.close().catch(() => {}); ringtoneCtx = null; }
   };
 
   const cleanupCallRef = () => {

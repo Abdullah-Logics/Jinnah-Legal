@@ -4,12 +4,13 @@ import { useStore } from '../store/useStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Briefcase, BookOpen, Search, FileText, Clock, Users,
-  Calendar, MessageSquare, User, UserPlus, Brain, Menu, X, LogOut, Bell, Scale, BarChart3,
+  Calendar, MessageSquare, User, UserPlus, Brain, Menu, X, LogOut, Bell, Scale, BarChart3, UsersRound,
 } from 'lucide-react';
 
 const sidebarItems = [
   { path: '/lawyer', icon: LayoutDashboard, label: 'Dashboard', end: true },
   { path: '/lawyer/messages', icon: MessageSquare, label: 'Messages' },
+  { path: '/lawyer/groups', icon: UsersRound, label: 'Groups' },
   { path: '/lawyer/calendar', icon: Calendar, label: 'Calendar' },
   { path: '/lawyer/weekly-report', icon: BarChart3, label: 'Weekly Plan' },
   { path: '/lawyer/journal', icon: BookOpen, label: 'Journal' },

@@ -44,6 +44,9 @@ authRouter.post('/login', validate(loginSchema), asyncHandler(async (req, res) =
     throw new AppError('Invalid credentials', 401);
   }
 
+  const block = await queryOne('SELECT id FROM blocks WHERE (email=? OR user_id=?) AND unblocked_at IS NULL', [email, user.id]);
+  if (block) throw new AppError('Your account has been blocked. Contact support.', 403);
+
   const match = await bcrypt.compare(password, user.password_hash);
   if (!match) {
     throw new AppError('Invalid credentials', 401);
@@ -59,6 +62,13 @@ authRouter.post('/register', validate(registerSchema), asyncHandler(async (req, 
   if (exists) {
     throw new AppError('Email already registered', 409);
   }
+
+  if (phone) {
+    const phoneBlocked = await queryOne('SELECT id FROM blocks WHERE phone=? AND unblocked_at IS NULL', [phone]);
+    if (phoneBlocked) throw new AppError('This phone number is blocked. Contact support.', 403);
+  }
+  const emailBlocked = await queryOne('SELECT id FROM blocks WHERE email=? AND unblocked_at IS NULL', [email]);
+  if (emailBlocked) throw new AppError('This email is blocked. Contact support.', 403);
 
   const id = uuid();
   const hash = await bcrypt.hash(password, 10);

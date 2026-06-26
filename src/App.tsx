@@ -26,6 +26,7 @@ import LawyerCalendar from './pages/lawyer/Calendar';
 import LawyerMessages from './pages/lawyer/Messages';
 import LawyerProfile from './pages/lawyer/Profile';
 import LawyerAIBrain from './pages/lawyer/AIBrain';
+import LawyerGroups from './pages/lawyer/Groups';
 
 // Client Portal
 import ClientDashboard from './pages/client/Dashboard';
@@ -40,12 +41,17 @@ import ClientProfile from './pages/client/Profile';
 import ClientAIAssistant from './pages/client/AIAssistant';
 import ClientDocuments from './pages/client/Documents';
 import ClientRequests from './pages/client/Requests';
+import ClientGroups from './pages/client/Groups';
 
 // Admin Portal
 import AdminDashboard from './pages/admin/Dashboard';
 import AdminLawyers from './pages/admin/Lawyers';
 import AdminClients from './pages/admin/Clients';
 import AdminVerification from './pages/admin/Verification';
+import AdminReports from './pages/admin/Reports';
+import AdminBlocks from './pages/admin/Blocks';
+import AdminMessagesView from './pages/admin/MessagesAdmin';
+import AdminCallLogs from './pages/admin/CallLogs';
 import AdminSubscriptions from './pages/admin/Subscriptions';
 import AdminAnalytics from './pages/admin/Analytics';
 import AdminSettings from './pages/admin/Settings';
@@ -103,6 +109,7 @@ function App() {
             <Route path="messages" element={<LawyerMessages />} />
             <Route path="profile" element={<LawyerProfile />} />
             <Route path="ai-brain" element={<LawyerAIBrain />} />
+            <Route path="groups" element={<LawyerGroups />} />
           </Route>
 
           {/* Client Portal */}
@@ -124,6 +131,7 @@ function App() {
             <Route path="profile" element={<ClientProfile />} />
             <Route path="ai-assistant" element={<ClientAIAssistant />} />
             <Route path="documents" element={<ClientDocuments />} />
+            <Route path="groups" element={<ClientGroups />} />
           </Route>
 
           {/* Admin Portal */}
@@ -136,6 +144,10 @@ function App() {
             <Route path="lawyers" element={<AdminLawyers />} />
             <Route path="clients" element={<AdminClients />} />
             <Route path="verification" element={<AdminVerification />} />
+            <Route path="reports" element={<AdminReports />} />
+            <Route path="blocks" element={<AdminBlocks />} />
+            <Route path="messages" element={<AdminMessagesView />} />
+            <Route path="call-logs" element={<AdminCallLogs />} />
             <Route path="subscriptions" element={<AdminSubscriptions />} />
             <Route path="analytics" element={<AdminAnalytics />} />
             <Route path="settings" element={<AdminSettings />} />

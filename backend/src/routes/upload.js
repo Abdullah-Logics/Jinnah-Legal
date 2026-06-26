@@ -52,9 +52,16 @@ export { upload, chatUpload };
 uploadRouter.post('/public', upload.single('file'), asyncHandler(async (req, res) => {
   if (!req.file) throw new AppError('No file uploaded', 400);
   const id = uuid();
+  let fileUrl;
+  if (isVercel) {
+    const b64 = req.file.buffer.toString('base64');
+    fileUrl = `data:${req.file.mimetype || 'application/octet-stream'};base64,${b64}`;
+  } else {
+    fileUrl = `/uploads/${req.file.filename}`;
+  }
   await run(
     'INSERT INTO documents (id,user_id,name,url,size) VALUES (?,?,?,?,?)',
-    [id, null, req.file.originalname, `/uploads/${req.file.filename}`, req.file.size]
+    [id, null, req.file.originalname, fileUrl, req.file.size]
   );
   const doc = await queryOne('SELECT * FROM documents WHERE id = ?', [id]);
   res.json(doc);
@@ -63,9 +70,34 @@ uploadRouter.post('/public', upload.single('file'), asyncHandler(async (req, res
 uploadRouter.post('/', requireAuth, upload.single('file'), asyncHandler(async (req, res) => {
   if (!req.file) throw new Error('No file uploaded');
   const id = uuid();
+  let fileUrl;
+  if (isVercel) {
+    const b64 = req.file.buffer.toString('base64');
+    fileUrl = `data:${req.file.mimetype || 'application/octet-stream'};base64,${b64}`;
+  } else {
+    fileUrl = `/uploads/${req.file.filename}`;
+  }
   await run(
     'INSERT INTO documents (id,user_id,name,url,size) VALUES (?,?,?,?,?)',
-    [id, req.user.id, req.file.originalname, `/uploads/${req.file.filename}`, req.file.size]
+    [id, req.user.id, req.file.originalname, fileUrl, req.file.size]
+  );
+  const doc = await queryOne('SELECT * FROM documents WHERE id = ?', [id]);
+  res.json(doc);
+}));
+
+uploadRouter.post('/public', upload.single('file'), asyncHandler(async (req, res) => {
+  if (!req.file) throw new AppError('No file uploaded', 400);
+  const id = uuid();
+  let fileUrl;
+  if (isVercel) {
+    const b64 = req.file.buffer.toString('base64');
+    fileUrl = `data:${req.file.mimetype || 'application/octet-stream'};base64,${b64}`;
+  } else {
+    fileUrl = `/uploads/${req.file.filename}`;
+  }
+  await run(
+    'INSERT INTO documents (id,user_id,name,url,size) VALUES (?,?,?,?,?)',
+    [id, null, req.file.originalname, fileUrl, req.file.size]
   );
   const doc = await queryOne('SELECT * FROM documents WHERE id = ?', [id]);
   res.json(doc);
@@ -79,11 +111,17 @@ uploadRouter.post('/draft', requireAuth, asyncHandler(async (req, res) => {
   const { name, content } = req.body;
   if (!name || !content) throw new AppError('Name and content are required', 400);
   const id = uuid();
-  const filename = `${id}.txt`;
-  writeFileSync(path.join(UPLOAD_DIR, filename), content, 'utf-8');
+  let fileUrl;
+  if (isVercel) {
+    fileUrl = `data:text/plain;base64,${Buffer.from(content, 'utf-8').toString('base64')}`;
+  } else {
+    const filename = `${id}.txt`;
+    writeFileSync(path.join(UPLOAD_DIR, filename), content, 'utf-8');
+    fileUrl = `/uploads/${filename}`;
+  }
   await run(
     'INSERT INTO documents (id,user_id,name,url,size) VALUES (?,?,?,?,?)',
-    [id, req.user.id, name + '.txt', `/uploads/${filename}`, Buffer.byteLength(content)]
+    [id, req.user.id, name + '.txt', fileUrl, Buffer.byteLength(content)]
   );
   const doc = await queryOne('SELECT * FROM documents WHERE id = ?', [id]);
   res.json(doc);

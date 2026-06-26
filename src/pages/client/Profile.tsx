@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { useStore } from '../../store/useStore';
+import { resolveUrl, avatarUrl } from '../../utils/resolveUrl';
 import {
   User, Mail, Phone, MapPin, Edit2, Save, Camera, Loader2, CreditCard,
   Paintbrush, X,
@@ -69,11 +70,7 @@ export default function ClientProfile() {
         <div className="flex flex-col sm:flex-row items-center gap-6">
           <div className="relative group">
             <img
-              src={currentUser?.avatar
-                ? (currentUser.avatar.startsWith('http') || currentUser.avatar.startsWith('data:')
-                  ? currentUser.avatar : `${API}${currentUser.avatar}`)
-                : `https://ui-avatars.com/api/?name=${currentUser?.name}&size=120`
-              }
+              src={avatarUrl(currentUser)}
               alt=""
               className="w-24 h-24 rounded-full object-cover border-4 border-white/30"
             />

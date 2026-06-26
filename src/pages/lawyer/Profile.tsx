@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useStore } from '../../store/useStore';
+import { resolveUrl, avatarUrl } from '../../utils/resolveUrl';
 import {
   User, Mail, Phone, MapPin, Briefcase, GraduationCap, Award, Edit2, Camera, Save,
   Shield, Image as ImageIcon, X, Loader2, Paintbrush,
@@ -90,11 +91,7 @@ export default function LawyerProfile() {
         <div className="flex flex-col sm:flex-row items-center gap-6">
           <div className="relative group">
             <img
-              src={currentUser?.avatar
-                ? (currentUser.avatar.startsWith('http') || currentUser.avatar.startsWith('data:')
-                  ? currentUser.avatar : `${API}${currentUser.avatar}`)
-                : `https://ui-avatars.com/api/?name=${currentUser?.name}&size=120&background=random`
-              }
+              src={avatarUrl(currentUser)}
               alt={currentUser?.name}
               className="w-28 h-28 rounded-full object-cover border-4 border-white/30"
             />

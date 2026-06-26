@@ -13,6 +13,7 @@ import { Link } from 'react-router-dom';
 import { format, isToday, isYesterday } from 'date-fns';
 import { useCall } from '../../context/CallContext';
 import ShareCard, { parseShareData } from '../../components/ShareCard';
+import { resolveUrl, avatarUrl } from '../../utils/resolveUrl';
 
 const API = import.meta.env.DEV ? 'http://localhost:3001' : import.meta.env.VITE_API_URL || '';
 

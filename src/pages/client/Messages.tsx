@@ -5,7 +5,9 @@ import {
   Search, Send, Paperclip, Phone, Video,
   Check, CheckCheck, Camera, Mic, MicOff, FileText, X,
   Image as ImageIcon, ArrowLeft, Smile, MessageSquare, AlertTriangle, UsersRound,
+  Info, Image,
 } from 'lucide-react';
+
 import ReportModal from '../../components/ReportModal';
 import { Link } from 'react-router-dom';
 import { format, isToday, isYesterday } from 'date-fns';
@@ -62,6 +64,9 @@ export default function ClientMessages() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [mobileView, setMobileView] = useState<'contacts' | 'chat'>('contacts');
   const [showReport, setShowReport] = useState(false);
+  const [showContactInfo, setShowContactInfo] = useState(false);
+  const [searchInChat, setSearchInChat] = useState('');
+  const [searchInChatOpen, setSearchInChatOpen] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -116,9 +121,13 @@ export default function ClientMessages() {
     try { return raw ? JSON.parse(raw) : []; } catch { return []; }
   };
 
+  const filteredConversation = searchInChat
+    ? conversation.filter(m => m.content?.toLowerCase().includes(searchInChat.toLowerCase()))
+    : conversation;
+
   const groupedMessages = (() => {
-    const groups: { date: string; msgs: typeof conversation }[] = [];
-    conversation.forEach(msg => {
+    const groups: { date: string; msgs: typeof filteredConversation }[] = [];
+    filteredConversation.forEach(msg => {
       const dateStr = formatDateSep(msg.timestamp);
       const last = groups[groups.length - 1];
       if (last && last.date === dateStr) last.msgs.push(msg);
@@ -394,6 +403,13 @@ export default function ClientMessages() {
 
               <div className="flex items-center gap-1 flex-shrink-0">
                 <button
+                  onClick={() => setSearchInChatOpen(v => !v)}
+                  className={`p-2 rounded-full transition flex items-center justify-center ${searchInChatOpen ? 'bg-white/20' : 'hover:bg-white/15'}`}
+                  aria-label="Search in conversation"
+                >
+                  <Search size={17} className="text-white" />
+                </button>
+                <button
                   onClick={() => startCall(selectedUser, selectedContact.name, 'audio')}
                   className="p-2.5 hover:bg-white/15 rounded-full transition flex items-center justify-center"
                   aria-label="Voice call"
@@ -415,11 +431,49 @@ export default function ClientMessages() {
                 >
                   <AlertTriangle size={18} className="text-red-300 hover:text-red-200" />
                 </button>
+                <button
+                  onClick={() => setShowContactInfo(v => !v)}
+                  className={`p-2 rounded-full transition flex items-center justify-center ${showContactInfo ? 'bg-white/20' : 'hover:bg-white/15'}`}
+                  aria-label="Contact info"
+                >
+                  <Info size={18} className="text-white" />
+                </button>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto overscroll-contain px-2 sm:px-4 py-3 sm:py-4 space-y-0.5 bg-gradient-to-b from-slate-100 to-slate-50">
-              {groupedMessages.length === 0 && (
+            {searchInChatOpen && (
+              <div className="px-3 sm:px-4 py-2 bg-emerald-900/50">
+                <div className="relative">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={searchInChat}
+                    onChange={e => setSearchInChat(e.target.value)}
+                    placeholder="Search in this conversation…"
+                    className="w-full pl-9 pr-8 py-1.5 bg-white/10 text-white placeholder:text-white/40 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-white/30 transition border border-white/10"
+                  />
+                  {searchInChat && (
+                    <button
+                      onClick={() => setSearchInChat('')}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-white/50 hover:text-white/80"
+                    >
+                      <X size={13} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className={`flex-1 overflow-y-auto overscroll-contain px-2 sm:px-4 py-3 sm:py-4 space-y-0.5 bg-gradient-to-b from-slate-100 to-slate-50 ${showContactInfo ? 'hidden lg:block' : ''}`}>
+              {searchInChat && conversation.filter(m => !m.content?.toLowerCase().includes(searchInChat.toLowerCase())).length === conversation.length && conversation.length > 0 && (
+                <div className="flex flex-col items-center justify-center h-full text-center py-16 text-slate-400">
+                  <Search size={28} className="mb-2 text-slate-300" />
+                  <p className="text-sm font-medium text-slate-500">No matches</p>
+                  <p className="text-xs mt-1 text-slate-400">Try a different search term</p>
+                </div>
+              )}
+
+              {groupedMessages.length === 0 && !searchInChat && (
                 <div className="flex flex-col items-center justify-center h-full text-center py-16 text-slate-400">
                   <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-4 shadow-sm border border-slate-200">
                     <MessageSquare size={28} className="text-slate-300" />
@@ -646,6 +700,114 @@ export default function ClientMessages() {
           reportedName={selectedContact.name}
         />
       )}
+
+      {/* ─── CONTACT INFO PANEL ─────────────────────────────────────────── */}
+      <AnimatePresence>
+        {showContactInfo && selectedContact && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-30 bg-black/30 lg:hidden"
+            onClick={() => setShowContactInfo(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      <motion.aside
+        initial={{ width: 0, opacity: 0 }}
+        animate={showContactInfo && selectedContact ? { width: 300, opacity: 1 } : { width: 0, opacity: 0 }}
+        transition={{ duration: 0.2, ease: 'easeInOut' }}
+        className={`
+          overflow-hidden flex-shrink-0 bg-white border-l border-slate-200
+          ${showContactInfo && selectedContact ? '' : 'hidden lg:block'}
+          fixed lg:static right-0 top-0 bottom-0 z-40 lg:z-auto
+          shadow-2xl lg:shadow-none
+        `}
+        style={{ height: showContactInfo && selectedContact ? '100dvh' : 'auto' }}
+      >
+        {selectedContact && showContactInfo && (
+          <div className="w-[300px] h-full flex flex-col overflow-y-auto">
+            <div className="flex items-center justify-between px-4 pt-5 pb-3 border-b border-slate-100">
+              <h2 className="font-bold text-sm text-slate-900">Contact Info</h2>
+              <button
+                onClick={() => setShowContactInfo(false)}
+                className="p-1.5 hover:bg-slate-100 rounded-lg transition"
+                aria-label="Close"
+              >
+                <X size={16} className="text-slate-400" />
+              </button>
+            </div>
+
+            <div className="p-6 text-center border-b border-slate-100">
+              <img
+                src={selectedContact.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedContact.name)}&size=96&background=e2e8f0&color=64748b`}
+                alt={selectedContact.name}
+                className="w-24 h-24 rounded-full mx-auto mb-3 object-cover ring-4 ring-slate-100"
+              />
+              <h3 className="font-bold text-slate-900 text-lg">{selectedContact.name}</h3>
+              <p className="text-sm text-slate-500 mt-0.5">{selectedContact.email}</p>
+              {selectedContact.phone && (
+                <p className="text-sm text-slate-500">{selectedContact.phone}</p>
+              )}
+              {selectedContact.city && (
+                <p className="text-sm text-slate-400 mt-1">{selectedContact.city}</p>
+              )}
+              <div className="flex items-center justify-center gap-1.5 mt-3">
+                <span className={`w-2 h-2 rounded-full ${isContactOnline(selectedUser) ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                <span className="text-xs text-slate-400">
+                  {isContactOnline(selectedUser) ? 'Active now' : 'Offline'}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex-1 p-4">
+              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                Shared Files
+              </h4>
+              {(() => {
+                const sharedAttachments = conversation
+                  .flatMap(m => parseAttachments(m.attachments))
+                  .filter(Boolean);
+                if (sharedAttachments.length === 0) {
+                  return (
+                    <div className="text-center py-8 text-slate-400">
+                      <Image size={28} className="mx-auto mb-2 text-slate-300" />
+                      <p className="text-xs">No shared files</p>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="space-y-2">
+                    {sharedAttachments.map((att: any, i: number) => (
+                      <a
+                        key={i}
+                        href={resolveUrl(att.url)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-3 p-2.5 bg-slate-50 rounded-xl hover:bg-slate-100 transition border border-slate-100"
+                      >
+                        {att.type?.startsWith('image/') ? (
+                          <img src={resolveUrl(att.url)} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+                        ) : att.type?.startsWith('audio/') ? (
+                          <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <Mic size={16} className="text-emerald-600" />
+                          </div>
+                        ) : (
+                          <div className="w-10 h-10 bg-slate-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <FileText size={16} className="text-slate-500" />
+                          </div>
+                        )}
+                        <span className="text-xs text-slate-600 truncate flex-1">{att.name}</span>
+                      </a>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        )}
+      </motion.aside>
     </div>
   );
 }

@@ -3,7 +3,10 @@ const API = import.meta.env.DEV ? 'http://localhost:3001' : import.meta.env.VITE
 export function resolveUrl(url: string | null | undefined): string {
   if (!url) return '';
   if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url;
-  if (url.startsWith('/') && API) return `${API}${url}`;
+  if (url.startsWith('/')) {
+    const base = API || (typeof window !== 'undefined' ? window.location.origin : '');
+    if (base) return `${base}${url}`;
+  }
   return url;
 }
 

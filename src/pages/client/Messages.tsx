@@ -347,7 +347,7 @@ export default function ClientMessages() {
                 >
                   <div className="relative flex-shrink-0">
                     <img
-                      src={contact.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(contact.name)}&background=e2e8f0&color=64748b`}
+                      src={avatarUrl(contact)}
                       alt={contact.name}
                       className="w-11 h-11 rounded-full object-cover"
                     />
@@ -407,7 +407,7 @@ export default function ClientMessages() {
 
               <div className="relative flex-shrink-0">
                 <img
-                  src={selectedContact.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedContact.name)}&background=e2e8f0&color=64748b`}
+                  src={avatarUrl(selectedContact)}
                   alt={selectedContact.name}
                   className="w-10 h-10 sm:w-11 sm:h-11 rounded-full object-cover ring-2 ring-white/30"
                 />

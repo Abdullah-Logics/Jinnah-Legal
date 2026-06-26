@@ -11,23 +11,11 @@ import { asyncHandler, AppError } from '../middleware/errorHandler.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const UPLOAD_DIR = path.join(__dirname, '../../../uploads');
 
-// On Vercel, use memory storage (no persistent filesystem)
-const isVercel = !!process.env.VERCEL;
-
-let storage;
-if (isVercel) {
-  storage = multer.memoryStorage();
-} else {
-  if (!existsSync(UPLOAD_DIR)) {
-    mkdirSync(UPLOAD_DIR, { recursive: true });
-  }
-  storage = multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
-    filename: (_req, file, cb) => {
-      const ext = path.extname(file.originalname);
-      cb(null, `${uuid()}${ext}`);
-    },
-  });
+// Use memory storage (Vercel serverless has no persistent filesystem,
+// and Render's disk storage isn't needed since we use data URIs)
+const storage = multer.memoryStorage();
+if (!existsSync(UPLOAD_DIR)) {
+  mkdirSync(UPLOAD_DIR, { recursive: true });
 }
 
 const upload = multer({
@@ -49,16 +37,15 @@ const chatUpload = multer({
 export const uploadRouter = Router();
 export { upload, chatUpload };
 
+function dataUri(file) {
+  const b64 = file.buffer.toString('base64');
+  return `data:${file.mimetype || 'application/octet-stream'};base64,${b64}`;
+}
+
 uploadRouter.post('/public', upload.single('file'), asyncHandler(async (req, res) => {
   if (!req.file) throw new AppError('No file uploaded', 400);
   const id = uuid();
-  let fileUrl;
-  if (isVercel) {
-    const b64 = req.file.buffer.toString('base64');
-    fileUrl = `data:${req.file.mimetype || 'application/octet-stream'};base64,${b64}`;
-  } else {
-    fileUrl = `/uploads/${req.file.filename}`;
-  }
+  const fileUrl = dataUri(req.file);
   await run(
     'INSERT INTO documents (id,user_id,name,url,size) VALUES (?,?,?,?,?)',
     [id, null, req.file.originalname, fileUrl, req.file.size]
@@ -70,34 +57,10 @@ uploadRouter.post('/public', upload.single('file'), asyncHandler(async (req, res
 uploadRouter.post('/', requireAuth, upload.single('file'), asyncHandler(async (req, res) => {
   if (!req.file) throw new Error('No file uploaded');
   const id = uuid();
-  let fileUrl;
-  if (isVercel) {
-    const b64 = req.file.buffer.toString('base64');
-    fileUrl = `data:${req.file.mimetype || 'application/octet-stream'};base64,${b64}`;
-  } else {
-    fileUrl = `/uploads/${req.file.filename}`;
-  }
+  const fileUrl = dataUri(req.file);
   await run(
     'INSERT INTO documents (id,user_id,name,url,size) VALUES (?,?,?,?,?)',
     [id, req.user.id, req.file.originalname, fileUrl, req.file.size]
-  );
-  const doc = await queryOne('SELECT * FROM documents WHERE id = ?', [id]);
-  res.json(doc);
-}));
-
-uploadRouter.post('/public', upload.single('file'), asyncHandler(async (req, res) => {
-  if (!req.file) throw new AppError('No file uploaded', 400);
-  const id = uuid();
-  let fileUrl;
-  if (isVercel) {
-    const b64 = req.file.buffer.toString('base64');
-    fileUrl = `data:${req.file.mimetype || 'application/octet-stream'};base64,${b64}`;
-  } else {
-    fileUrl = `/uploads/${req.file.filename}`;
-  }
-  await run(
-    'INSERT INTO documents (id,user_id,name,url,size) VALUES (?,?,?,?,?)',
-    [id, null, req.file.originalname, fileUrl, req.file.size]
   );
   const doc = await queryOne('SELECT * FROM documents WHERE id = ?', [id]);
   res.json(doc);
@@ -111,17 +74,11 @@ uploadRouter.post('/draft', requireAuth, asyncHandler(async (req, res) => {
   const { name, content } = req.body;
   if (!name || !content) throw new AppError('Name and content are required', 400);
   const id = uuid();
-  let fileUrl;
-  if (isVercel) {
-    fileUrl = `data:text/plain;base64,${Buffer.from(content, 'utf-8').toString('base64')}`;
-  } else {
-    const filename = `${id}.txt`;
-    writeFileSync(path.join(UPLOAD_DIR, filename), content, 'utf-8');
-    fileUrl = `/uploads/${filename}`;
-  }
+  const buf = Buffer.from(content, 'utf-8');
+  const fileUrl = `data:text/plain;base64,${buf.toString('base64')}`;
   await run(
     'INSERT INTO documents (id,user_id,name,url,size) VALUES (?,?,?,?,?)',
-    [id, req.user.id, name + '.txt', fileUrl, Buffer.byteLength(content)]
+    [id, req.user.id, name + '.txt', fileUrl, buf.length]
   );
   const doc = await queryOne('SELECT * FROM documents WHERE id = ?', [id]);
   res.json(doc);
@@ -130,8 +87,10 @@ uploadRouter.post('/draft', requireAuth, asyncHandler(async (req, res) => {
 uploadRouter.delete('/:id', requireAuth, asyncHandler(async (req, res) => {
   const doc = await queryOne('SELECT * FROM documents WHERE id=? AND user_id=?', [req.params.id, req.user.id]);
   if (!doc) return res.status(404).json({ error: 'Document not found' });
-  const filePath = path.join(UPLOAD_DIR, path.basename(doc.url));
-  if (existsSync(filePath)) unlinkSync(filePath);
+  if (!doc.url?.startsWith('data:')) {
+    const filePath = path.join(UPLOAD_DIR, path.basename(doc.url));
+    if (existsSync(filePath)) unlinkSync(filePath);
+  }
   await run('DELETE FROM documents WHERE id=?', [req.params.id]);
   res.json({ ok: true });
 }));
@@ -140,6 +99,9 @@ uploadRouter.get('/:id/content', requireAuth, asyncHandler(async (req, res) => {
   const doc = await queryOne('SELECT * FROM documents WHERE id=? AND user_id=?', [req.params.id, req.user.id]);
   if (!doc) return res.status(404).json({ error: 'Document not found' });
   if (doc.content) return res.json({ content: doc.content, doc });
+  if (doc.url?.startsWith('data:')) {
+    return res.json({ content: '', doc });
+  }
   const filePath = path.join(UPLOAD_DIR, path.basename(doc.url));
   if (existsSync(filePath)) {
     const content = readFileSync(filePath, 'utf-8');
@@ -154,25 +116,12 @@ uploadRouter.post('/chat', requireAuth, chatUpload.single('file'), asyncHandler(
   if (!allowedTypes.includes(req.file.mimetype)) {
     throw new AppError('File type not allowed for chat. Allowed: images, PDF, DOC, TXT, audio, video.', 400);
   }
-  if (isVercel) {
-    // On Vercel, return a data URI since we can't serve static files
-    const b64 = req.file.buffer.toString('base64');
-    const dataUri = `data:${req.file.mimetype};base64,${b64}`;
-    res.json({
-      name: req.file.originalname,
-      url: dataUri,
-      type: req.file.mimetype,
-      size: req.file.size,
-    });
-  } else {
-    const fileUrl = `/uploads/${req.file.filename}`;
-    res.json({
-      name: req.file.originalname,
-      url: fileUrl,
-      type: req.file.mimetype,
-      size: req.file.size,
-    });
-  }
+  res.json({
+    name: req.file.originalname,
+    url: dataUri(req.file),
+    type: req.file.mimetype,
+    size: req.file.size,
+  });
 }));
 
 uploadRouter.put('/:id', requireAuth, asyncHandler(async (req, res) => {

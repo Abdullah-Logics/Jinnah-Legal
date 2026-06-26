@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useStore } from '../store/useStore';
 import { motion, AnimatePresence } from 'framer-motion';
+import { avatarUrl } from '../utils/resolveUrl';
 import {
   LayoutDashboard, Briefcase, BookOpen, Search, FileText, Clock, Users,
   Calendar, MessageSquare, User, UserPlus, Brain, Menu, X, LogOut, Bell, Scale, BarChart3, UsersRound,
@@ -102,7 +103,7 @@ export default function LawyerLayout() {
         <div className="flex-shrink-0 p-4 border-b border-white/10">
           <NavLink to="/lawyer/profile" onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 hover:opacity-80 transition">
             <img
-              src={currentUser?.avatar || `https://ui-avatars.com/api/?name=${currentUser?.name}&background=random`}
+              src={avatarUrl(currentUser)}
               alt={currentUser?.name}
               className="w-10 h-10 rounded-full object-cover border-2 border-emerald-400"
             />

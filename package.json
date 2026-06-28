@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "start": "node backend/src/index.js",
-    "render-build": "cd backend && npm install && cd .. && npm run build"
+    "render-build": "npm run build"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

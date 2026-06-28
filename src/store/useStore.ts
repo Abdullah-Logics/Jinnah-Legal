@@ -136,6 +136,14 @@ const API = import.meta.env.DEV
   ? 'http://localhost:3001'
   : import.meta.env.VITE_API_URL || '';
 
+if (!import.meta.env.DEV && !import.meta.env.VITE_API_URL) {
+  console.error(
+    '%c[VITE_API_URL not set]',
+    'font-weight:bold;color:red;font-size:14px',
+    'Set VITE_API_URL in Vercel project settings to your Render backend URL (e.g. https://your-app.onrender.com)'
+  );
+}
+
 function normalizeJournalEntry(e: Record<string, unknown>): JournalEntry {
   const ts = (e.created_at || e.createdAt) as string | undefined;
   return {

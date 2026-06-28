@@ -106,15 +106,16 @@ casesRouter.delete('/:id', asyncHandler(async (req, res) => {
 casesRouter.patch('/:id', validate(caseUpdateSchema), asyncHandler(async (req, res) => {
   const existing = await queryOne('SELECT * FROM cases WHERE id = ?', [req.params.id]);
   if (!existing) throw new AppError('Case not found', 404);
-  const { title, description, status, type, timeline, documents, courtDates } = req.body;
+  const { title, description, status, type, timeline, documents, courtDates, lawyerId } = req.body;
   await run(
-    `UPDATE cases SET title=?,description=?,status=?,type=?,timeline=?,documents=?,court_dates=?,updated_at=? WHERE id=?`,
+    `UPDATE cases SET title=?,description=?,status=?,type=?,timeline=?,documents=?,court_dates=?,lawyer_id=?,updated_at=? WHERE id=?`,
     [
       title ?? existing.title, description ?? existing.description,
       status ?? existing.status, type ?? existing.type,
       timeline ? JSON.stringify(timeline) : existing.timeline,
       documents ? JSON.stringify(documents) : existing.documents,
       courtDates ? JSON.stringify(courtDates) : existing.court_dates,
+      lawyerId ?? existing.lawyer_id,
       new Date().toISOString(), req.params.id,
     ]
   );

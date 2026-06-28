@@ -75,6 +75,7 @@ export const caseUpdateSchema = z.object({
   description: z.string().max(10000).optional(),
   status: z.string().max(50).optional(),
   type: z.string().max(100).optional(),
+  lawyerId: z.string().min(1, 'Lawyer is required').optional(),
   timeline: z.array(z.object({
     date: z.string(),
     event: z.string(),

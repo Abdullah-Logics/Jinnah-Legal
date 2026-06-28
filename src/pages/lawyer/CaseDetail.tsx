@@ -9,13 +9,14 @@ import {
 import { format } from 'date-fns';
 import { useState, useRef, useEffect } from 'react';
 import ShareDialog, { useShareDialog } from '../../components/ShareDialog';
+import { avatarUrl } from '../../utils/resolveUrl';
 
 export default function LawyerCaseDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { cases, users, token, updateCase, deleteCase, loadCases } = useStore();
+  const { cases, users, token, updateCase, deleteCase, loadCases, loadUsers, currentUser } = useStore();
 
-  useEffect(() => { loadCases(); }, [loadCases]);
+  useEffect(() => { loadCases(); loadUsers(); }, [loadCases, loadUsers]);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -25,7 +26,7 @@ export default function LawyerCaseDetail() {
   const [showTimeline, setShowTimeline] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const [editForm, setEditForm] = useState({ title: '', description: '', type: '', status: '' });
+  const [editForm, setEditForm] = useState({ title: '', description: '', type: '', status: '', lawyerId: '' });
   const [courtForm, setCourtForm] = useState({ date: '', time: '', court: '', notes: '' });
   const [timelineForm, setTimelineForm] = useState({ date: '', time: '', event: '', description: '' });
 
@@ -37,6 +38,8 @@ export default function LawyerCaseDetail() {
 
   const caseData = cases.find(c => c.id === id);
   const client = users.find(u => u.id === caseData?.clientId);
+  const assignedLawyer = users.find(u => u.id === caseData?.lawyerId);
+  const lawyers = users.filter(u => u.role === 'lawyer');
 
   if (!caseData) {
     return (
@@ -51,7 +54,7 @@ export default function LawyerCaseDetail() {
   const caseTypes = ['Criminal Law', 'Civil Law', 'Corporate Law', 'Family Law', 'Property Law', 'Tax Law', 'Constitutional Law', 'Banking Law'];
 
   const openEdit = () => {
-    setEditForm({ title: caseData.title, description: caseData.description, type: caseData.type, status: caseData.status });
+    setEditForm({ title: caseData.title, description: caseData.description, type: caseData.type, status: caseData.status, lawyerId: caseData.lawyerId });
     setShowEdit(true);
   };
 
@@ -242,7 +245,7 @@ export default function LawyerCaseDetail() {
             <h2 className="text-lg font-bold text-slate-900 mb-4">Client</h2>
             {client ? (
               <div className="flex items-center gap-3">
-                <img src={client.avatar || `https://ui-avatars.com/api/?name=${client.name}`} alt={client.name} className="w-12 h-12 rounded-full object-cover" />
+                <img src={avatarUrl(client)} alt={client.name} className="w-12 h-12 rounded-full object-cover" />
                 <div>
                   <h3 className="font-medium text-slate-900">{client.name}</h3>
                   {client.email && <p className="text-sm text-slate-500">{client.email}</p>}
@@ -268,6 +271,25 @@ export default function LawyerCaseDetail() {
               >
                 <MessageSquare size={18} /> Message Client
               </Link>
+            )}
+          </div>
+
+          {/* Assigned Lawyer */}
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+            <h2 className="text-lg font-bold text-slate-900 mb-4">Assigned Lawyer</h2>
+            {assignedLawyer ? (
+              <div className="flex items-center gap-3">
+                <img src={avatarUrl(assignedLawyer)} alt={assignedLawyer.name} className="w-12 h-12 rounded-full object-cover" />
+                <div>
+                  <h3 className="font-medium text-slate-900">{assignedLawyer.name}</h3>
+                  {assignedLawyer.email && <p className="text-sm text-slate-500">{assignedLawyer.email}</p>}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-3">
+                <User className="mx-auto text-slate-300 mb-2" size={32} />
+                <p className="text-sm text-slate-400">No lawyer assigned</p>
+              </div>
             )}
           </div>
 
@@ -362,6 +384,17 @@ export default function LawyerCaseDetail() {
                     {['pending', 'active', 'closed', 'won', 'lost'].map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
+                {currentUser?.role === 'admin' && (
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Assign Lawyer</label>
+                    <select value={editForm.lawyerId} onChange={e => setEditForm({ ...editForm, lawyerId: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    >
+                      <option value="">Select lawyer</option>
+                      {lawyers.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                    </select>
+                  </div>
+                )}
                 <div className="flex gap-3 pt-2">
                   <button onClick={() => setShowEdit(false)} className="flex-1 px-4 py-3 border border-slate-200 text-slate-700 rounded-xl font-semibold hover:bg-slate-50">Cancel</button>
                   <button onClick={handleEdit} className="flex-1 px-4 py-3 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700">Save Changes</button>

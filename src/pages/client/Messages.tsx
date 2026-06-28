@@ -5,7 +5,7 @@ import {
   Search, Send, Paperclip, Phone, Video,
   Check, CheckCheck, Camera, Mic, MicOff, FileText, X,
   Image as ImageIcon, ArrowLeft, Smile, MessageSquare, AlertTriangle, UsersRound,
-  Info, Image, MoreVertical,
+  Info, Image, MoreVertical, Download,
 } from 'lucide-react';
 
 import ReportModal from '../../components/ReportModal';
@@ -13,7 +13,7 @@ import { Link } from 'react-router-dom';
 import { format, isToday, isYesterday } from 'date-fns';
 import { useCall } from '../../context/CallContext';
 import ShareCard, { parseShareData } from '../../components/ShareCard';
-import { resolveUrl, avatarUrl } from '../../utils/resolveUrl';
+import { resolveUrl, avatarUrl, downloadFile } from '../../utils/resolveUrl';
 
 const API = import.meta.env.DEV ? 'http://localhost:3001' : import.meta.env.VITE_API_URL || '';
 
@@ -190,20 +190,32 @@ export default function ClientMessages() {
     const src = resolveUrl(att.url);
     if (att.type.startsWith('image/')) {
       return (
-        <a href={src} target="_blank" rel="noopener noreferrer">
-          <img src={src} alt={att.name} className="max-w-[200px] rounded-xl object-cover" />
-        </a>
+        <div className="relative group">
+          <img src={src} alt={att.name} className="max-w-[200px] rounded-xl object-cover cursor-pointer" onClick={() => window.open(src)} />
+          <button onClick={() => downloadFile(src, att.name)}
+            className="absolute top-1 right-1 p-1.5 bg-black/50 text-white rounded-lg opacity-0 group-hover:opacity-100 hover:bg-black/70 transition"
+            title="Download">
+            <Download size={14} />
+          </button>
+        </div>
       );
     }
     if (att.type.startsWith('audio/')) {
       return <audio src={src} controls className="max-w-[220px]" />;
     }
     return (
-      <a href={src} target="_blank" rel="noopener noreferrer"
-        className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium ${isMine ? 'bg-emerald-700 text-white' : 'bg-slate-100 text-slate-700'}`}>
-        <FileText size={14} />
-        <span className="truncate max-w-[140px]">{att.name}</span>
-      </a>
+      <div className="relative group inline-block">
+        <a href={src} target="_blank" rel="noopener noreferrer"
+          className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium ${isMine ? 'bg-emerald-700 text-white' : 'bg-slate-100 text-slate-700'}`}>
+          <FileText size={14} />
+          <span className="truncate max-w-[140px]">{att.name}</span>
+        </a>
+        <button onClick={() => downloadFile(src, att.name)}
+          className="absolute -top-1.5 -right-1.5 p-1 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 hover:bg-black/70 transition shadow"
+          title="Download">
+          <Download size={12} />
+        </button>
+      </div>
     );
   };
 

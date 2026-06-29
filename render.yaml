@@ -11,3 +11,18 @@ services:
         value: https://ai-lawyer-blush.vercel.app
       - key: PORT
         value: "3002"
+
+  - type: web
+    name: jinnah-legal-api
+    env: node
+    region: ohio
+    plan: free
+    buildCommand: cd backend && npm install
+    startCommand: node backend/src/index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: FRONTEND_URL
+        value: https://ai-lawyer-blush.vercel.app

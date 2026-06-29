@@ -150,25 +150,4 @@ adminRouter.get('/documents/:userId', asyncHandler(async (req, res) => {
   res.json(docs);
 }));
 
-// TEMP: restore backup data - REMOVE AFTER USE
-adminRouter.post('/restore-backup', asyncHandler(async (req, res) => {
-  await requireAdmin(req);
-  const { tables } = req.body;
-  if (!tables || typeof tables !== 'object') throw new AppError('tables object required', 400);
-  let total = 0;
-  for (const [table, rows] of Object.entries(tables)) {
-    if (!rows?.length) continue;
-    const cols = Object.keys(rows[0]);
-    const ph = cols.map(() => '?').join(',');
-    const stmt = `INSERT OR IGNORE INTO "${table}" (${cols.map(c=>'"'+c+'"').join(',')}) VALUES (${ph})`;
-    for (const r of rows) {
-      try {
-        await run(stmt, cols.map(c => r[c] ?? null));
-        total++;
-      } catch (err) {
-        console.error(`Failed to insert into ${table}:`, err.message);
-      }
-    }
-  }
-  res.json({ ok: true, totalInserted: total });
-}));
+

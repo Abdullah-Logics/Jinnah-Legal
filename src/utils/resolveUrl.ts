@@ -1,9 +1,18 @@
 const API = import.meta.env.DEV ? 'http://localhost:3001' : import.meta.env.VITE_API_URL || '';
 
+function getBase() {
+  if (API) return API;
+  if (typeof window !== 'undefined') return window.location.origin;
+  return '';
+}
+
 export function resolveUrl(url: string | null | undefined): string {
   if (!url) return '';
   if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) return url;
-  if (url.startsWith('/') && API) return `${API}${url}`;
+  if (url.startsWith('/')) {
+    const base = getBase();
+    if (base) return `${base}${url}`;
+  }
   return url;
 }
 

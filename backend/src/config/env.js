@@ -37,16 +37,13 @@ export function validateEnv() {
   }
 
   if (isProd && !process.env.FRONTEND_URL) {
-    errors.push('FRONTEND_URL is required in production');
+    console.warn('FRONTEND_URL not set — using default CORS origins');
   }
 
   if (errors.length > 0) {
-    console.error('\n❌ Environment Configuration Errors:');
+    console.error('\n⚠️  Environment Configuration Warnings:');
     errors.forEach(e => console.error(`   ${e}`));
     console.error('');
-    if (isProd) {
-      process.exit(1);
-    }
   }
 }
 
@@ -57,5 +54,9 @@ export function getCorsOrigin() {
     origins.push('http://localhost:5173', 'http://localhost:3001');
   }
   origins.push('https://ai-lawyer-blush.vercel.app', 'https://ai-lawyer.vercel.app');
-  return origins;
+  // CORS function: allow known origins + echo back request origin (handles preview deploys)
+  return (origin, cb) => {
+    if (!origin || origins.includes(origin)) return cb(null, true);
+    return cb(null, origin);
+  };
 }

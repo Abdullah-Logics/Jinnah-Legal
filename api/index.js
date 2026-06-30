@@ -9,11 +9,11 @@ export default async function handler(req, res) {
     }
     return app(req, res);
   } catch (err) {
-    console.error('Serverless handler error:', err);
+    console.error('[Vercel handler] Error:', err.message);
+    console.error('[Vercel handler] Stack:', err.stack);
     res.status(500).json({
       error: 'Internal server error',
       message: err.message,
-      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
     });
   }
 }

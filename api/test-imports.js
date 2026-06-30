@@ -1,4 +1,4 @@
-// Test each import from app.js individually
+// Test each import sequentially so we know which one fails
 const results = [];
 
 async function testImport(name, importFn) {
@@ -10,7 +10,6 @@ async function testImport(name, importFn) {
   }
 }
 
-// Run all import tests
 const modules = [
   ['express', () => import('express')],
   ['cors', () => import('cors')],
@@ -22,7 +21,6 @@ const modules = [
   ['url', () => import('url')],
   ['fs', () => import('fs')],
 
-  // Backend modules
   ['./db/adapter', () => import('../backend/src/db/adapter.js')],
   ['./config/env', () => import('../backend/src/config/env.js')],
   ['./middleware/errorHandler', () => import('../backend/src/middleware/errorHandler.js')],
@@ -38,7 +36,9 @@ const modules = [
   ['./routes/citations', () => import('../backend/src/routes/citations.js')],
 ];
 
-await Promise.all(modules.map(([name, fn]) => testImport(name, fn)));
+for (const [name, fn] of modules) {
+  await testImport(name, fn);
+}
 
 export default async function handler(req, res) {
   const failed = results.filter(r => !r.ok);

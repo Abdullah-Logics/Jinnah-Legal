@@ -14,8 +14,12 @@ const UPLOAD_DIR = path.join(__dirname, '../../../uploads');
 // Use memory storage (Vercel serverless has no persistent filesystem,
 // and Render's disk storage isn't needed since we use data URIs)
 const storage = multer.memoryStorage();
-if (!existsSync(UPLOAD_DIR)) {
-  mkdirSync(UPLOAD_DIR, { recursive: true });
+try {
+  if (!existsSync(UPLOAD_DIR)) {
+    mkdirSync(UPLOAD_DIR, { recursive: true });
+  }
+} catch {
+  // Vercel Lambda has read-only /var/task filesystem
 }
 
 const upload = multer({

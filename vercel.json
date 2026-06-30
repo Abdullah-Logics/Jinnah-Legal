@@ -4,36 +4,13 @@
   "outputDirectory": "dist",
   "functions": {
     "api/index.js": {
-      "memory": 512,
       "maxDuration": 30
     },
-    "api/debug.js": {
-      "maxDuration": 30
-    },
-    "api/minimal.js": {
-      "maxDuration": 30
-    },
-    "api/test1.js": { "maxDuration": 30 },
-    "api/test2.js": { "maxDuration": 30 },
-    "api/test3.js": { "maxDuration": 30 },
-    "api/test4.js": { "maxDuration": 30 },
-    "api/test5.js": { "maxDuration": 30 },
-    "api/test-dotenv-a.js": { "maxDuration": 30 },
-    "api/test-dotenv-b.js": { "maxDuration": 30 },
-    "api/test-routes.js": { "maxDuration": 30 },
-    "api/test-imports.js": { "maxDuration": 60 }
+    "api/test-imports.js": {
+      "maxDuration": 60
+    }
   },
   "rewrites": [
-    { "source": "/api/debug", "destination": "/api/debug" },
-    { "source": "/api/minimal", "destination": "/api/minimal" },
-    { "source": "/api/test1", "destination": "/api/test1" },
-    { "source": "/api/test2", "destination": "/api/test2" },
-    { "source": "/api/test3", "destination": "/api/test3" },
-    { "source": "/api/test4", "destination": "/api/test4" },
-    { "source": "/api/test5", "destination": "/api/test5" },
-    { "source": "/api/test-dotenv-a", "destination": "/api/test-dotenv-a" },
-    { "source": "/api/test-dotenv-b", "destination": "/api/test-dotenv-b" },
-    { "source": "/api/test-routes", "destination": "/api/test-routes" },
     { "source": "/api/test-imports", "destination": "/api/test-imports" },
     { "source": "/api/(.*)", "destination": "/api" },
     { "source": "/(.*)", "destination": "/index.html" }

@@ -15,10 +15,13 @@ const GREETING: Message = {
 
 const SUGGESTIONS = [
   'Draft a legal notice',
-  'Research precedents',
+  'Research precedents for qatl-e-amd',
   'Summarize PPC 420',
   'Cross-examination questions',
   'Analyze this contract',
+  'Search citations for specific performance',
+  'Top 10 cases on constitutional law',
+  'Cite 2023 SCMR cases on bail',
 ];
 
 export default function LawyerAIBrain() {

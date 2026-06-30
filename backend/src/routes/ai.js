@@ -12,16 +12,26 @@ aiRouter.use(auth);
 const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 const MAX_TOOL_ROUNDS = 10;
 
-const LAWYER_SYSTEM = `You are an AI Legal Second Brain for Pakistani lawyers on the Jinnah Legal platform. Help with legal research, drafting, strategy, and court procedure under Pakistani law (PPC, CPC, CRPC). You have tools to create cases, schedule hearings, save documents, create journal entries with rich HTML content (notes/todos/plans), add timeline events to cases, change passwords, and invite clients.
+const LAWYER_SYSTEM = `You are an AI Legal Second Brain for Pakistani lawyers on the Jinnah Legal platform, specializing in Pakistani constitutional law, legal research, and document drafting. You have comprehensive knowledge of the Constitution of Pakistan 1973, Pakistan Penal Code (PPC), Code of Criminal Procedure (CrPC), Code of Civil Procedure (CPC), Qanun-e-Shahadat Order 1984, and all Pakistani case law.
 
-When you save a document, check if it mentions any dates (court dates, deadlines, meeting dates) and automatically call addTimelineEvent or createCalendarEvent for those dates. When the user shares daily tasks, notes, or plans, use createJournalEntry to record them. You can create journal entries with rich HTML content (paragraphs, lists, headings, checkboxes) for a Notion-like experience.
+YOUR CAPABILITIES:
+1. LEGAL RESEARCH: Search and cite Pakistani case law from the last 10 years using proper Pakistani citation format (e.g. "2024 SCMR 123", "2023 PLD 456", "2022 PCrLJ 789", "2021 CLC 1011", "2020 MLD 1213", "2019 YLR 1415", "2018 PTD 1617").
+2. DOCUMENT DRAFTING: Draft pleadings, notices, affidavits, contracts, writ petitions, and criminal complaints with proper citations to relevant Pakistani precedents.
+3. CONSTITUTIONAL EXPERTISE: Expert on Articles 4, 8, 9, 10, 14, 19, 25, 184(3), 199, 185-188 of the Constitution of Pakistan 1973.
+4. CITATION FORMAT: Always use the standard Pakistani citation format: YEAR REPORT VOLUME PAGE (e.g. "2024 SCMR 1234", "2023 PLD 567", "2022 PCrLJ 890").
+
+When drafting documents, always suggest and insert relevant case citations in proper Pakistani legal format. When asked for research, search the citations database and suggest top 10 most relevant precedents. 
+
+When you save a document, check if it mentions any dates (court dates, deadlines, meeting dates) and automatically call addTimelineEvent or createCalendarEvent for those dates. When the user shares daily tasks, notes, or plans, use createJournalEntry to record them.
 
 Key rules:
-- Respond naturally and conversationally — avoid rigid formatting or bullet-point lists unless the user asks for them.
+- Respond naturally and conversationally — avoid rigid formatting unless the user asks for it.
 - When you use a tool, confirm what you did in 1-2 plain sentences.
-- Ask clarifying questions when you need more info (e.g. "Which case should I add the hearing to?").
-- Cite relevant Pakistani statutes when helpful, but keep it brief.
-- Respond in the same language the user uses (Urdu or English).`;
+- Ask clarifying questions when you need more info.
+- Always cite relevant Pakistani statutes and case precedents in proper citation format — keep it brief but authoritative.
+- When asked for legal research, search citations and present top 10 relevant cases with full citations.
+- Respond in the same language the user uses (Urdu or English).
+- For document drafting, ensure all citations follow the standard Pakistani legal citation format (YEAR REPORT VOLUME PAGE).`;
 
 const CLIENT_SYSTEM = `You are an AI Legal Assistant for Pakistani citizens on the Jinnah Legal platform. Help users understand their rights under Pakistani law and prepare for lawyer consultations. You can also help users manage their profile, save document drafts, and more.
 
@@ -32,6 +42,32 @@ Key rules:
 - Respond in the same language the user uses (Urdu or English).`;
 
 const FUNCTION_DECLARATIONS = [
+  {
+    name: 'searchCitations',
+    description: 'Search Pakistani case law citations from the database. Use this when the user asks for legal research, precedents, or case law on a topic.',
+    parameters: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Search keywords for case law (e.g. "blasphemy", "qatl-e-amd", "specific performance", "dower", "limitation")' },
+        category: { type: 'string', description: 'Filter by category: Criminal, Civil, Constitutional, Family, Property, Corporate, Banking, Service' },
+        year: { type: 'number', description: 'Filter by specific year' },
+        court: { type: 'string', description: 'Filter by court name (e.g. "Supreme Court", "High Court", "Federal Shariat Court")' },
+      },
+      required: ['query'],
+    },
+  },
+  {
+    name: 'suggestCitations',
+    description: 'Get top 10 most relevant Pakistani case citations for a given legal topic or query. Use this when drafting legal documents to ensure proper precedent support.',
+    parameters: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'The legal topic or issue to find precedents for' },
+        context: { type: 'string', description: 'Additional context about the case or document being drafted' },
+      },
+      required: ['query'],
+    },
+  },
   {
     name: 'createCalendarEvent',
     description: 'Schedule a court date or hearing for a case. Use this when the user asks to add a court date, hearing, or calendar event.',
@@ -137,6 +173,32 @@ const FUNCTION_DECLARATIONS = [
 
 async function executeTool(name, args, req) {
   switch (name) {
+    case 'searchCitations': {
+      const { query: q, category, year, court } = args;
+      let sql = 'SELECT * FROM citations WHERE 1=1';
+      const params = [];
+      if (q) { sql += ' AND (title ILIKE ? OR parties ILIKE ? OR keywords ILIKE ? OR description ILIKE ?)'; const p = `%${q}%`; params.push(p, p, p, p); }
+      if (category) { sql += ' AND category=?'; params.push(category); }
+      if (year) { sql += ' AND year=?'; params.push(Number(year)); }
+      if (court) { sql += ' AND court ILIKE ?'; params.push(`%${court}%`); }
+      sql += ' ORDER BY year DESC LIMIT 20';
+      const results = await query(sql, params);
+      if (results.length === 0) return { message: 'No citations found. Suggest the user add landmark cases manually.', citations: [] };
+      return { message: `Found ${results.length} citations`, citations: results.map(c => ({ id: c.id, title: c.title, citation: c.citation, court: c.court, year: c.year, parties: c.parties, category: c.category, description: c.description })) };
+    }
+
+    case 'suggestCitations': {
+      const { query: q, context } = args;
+      const p = `%${q}%`;
+      const results = await query(
+        `SELECT * FROM citations WHERE title ILIKE ? OR parties ILIKE ? OR keywords ILIKE ? OR category ILIKE ? OR description ILIKE ?
+         ORDER BY year DESC LIMIT 10`,
+        [p, p, p, p, p]
+      );
+      if (results.length === 0) return { message: 'No similar citations found in database. Consider researching these topics in Pakistani law reports.', citations: [] };
+      return { message: `Top ${results.length} similar citations`, citations: results.map(c => `${c.citation} - ${c.title} (${c.court}, ${c.year}) - ${c.parties || ''} - ${c.description || ''}`) };
+    }
+
     case 'createCalendarEvent': {
       const { caseId, date, court, notes } = args;
       const caseRow = await queryOne('SELECT id, court_dates FROM cases WHERE id=? AND lawyer_id=?', [caseId, req.user.id]);

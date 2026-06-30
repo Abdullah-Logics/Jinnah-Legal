@@ -238,6 +238,20 @@ export class PostgresAdapter {
         ended_at TIMESTAMP,
         created_at TIMESTAMP DEFAULT NOW()
       );
+      CREATE TABLE IF NOT EXISTS citations (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        citation TEXT NOT NULL,
+        court TEXT NOT NULL,
+        year INTEGER NOT NULL,
+        parties TEXT,
+        category TEXT,
+        description TEXT,
+        full_text TEXT,
+        relevant_statutes TEXT,
+        keywords TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
       `);
       // Migrations for existing tables
       try { await client.query("ALTER TABLE messages ADD COLUMN share_data TEXT"); } catch {}

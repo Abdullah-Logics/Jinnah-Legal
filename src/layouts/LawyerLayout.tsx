@@ -20,6 +20,7 @@ const sidebarItems = [
   { path: '/lawyer/documents', icon: FileText, label: 'Documents' },
   { path: '/lawyer/ai-brain', icon: Brain, label: 'AI Brain' },
   { path: '/lawyer/research', icon: Search, label: 'AI Research' },
+  { path: '/lawyer/citations', icon: Scale, label: 'Citations' },
   { path: '/lawyer/time-tracking', icon: Clock, label: 'Time & Billing' },
   { path: '/lawyer/requests', icon: UserPlus, label: 'Network' },
   { path: '/lawyer/profile', icon: User, label: 'Profile' },

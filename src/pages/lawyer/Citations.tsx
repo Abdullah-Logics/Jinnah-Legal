@@ -291,7 +291,7 @@ export default function CaseLibrary() {
         <div className="flex items-center justify-between mb-3 sm:mb-4">
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Pakistani Case Law</h1>
-            <p className="text-xs sm:text-sm text-slate-500 mt-0.5">{total.toLocaleString()} cases from all Pakistani courts (2015–2025)</p>
+            <p className="text-xs sm:text-sm text-slate-500 mt-0.5">{total.toLocaleString()} real Supreme Court judgments (2000–2024) — Jinnah Data</p>
           </div>
         </div>
 
@@ -331,21 +331,18 @@ export default function CaseLibrary() {
               </select>
             </div>
 
-            {(search || category || court || yearFrom || yearTo) && (
-              <div className="flex flex-wrap gap-1.5 mb-3">
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              {(search || category || court || yearFrom || yearTo) && (
                 <button onClick={() => { setSearch(''); setCategory(''); setCourt(''); setYearFrom(''); setYearTo(''); }}
                   className="text-[10px] px-2 py-1 bg-red-50 text-red-600 rounded-full hover:bg-red-100 transition flex items-center gap-1"
                 ><X size={10} /> Clear all</button>
-                <button onClick={() => { setYearFrom(''); setYearTo('2025'); setSearch(''); }}
-                  className={`text-[10px] px-2.5 py-1 rounded-full transition flex items-center gap-1 ${yearTo === '2025' && !yearFrom ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                >2025 cases</button>
-                {COURTS.slice(0, 3).map(c => (
-                  <button key={c} onClick={() => setCourt(court === c ? '' : c)}
-                    className={`text-[10px] px-2.5 py-1 rounded-full transition ${court === c ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                  >{c.replace(' of Pakistan', '')}</button>
-                ))}
-              </div>
-            )}
+              )}
+              {[{ label: 'Criminal', val: 'Criminal' }, { label: 'Constitutional', val: 'Constitutional' }, { label: 'Civil', val: 'Civil' }].map(({ label, val }) => (
+                <button key={val} onClick={() => setCategory(category === val ? '' : val)}
+                  className={`text-[10px] px-2.5 py-1 rounded-full transition ${category === val ? 'bg-indigo-100 text-indigo-700 font-medium' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                >{label}</button>
+              ))}
+            </div>
 
             <AnimatePresence>
               {showFilters && (

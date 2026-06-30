@@ -6,9 +6,17 @@
     "api/index.js": {
       "memory": 512,
       "maxDuration": 30
+    },
+    "api/debug.js": {
+      "maxDuration": 30
+    },
+    "api/minimal.js": {
+      "maxDuration": 30
     }
   },
   "rewrites": [
+    { "source": "/api/debug", "destination": "/api/debug" },
+    { "source": "/api/minimal", "destination": "/api/minimal" },
     { "source": "/api/(.*)", "destination": "/api" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]

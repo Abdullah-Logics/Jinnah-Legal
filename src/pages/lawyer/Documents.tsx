@@ -378,8 +378,11 @@ export default function LawyerDocuments() {
     try {
       const params = new URLSearchParams({ search: q, limit: '20' });
       const res = await fetch(`${API}/api/citations?${params}`, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) setCitResults(await res.json());
-    } catch {}
+      if (res.ok) {
+        const data = await res.json();
+        setCitResults(data.rows || []);
+      }
+    } catch (e) { console.error('Citation search failed', e); }
     setCitLoading(false);
   };
 
@@ -404,7 +407,7 @@ export default function LawyerDocuments() {
   };
 
   const insertCitationText = (text: string) => {
-    const html = `<p><strong>${text}</strong></p>`;
+    const html = `<p style="margin-left:1.5em;text-indent:-1.5em;padding-left:0;"><strong>${text}</strong> <span style="font-size:0.85em;color:#6366f1;">— Citation</span></p>`;
     insertAtCursor(html);
     setShowCitationPanel(false);
   };

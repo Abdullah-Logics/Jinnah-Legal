@@ -156,14 +156,14 @@ citationsRouter.post('/delete-by-year', asyncHandler(async (req, res) => {
   const { year } = req.body;
   if (!year) throw new AppError('year required', 400);
   await run('DELETE FROM citation_cart WHERE citation_id IN (SELECT id FROM citations WHERE year=?)', [year]);
-  const result = await run('DELETE FROM citations WHERE year=?', [year]);
-  res.json({ deleted: result.rowCount || 0, year });
+  await run('DELETE FROM citations WHERE year=?', [year]);
+  res.json({ ok: true, year });
 }));
 
 citationsRouter.post('/truncate', asyncHandler(async (req, res) => {
   await run('DELETE FROM citation_cart');
-  const result = await run('DELETE FROM citations');
-  res.json({ deleted: result.rowCount || 0 });
+  await run('DELETE FROM citations');
+  res.json({ ok: true });
 }));
 
 /* ─── Suggest Top 10 ────────────────────────────────────────── */

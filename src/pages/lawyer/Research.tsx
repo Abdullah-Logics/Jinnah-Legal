@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, Brain, FileText, Clock, BookOpen, Sparkles, Send, Lightbulb, Save, Loader, Trash2,
   Scale, Gavel, Plus, Clipboard, ShoppingCart, Calendar, ChevronDown, ChevronRight,
@@ -51,7 +51,7 @@ const COURTS = ['Supreme Court of Pakistan', 'Lahore High Court', 'Sindh High Co
 const QUICK_CHIPS = ['bail', 'murder', 'constitutional', 'divorce', 'property', 'tax', 'service', 'corporate', 'family', 'inheritance'];
 
 export default function LawyerResearch() {
-  const { currentUser, token } = useStore();
+  const { token } = useStore();
   const [query, setQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -98,7 +98,7 @@ export default function LawyerResearch() {
         setCitResults(data.rows || data);
         setCitTotal(data.total || data.length || 0);
       }
-    } catch {}
+    } catch (e) { console.error('Citation search failed', e); }
     setCitLoading(false);
   };
 

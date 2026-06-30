@@ -164,6 +164,19 @@ export default function CaseLibrary() {
     navigate('/lawyer/documents');
   };
 
+  const saveToJournal = async (c: Citation) => {
+    const today = new Date().toISOString().slice(0, 10);
+    const { addJournalEntry } = useStore.getState();
+    await addJournalEntry({
+      userId: currentUser?.id || '',
+      date: today,
+      notes: `Cited case: ${c.citation} - ${c.title}`,
+      todos: [],
+      plans: '',
+      content: `<h3>Case Reference: ${c.citation}</h3><p><strong>${c.title}</strong></p><p>Court: ${c.court} (${c.year})</p><p>Category: ${c.category}</p>${c.description ? `<p>${c.description}</p>` : ''}${c.relevant_statutes ? `<p>Statutes: ${c.relevant_statutes}</p>` : ''}`,
+    });
+  };
+
   const getShareContacts = () => {
     const myClientIds = new Set(cases.filter(cc => cc.lawyerId === currentUser?.id).map(cc => cc.clientId));
     return users.filter(u => myClientIds.has(u.id));
@@ -243,6 +256,9 @@ export default function CaseLibrary() {
             <button onClick={() => insertIntoDocument(c)}
               className="flex items-center gap-1 text-[10px] sm:text-[11px] font-medium text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-2 sm:px-2.5 py-1.5 rounded-lg transition"
             ><Clipboard size={11} /> Use in Doc</button>
+            <button onClick={() => saveToJournal(c as Citation)}
+              className="flex items-center gap-1 text-[10px] sm:text-[11px] font-medium text-amber-600 bg-amber-50 hover:bg-amber-100 px-2 sm:px-2.5 py-1.5 rounded-lg transition"
+            ><BookOpen size={11} /> Journal</button>
             <div className="relative">
               <button onClick={() => setShareTarget(shareTarget?.id === c.id ? null : c)}
                 className="flex items-center gap-1 text-[10px] sm:text-[11px] font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 px-2 sm:px-2.5 py-1.5 rounded-lg transition"

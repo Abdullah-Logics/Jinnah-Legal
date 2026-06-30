@@ -131,3 +131,45 @@ citationsRouter.get('/suggest/top', asyncHandler(async (req, res) => {
   );
   res.json(rows);
 }));
+
+/* ─── Citation Cart ─────────────────────────────────────────── */
+
+citationsRouter.get('/cart/list', asyncHandler(async (req, res) => {
+  const rows = await query(
+    `SELECT cc.id as cart_id, cc.notes, cc.created_at as added_at,
+            c.id, c.title, c.citation, c.court, c.year, c.parties, c.category,
+            c.description, c.relevant_statutes, c.keywords
+     FROM citation_cart cc
+     JOIN citations c ON c.id = cc.citation_id
+     WHERE cc.user_id = ?
+     ORDER BY cc.created_at DESC`,
+    [req.user.id]
+  );
+  res.json(rows);
+}));
+
+citationsRouter.post('/cart', asyncHandler(async (req, res) => {
+  const { citationId, notes } = req.body;
+  if (!citationId) throw new AppError('citationId required', 400);
+  const existing = await queryOne(
+    'SELECT id FROM citation_cart WHERE user_id=? AND citation_id=?',
+    [req.user.id, citationId]
+  );
+  if (existing) return res.json({ id: existing.id, message: 'Already in cart' });
+  const id = uuid();
+  await run(
+    'INSERT INTO citation_cart (id,user_id,citation_id,notes) VALUES (?,?,?,?)',
+    [id, req.user.id, citationId, notes || null]
+  );
+  res.status(201).json({ id, message: 'Added to cart' });
+}));
+
+citationsRouter.delete('/cart/:cartId', asyncHandler(async (req, res) => {
+  await run('DELETE FROM citation_cart WHERE id=? AND user_id=?', [req.params.cartId, req.user.id]);
+  res.json({ ok: true });
+}));
+
+citationsRouter.delete('/cart', asyncHandler(async (req, res) => {
+  await run('DELETE FROM citation_cart WHERE user_id=?', [req.user.id]);
+  res.json({ ok: true });
+}));

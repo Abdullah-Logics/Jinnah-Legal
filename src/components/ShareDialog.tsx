@@ -5,7 +5,7 @@ import { useStore } from '../store/useStore';
 import { shareInChat, notify } from '../utils/share';
 
 interface SharePayload {
-  type: 'hearing' | 'document' | 'journal' | 'todo' | 'calendar' | 'case';
+  type: 'hearing' | 'document' | 'journal' | 'todo' | 'calendar' | 'case' | 'citation';
   title: string;
   description?: string;
   details?: Record<string, any>;

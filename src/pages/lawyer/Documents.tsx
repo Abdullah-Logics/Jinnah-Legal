@@ -3,12 +3,39 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   FileText, Plus, Search, Download, Trash2, Upload, Loader,
   ArrowLeft, Save, Sparkles, Edit3, BookTemplate, FolderOpen,
-  X, Eye, ChevronDown, Printer, CaseSensitive,
+  X, Eye, ChevronDown, Printer, CaseSensitive, Scale, ShoppingCart, BookOpen, Clipboard,
   Bold, Italic, Underline, Heading1, Heading2, Heading3,
   List, ListOrdered, AlignLeft, AlignCenter, AlignRight, Share2,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import ShareDialog, { useShareDialog } from '../../components/ShareDialog';
+
+interface Citation {
+  id: string;
+  title: string;
+  citation: string;
+  court: string;
+  year: number;
+  parties: string;
+  category: string;
+  description: string;
+  relevant_statutes: string;
+  keywords: string;
+}
+
+interface CartItem {
+  cart_id: string;
+  id: string;
+  title: string;
+  citation: string;
+  court: string;
+  year: number;
+  parties: string;
+  category: string;
+  description: string;
+  relevant_statutes: string;
+  keywords: string;
+}
 
 interface Doc {
   id: string;
@@ -317,6 +344,16 @@ export default function LawyerDocuments() {
   const [docContent, setDocContent] = useState('');
   const [docCaseId, setDocCaseId] = useState('');
 
+  const [showCitationPanel, setShowCitationPanel] = useState(false);
+  const [citSearch, setCitSearch] = useState('');
+  const [citResults, setCitResults] = useState<Citation[]>([]);
+  const [citCart, setCitCart] = useState<CartItem[]>([]);
+  const [citLoading, setCitLoading] = useState(false);
+  const [citTab, setCitTab] = useState<'search' | 'cart'>('search');
+  const [pendingCitation, setPendingCitation] = useState<string | null>(() => {
+    try { return localStorage.getItem('opencode_insert_citation'); } catch { return null; }
+  });
+
   const API = import.meta.env.DEV ? 'http://localhost:3001' : import.meta.env.VITE_API_URL || '';
 
   const headers = (): Record<string, string> => {
@@ -334,6 +371,43 @@ export default function LawyerDocuments() {
   }, [API, token]);
 
   useEffect(() => { loadDocs(); loadCases(); loadUsers(); }, [loadDocs, loadCases]);
+
+  const searchCitations = async (q: string) => {
+    if (!q.trim()) return;
+    setCitLoading(true);
+    try {
+      const params = new URLSearchParams({ search: q, limit: '20' });
+      const res = await fetch(`${API}/api/citations?${params}`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) setCitResults(await res.json());
+    } catch {}
+    setCitLoading(false);
+  };
+
+  const loadCitCart = async () => {
+    try {
+      const res = await fetch(`${API}/api/citations/cart/list`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) setCitCart(await res.json());
+    } catch {}
+  };
+
+  const addToCitCart = async (citationId: string) => {
+    await fetch(`${API}/api/citations/cart`, {
+      method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ citationId }),
+    });
+    loadCitCart();
+  };
+
+  const removeFromCitCart = async (cartId: string) => {
+    await fetch(`${API}/api/citations/cart/${cartId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+    loadCitCart();
+  };
+
+  const insertCitationText = (text: string) => {
+    const html = `<p><strong>${text}</strong></p>`;
+    insertAtCursor(html);
+    setShowCitationPanel(false);
+  };
 
   const myCases = (cases || []).filter(c => c.lawyerId === currentUser?.id && c.status === 'active');
 
@@ -726,6 +800,11 @@ export default function LawyerDocuments() {
               <CaseSensitive size={10} /> {linkedClient.name}
             </span>
           )}
+          <button onClick={() => { setShowCitationPanel(v => !v); if (citTab === 'cart') loadCitCart(); }}
+            className={`flex items-center gap-1 px-2 py-1 rounded-lg border transition text-xs ${showCitationPanel ? 'bg-indigo-100 border-indigo-300 text-indigo-700' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'}`}
+          >
+            <Scale size={12} /> Citations <ChevronDown size={12} />
+          </button>
           <div className="relative">
             <button onClick={() => setShowTemplates(!showTemplates)}
               className="flex items-center gap-1 px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 transition text-slate-600"
@@ -794,6 +873,107 @@ export default function LawyerDocuments() {
             {aiError && <p className="text-[11px] text-red-500 mt-1.5">{aiError}</p>}
           </div>
         </div>
+
+        {/* Pending Citation Banner */}
+        <AnimatePresence>
+          {pendingCitation && (
+            <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+              className="bg-indigo-50 border-b border-indigo-200 px-3 md:px-4 py-2 flex items-center gap-3 text-xs"
+            >
+              <Scale size={14} className="text-indigo-500" />
+              <span className="text-indigo-700 flex-1 truncate">
+                Citation ready: <strong>{pendingCitation}</strong>
+              </span>
+              <button onClick={() => { insertCitationText(pendingCitation!); setPendingCitation(null); localStorage.removeItem('opencode_insert_citation'); }}
+                className="px-3 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-[11px] font-medium"
+              >Insert</button>
+              <button onClick={() => { setPendingCitation(null); localStorage.removeItem('opencode_insert_citation'); }}
+                className="p-1 hover:bg-indigo-100 rounded text-indigo-400"
+              ><X size={14} /></button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Citation Browser Panel */}
+        <AnimatePresence>
+          {showCitationPanel && (
+            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+              className="border-b border-slate-200 bg-slate-50 overflow-hidden flex-shrink-0"
+            >
+              <div className="p-3 max-h-[280px] overflow-y-auto">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="flex bg-white rounded-lg border border-slate-200 p-0.5">
+                    <button onClick={() => setCitTab('search')}
+                      className={`px-3 py-1 text-[11px] font-medium rounded-md transition ${citTab === 'search' ? 'bg-emerald-600 text-white' : 'text-slate-500'}`}>
+                      <Search size={12} className="inline mr-1" />Search
+                    </button>
+                    <button onClick={() => { setCitTab('cart'); loadCitCart(); }}
+                      className={`px-3 py-1 text-[11px] font-medium rounded-md transition ${citTab === 'cart' ? 'bg-emerald-600 text-white' : 'text-slate-500'} relative`}>
+                      <ShoppingCart size={12} className="inline mr-1" />Cart
+                      {citCart.length > 0 && <span className="ml-1 bg-emerald-500 text-white text-[9px] w-3.5 h-3.5 rounded-full inline-flex items-center justify-center">{citCart.length}</span>}
+                    </button>
+                  </div>
+                  <button onClick={() => setShowCitationPanel(false)} className="ml-auto p-1 hover:bg-slate-200 rounded text-slate-400"><X size={14} /></button>
+                </div>
+
+                {citTab === 'search' ? (
+                  <>
+                    <div className="flex gap-1">
+                      <input value={citSearch} onChange={e => setCitSearch(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && searchCitations(citSearch)}
+                        placeholder="Search case name, citation, keywords..."
+                        className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-emerald-500"
+                      />
+                      <button onClick={() => searchCitations(citSearch)} disabled={citLoading}
+                        className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700 transition"
+                      >{citLoading ? <Loader className="animate-spin" size={12} /> : <Search size={12} />}</button>
+                    </div>
+                    <div className="mt-2 space-y-1">
+                      {citResults.map(c => (
+                        <div key={c.id} className="flex items-center gap-2 bg-white border border-slate-100 rounded-lg px-2.5 py-1.5 text-[11px]">
+                          <span className="font-bold text-indigo-600 flex-shrink-0">{c.citation}</span>
+                          <span className="text-slate-700 truncate flex-1">{c.title}</span>
+                          <button onClick={() => insertCitationText(`${c.citation} - ${c.title}, ${c.court}`)}
+                            className="p-1 hover:bg-emerald-50 rounded text-slate-400 hover:text-emerald-600" title="Insert">
+                            <Clipboard size={12} />
+                          </button>
+                          <button onClick={() => addToCitCart(c.id)}
+                            className="p-1 hover:bg-emerald-50 rounded text-slate-400 hover:text-emerald-600" title="Add to cart">
+                            <Plus size={12} />
+                          </button>
+                        </div>
+                      ))}
+                      {citSearch && !citLoading && citResults.length === 0 && (
+                        <p className="text-[11px] text-slate-400 py-4 text-center">No results. Try a different search.</p>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <div className="space-y-1">
+                    {citCart.length === 0 ? (
+                      <p className="text-[11px] text-slate-400 py-4 text-center">Cart is empty. Search and add citations.</p>
+                    ) : (
+                      citCart.map(c => (
+                        <div key={c.cart_id} className="flex items-center gap-2 bg-white border border-slate-100 rounded-lg px-2.5 py-1.5 text-[11px]">
+                          <span className="font-bold text-indigo-600 flex-shrink-0">{c.citation}</span>
+                          <span className="text-slate-700 truncate flex-1">{c.title}</span>
+                          <button onClick={() => insertCitationText(`${c.citation} - ${c.title}, ${c.court}`)}
+                            className="p-1 hover:bg-emerald-50 rounded text-slate-400 hover:text-emerald-600" title="Insert">
+                            <Clipboard size={12} />
+                          </button>
+                          <button onClick={() => removeFromCitCart(c.cart_id)}
+                            className="p-1 hover:bg-red-50 rounded text-slate-400 hover:text-red-600" title="Remove">
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Editor Area */}
         <div className="flex-1 overflow-auto bg-gradient-to-b from-slate-100 to-slate-200 p-3 md:p-6 min-h-0">

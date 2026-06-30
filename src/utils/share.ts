@@ -1,7 +1,7 @@
 import { useStore } from '../store/useStore';
 
 interface SharePayload {
-  type: 'hearing' | 'document' | 'journal' | 'todo' | 'calendar' | 'case';
+  type: 'hearing' | 'document' | 'journal' | 'todo' | 'calendar' | 'case' | 'citation';
   title: string;
   description?: string;
   details?: Record<string, any>;

@@ -252,6 +252,14 @@ export class PostgresAdapter {
         keywords TEXT,
         created_at TIMESTAMP DEFAULT NOW()
       );
+      CREATE TABLE IF NOT EXISTS citation_cart (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        citation_id TEXT NOT NULL REFERENCES citations(id) ON DELETE CASCADE,
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(user_id, citation_id)
+      );
       `);
       // Migrations for existing tables
       try { await client.query("ALTER TABLE messages ADD COLUMN share_data TEXT"); } catch {}

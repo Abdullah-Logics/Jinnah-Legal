@@ -3,7 +3,7 @@ import { FileText, BookOpen, Calendar, CheckSquare, Scale, Clock, MapPin, Extern
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface ShareData {
-  type: 'hearing' | 'document' | 'journal' | 'todo' | 'calendar' | 'case';
+  type: 'hearing' | 'document' | 'journal' | 'todo' | 'calendar' | 'case' | 'citation';
   title: string;
   description?: string;
   details?: Record<string, any>;
@@ -126,6 +126,7 @@ export default function ShareCard({ data }: { data: ShareData }) {
     todo: CheckSquare,
     calendar: Clock,
     case: Scale,
+    citation: BookOpen,
   };
   const Icon = iconMap[data.type] || FileText;
 
@@ -146,6 +147,7 @@ export default function ShareCard({ data }: { data: ShareData }) {
     data.type === 'todo' ? 'border-l-emerald-400 bg-emerald-50' :
     data.type === 'document' ? 'border-l-blue-400 bg-blue-50' :
     data.type === 'journal' ? 'border-l-purple-400 bg-purple-50' :
+    data.type === 'citation' ? 'border-l-indigo-400 bg-indigo-50' :
     'border-l-slate-400 bg-slate-50';
 
   return (

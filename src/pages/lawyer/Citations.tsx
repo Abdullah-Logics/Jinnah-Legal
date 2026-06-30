@@ -69,8 +69,9 @@ export default function CaseLibrary() {
   const [showFilters, setShowFilters] = useState(false);
   const [shareTarget, setShareTarget] = useState<Citation | null>(null);
   const [sending, setSending] = useState(false);
-  const [viewMode, setViewMode] = useState<'categories' | 'list'>('categories');
+  const [viewMode, setViewMode] = useState<'categories' | 'courts' | 'list'>('categories');
   const [expandedCats, setExpandedCats] = useState<Record<string, boolean>>({});
+  const [expandedCourts, setExpandedCourts] = useState<Record<string, boolean>>({});
 
   const API = import.meta.env.DEV ? 'http://localhost:3001' : import.meta.env.VITE_API_URL || '';
 
@@ -174,6 +175,12 @@ export default function CaseLibrary() {
     return acc;
   }, {} as Record<string, Citation[]>);
 
+  const groupedByCourt = citations.reduce((acc, c) => {
+    if (!acc[c.court]) acc[c.court] = [];
+    acc[c.court].push(c);
+    return acc;
+  }, {} as Record<string, Citation[]>);
+
   const CitationCard = ({ c, inCart = false }: { c: Citation | CartItem; inCart?: boolean }) => (
     <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
       className={`p-3 sm:p-4 bg-white rounded-xl border transition ${
@@ -268,7 +275,7 @@ export default function CaseLibrary() {
         <div className="flex items-center justify-between mb-3 sm:mb-4">
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Pakistani Case Law</h1>
-            <p className="text-xs sm:text-sm text-slate-500 mt-0.5">{total.toLocaleString()} cases from all Pakistani courts (2015–2024)</p>
+            <p className="text-xs sm:text-sm text-slate-500 mt-0.5">{total.toLocaleString()} cases from all Pakistani courts (2015–2025)</p>
           </div>
         </div>
 
@@ -299,10 +306,30 @@ export default function CaseLibrary() {
               <button onClick={() => setShowFilters(!showFilters)}
                 className={`px-2.5 sm:px-3 py-2 sm:py-2.5 border rounded-xl text-xs transition flex items-center gap-1 ${showFilters ? 'bg-indigo-50 border-indigo-300 text-indigo-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
               ><SlidersHorizontal size={13} /></button>
-              <button onClick={() => setViewMode(v => v === 'categories' ? 'list' : 'categories')}
-                className={`px-2.5 sm:px-3 py-2 sm:py-2.5 border rounded-xl text-xs transition ${viewMode === 'categories' ? 'bg-indigo-50 border-indigo-300 text-indigo-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
-              >{viewMode === 'categories' ? 'List' : 'Categories'}</button>
+              <select value={viewMode} onChange={e => setViewMode(e.target.value as any)}
+                className="px-2 sm:px-2.5 py-2 sm:py-2.5 bg-white border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="categories">By Category</option>
+                <option value="courts">By Court</option>
+                <option value="list">List</option>
+              </select>
             </div>
+
+            {(search || category || court || yearFrom || yearTo) && (
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                <button onClick={() => { setSearch(''); setCategory(''); setCourt(''); setYearFrom(''); setYearTo(''); }}
+                  className="text-[10px] px-2 py-1 bg-red-50 text-red-600 rounded-full hover:bg-red-100 transition flex items-center gap-1"
+                ><X size={10} /> Clear all</button>
+                <button onClick={() => { setYearFrom(''); setYearTo('2025'); setSearch(''); }}
+                  className={`text-[10px] px-2.5 py-1 rounded-full transition flex items-center gap-1 ${yearTo === '2025' && !yearFrom ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                >2025 cases</button>
+                {COURTS.slice(0, 3).map(c => (
+                  <button key={c} onClick={() => setCourt(court === c ? '' : c)}
+                    className={`text-[10px] px-2.5 py-1 rounded-full transition ${court === c ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                  >{c.replace(' of Pakistan', '')}</button>
+                ))}
+              </div>
+            )}
 
             <AnimatePresence>
               {showFilters && (
@@ -345,9 +372,71 @@ export default function CaseLibrary() {
                   </div>
                   {citations.map(c => <CitationCard key={c.id} c={c} />)}
                 </>
+              ) : viewMode === 'courts' ? (
+                <div className="space-y-2 sm:space-y-3">
+                  {COURTS.filter(c => groupedByCourt[c]).map(courtName => {
+                    const items = groupedByCourt[courtName];
+                    const isExpanded = expandedCourts[courtName] !== false;
+                    const IconComponent = courtName === 'Supreme Court of Pakistan' ? Scale : Gavel;
+                    const colors = {
+                      'Supreme Court of Pakistan': { color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-200' },
+                      'Lahore High Court': { color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' },
+                      'Sindh High Court': { color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200' },
+                      'Peshawar High Court': { color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200' },
+                      'Balochistan High Court': { color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-200' },
+                      'Islamabad High Court': { color: 'text-rose-600', bg: 'bg-rose-50', border: 'border-rose-200' },
+                    };
+                    const c = colors[courtName] || { color: 'text-slate-600', bg: 'bg-slate-50', border: 'border-slate-200' };
+                    return (
+                      <div key={courtName} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                        <button onClick={() => setExpandedCourts(p => ({ ...p, [courtName]: !isExpanded }))}
+                          className={`w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 ${c.bg} ${c.color}`}
+                        >
+                          <IconComponent size={15} />
+                          <span className="text-xs sm:text-sm font-semibold">{courtName.replace(' of Pakistan', '')}</span>
+                          <span className="text-[10px] opacity-60">({items.length})</span>
+                          <span className="text-[10px] opacity-50 ml-1">{items.filter(x => x.year === 2025).length > 0 ? `${items.filter(x => x.year === 2025).length} new` : ''}</span>
+                          <ChevronDown size={14} className={`ml-auto transition ${isExpanded ? '' : 'rotate-180'}`} />
+                        </button>
+                        <AnimatePresence>
+                          {isExpanded && (
+                            <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
+                              <div className="divide-y divide-slate-100">
+                                {items.slice(0, 10).map(c => (
+                                  <div key={c.id} className="px-3 sm:px-4 py-2 sm:py-2.5 hover:bg-slate-50 transition">
+                                    <div className="flex items-start gap-2">
+                                      <Gavel size={11} className="text-indigo-400 mt-0.5 flex-shrink-0" />
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                          <span className="text-[10px] sm:text-[11px] font-bold text-indigo-700">{c.citation}</span>
+                                          <span className="text-[9px] sm:text-[10px] px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded">{c.category}</span>
+                                          <span className="text-[9px] text-slate-400">{c.year}</span>
+                                          {c.year === 2025 && <span className="text-[8px] px-1 py-0.5 bg-amber-100 text-amber-700 rounded font-medium">NEW</span>}
+                                        </div>
+                                        <p className="text-[11px] sm:text-xs font-medium text-slate-900 mt-0.5 leading-tight">{c.title}</p>
+                                      </div>
+                                      <button onClick={() => addToCart(c.id)} className="p-1 hover:bg-emerald-50 rounded text-slate-400 hover:text-emerald-600 flex-shrink-0"><Plus size={11} /></button>
+                                    </div>
+                                  </div>
+                                ))}
+                                {items.length > 10 && (
+                                  <button onClick={() => setViewMode('list')} className="w-full px-3 sm:px-4 py-2 text-[10px] sm:text-[11px] text-indigo-600 font-medium hover:bg-indigo-50 transition text-center">
+                                    View all {items.length} {courtName.replace(' of Pakistan', '')} cases →
+                                  </button>
+                                )}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    );
+                  })}
+                </div>
               ) : (
                 <div className="space-y-2 sm:space-y-3">
                   {CATEGORIES.filter(cat => groupedByCategory[cat.key]).map(cat => {
+                    const items = groupedByCategory[cat.key];
+                    const isExpanded = expandedCats[cat.key] !== false;
                     const items = groupedByCategory[cat.key];
                     const isExpanded = expandedCats[cat.key] !== false;
                     return (
@@ -373,6 +462,7 @@ export default function CaseLibrary() {
                                           <span className="text-[10px] sm:text-[11px] font-bold text-indigo-700">{c.citation}</span>
                                           <span className="text-[9px] text-slate-400">{c.court.replace(' of Pakistan', '')}</span>
                                           <span className="text-[9px] text-slate-400">{c.year}</span>
+                                          {c.year === 2025 && <span className="text-[8px] px-1 py-0.5 bg-amber-100 text-amber-700 rounded font-medium">NEW</span>}
                                         </div>
                                         <p className="text-[11px] sm:text-xs font-medium text-slate-900 mt-0.5 leading-tight">{c.title}</p>
                                       </div>

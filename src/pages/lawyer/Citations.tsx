@@ -437,8 +437,6 @@ export default function CaseLibrary() {
                   {CATEGORIES.filter(cat => groupedByCategory[cat.key]).map(cat => {
                     const items = groupedByCategory[cat.key];
                     const isExpanded = expandedCats[cat.key] !== false;
-                    const items = groupedByCategory[cat.key];
-                    const isExpanded = expandedCats[cat.key] !== false;
                     return (
                       <div key={cat.key} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
                         <button onClick={() => setExpandedCats(p => ({ ...p, [cat.key]: !isExpanded }))}

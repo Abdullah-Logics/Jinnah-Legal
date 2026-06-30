@@ -106,7 +106,28 @@ export default function CaseLibrary() {
     setCartLoading(false);
   }, [API, token]);
 
-  useEffect(() => { loadCitations(); }, [loadCitations]);
+  const loadAllCategories = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API}/api/citations?limit=2500`, { headers: headers() });
+      if (res.ok) {
+        const data = await res.json();
+        const rows = data.rows || data;
+        setCitations(rows);
+        setTotal(rows.length);
+      }
+    } catch {}
+    setLoading(false);
+  }, [API, token]);
+
+  useEffect(() => {
+    if (viewMode === 'categories' && !search && !category && !court) {
+      loadAllCategories();
+    } else {
+      loadCitations();
+    }
+  }, [viewMode, loadCitations, loadAllCategories, search, category, court]);
+
   useEffect(() => { loadCart(); }, []);
 
   const addToCart = async (citationId: string) => {

@@ -1,4 +1,4 @@
-import 'dotenv/config';
+try { await import('dotenv/config'); } catch {}
 
 const REQUIRED_PROD = ['JWT_SECRET'];
 const OPTIONAL = ['PORT', 'FRONTEND_URL', 'GEMINI_API_KEY', 'GEMINI_MODEL',

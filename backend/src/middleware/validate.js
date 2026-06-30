@@ -152,6 +152,7 @@ export const journalSchema = z.object({
   })).optional().default([]),
   plans: z.string().max(100000).optional().default(''),
   content: z.string().max(1000000).optional().default(''),
+  sketch: z.string().max(5000000).optional().default(''),
 });
 
 export const journalUpdateSchema = z.object({
@@ -163,6 +164,7 @@ export const journalUpdateSchema = z.object({
   })).optional(),
   plans: z.string().max(100000).optional(),
   content: z.string().max(1000000).optional(),
+  sketch: z.string().max(5000000).optional(),
 });
 
 export const aiChatSchema = z.object({

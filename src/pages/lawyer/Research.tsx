@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, Brain, FileText, Clock, BookOpen, Sparkles, Send, Lightbulb, Save, Loader, Trash2,
@@ -69,6 +69,8 @@ export default function LawyerResearch() {
   const [citYearFrom, setCitYearFrom] = useState('');
   const [citYearTo, setCitYearTo] = useState('');
   const [citPage, setCitPage] = useState(0);
+  const searchRef = useRef(searchCitations);
+  searchRef.current = searchCitations;
   const [citCart, setCitCart] = useState<any[]>([]);
   const [citGroupBy, setCitGroupBy] = useState<'category' | 'court' | 'year'>('category');
   const [citExpandedGroups, setCitExpandedGroups] = useState<Record<string, boolean>>({});
@@ -117,7 +119,9 @@ export default function LawyerResearch() {
     loadCitCart();
   };
 
-  useEffect(() => { if (activeTab === 'citations') loadCitCart(); }, [activeTab]);
+  useEffect(() => { if (activeTab === 'citations') { loadCitCart(); setCitPage(0); } }, [activeTab]);
+
+  useEffect(() => { if (activeTab === 'citations') searchRef.current(); }, [citPage]);
 
   useEffect(() => {
     try {
@@ -380,8 +384,11 @@ export default function LawyerResearch() {
                         {c.description && <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-2">{c.description}</p>}
                       </div>
                       <div className="flex flex-col gap-1 flex-shrink-0">
-                        <button onClick={() => addToCitCart(c.id)} className="p-1 hover:bg-emerald-50 rounded text-slate-400 hover:text-emerald-600"><Plus size={13} /></button>
-                        <button onClick={() => localStorage.setItem('opencode_insert_citation', `${c.citation} - ${c.title}`)} className="p-1 hover:bg-indigo-50 rounded text-slate-400 hover:text-indigo-600"><Clipboard size={13} /></button>
+                        <button onClick={() => addToCitCart(c.id)} className="p-1 hover:bg-emerald-50 rounded text-slate-400 hover:text-emerald-600" title="Add to Cart"><Plus size={13} /></button>
+                        <button onClick={() => {
+                          const full = `"${c.title}", ${c.citation} (${c.court.replace(' of Pakistan', '')}, ${c.year})`;
+                          localStorage.setItem('opencode_insert_citation', full);
+                        }} className="p-1 hover:bg-indigo-50 rounded text-slate-400 hover:text-indigo-600" title="Use in Doc"><Clipboard size={13} /></button>
                       </div>
                     </div>
                   </motion.div>
@@ -417,6 +424,10 @@ export default function LawyerResearch() {
                                   </div>
                                   <p className="text-xs font-medium text-slate-900 leading-tight mt-0.5">{c.title}</p>
                                 </div>
+                                <button onClick={() => {
+                                  const full = `"${c.title}", ${c.citation} (${c.court.replace(' of Pakistan', '')}, ${c.year})`;
+                                  localStorage.setItem('opencode_insert_citation', full);
+                                }} className="p-1 hover:bg-indigo-50 rounded text-slate-400 hover:text-indigo-600" title="Use in Doc"><Clipboard size={12} /></button>
                                 <button onClick={() => addToCitCart(c.id)} className="p-1 hover:bg-emerald-50 rounded text-slate-400 hover:text-emerald-600 flex-shrink-0"><Plus size={12} /></button>
                               </div>
                             </div>
@@ -437,7 +448,7 @@ export default function LawyerResearch() {
               <div className="space-y-3">
                 {CATEGORIES.map(cat => (
                   <button key={cat.key}
-                    onClick={() => { setCitCategory(cat.key); searchCitations('', { category: cat.key }); }}
+                    onClick={() => { setCitCategory(cat.key); setCitPage(0); searchCitations('', { category: cat.key }); }}
                     className={`w-full flex items-center gap-3 p-3 bg-white rounded-xl border ${cat.border} hover:shadow-sm transition text-left`}
                   >
                     <div className={`w-8 h-8 rounded-lg ${cat.bg} flex items-center justify-center`}>

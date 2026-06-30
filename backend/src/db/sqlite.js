@@ -318,6 +318,7 @@ export class SqliteAdapter {
     try { this.db.run("ALTER TABLE documents ADD COLUMN case_id TEXT"); } catch {}
     try { this.db.run("ALTER TABLE documents ADD COLUMN updated_at TEXT DEFAULT (datetime('now'))"); } catch {}
     try { this.db.run("ALTER TABLE journal_entries ADD COLUMN content TEXT DEFAULT ''"); } catch {}
+    try { this.db.run("ALTER TABLE journal_entries ADD COLUMN sketch TEXT DEFAULT ''"); } catch {}
     try { this.db.run("ALTER TABLE messages ADD COLUMN attachments TEXT DEFAULT '[]'"); } catch {}
     try { this.db.run("ALTER TABLE messages ADD COLUMN share_data TEXT"); } catch {}
     try { this.db.run("ALTER TABLE messages ADD COLUMN group_id TEXT"); } catch {}

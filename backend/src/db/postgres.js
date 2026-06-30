@@ -265,6 +265,7 @@ export class PostgresAdapter {
       try { await client.query("ALTER TABLE messages ADD COLUMN share_data TEXT"); } catch {}
       try { await client.query("ALTER TABLE messages ADD COLUMN group_id TEXT"); } catch {}
       try { await client.query("ALTER TABLE users ADD COLUMN bio TEXT"); } catch {}
+      try { await client.query("ALTER TABLE journal_entries ADD COLUMN sketch TEXT DEFAULT ''"); } catch {}
       console.log(' PostgreSQL schema ready');
     } finally {
       client.release();

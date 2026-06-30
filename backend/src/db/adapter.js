@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { v4 as uuid } from 'uuid';
 import { seedFromBackup } from './seed.js';
+import { seedCitations, seedLandmarkCases } from './seed-citations.js';
 
 let _adapter = null;
 
@@ -39,6 +40,8 @@ export async function getAdapter() {
     await _adapter.connect();
   }
   await seedDefaultAdmin();
+  await seedCitations();
+  await seedLandmarkCases();
   return _adapter;
 }
 

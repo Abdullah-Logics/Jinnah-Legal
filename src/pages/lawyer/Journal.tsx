@@ -17,6 +17,7 @@ import {
   List, ListOrdered, CheckSquare, Quote, Code, Pilcrow,
   Heading1, Heading2, Heading3, MapPin, Plus, Trash2, Image,
   Clock, Gavel, ArrowUpDown, Printer, Share2,
+  Scale, Search, X, Clipboard, Loader,
 } from 'lucide-react';
 
 const SLASH_COMMANDS = [
@@ -32,7 +33,7 @@ const SLASH_COMMANDS = [
 ];
 
 export default function LawyerJournal() {
-  const { currentUser, journals, cases, addJournalEntry, updateJournalEntry, deleteJournalEntry, loadJournals, loadCases } = useStore();
+  const { currentUser, journals, cases, token, addJournalEntry, updateJournalEntry, deleteJournalEntry, loadJournals, loadCases } = useStore();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [saving, setSaving] = useState(false);
   const [showSlash, setShowSlash] = useState(false);
@@ -42,6 +43,9 @@ export default function LawyerJournal() {
   const [todos, setTodos] = useState<{ id: string; text: string; completed: boolean }[]>([]);
   const [newTodo, setNewTodo] = useState('');
   const [tab, setTab] = useState<'notes' | 'sketch'>('notes');
+  const [sketchData, setSketchData] = useState<string>('');
+  const sketchRef = useRef(sketchData);
+  sketchRef.current = sketchData;
   const [entryCreated, setEntryCreated] = useState<string | null>(null);
   const [showScheduler, setShowScheduler] = useState(true);
   const [scheduleCase, setScheduleCase] = useState('');
@@ -52,7 +56,30 @@ export default function LawyerJournal() {
   const [scheduling, setScheduling] = useState(false);
   const [plans, setPlans] = useState('');
   const [showHistory, setShowHistory] = useState(false);
+  const [showCitPanel, setShowCitPanel] = useState(false);
+  const [citSearch, setCitSearch] = useState('');
+  const [citResults, setCitResults] = useState<any[]>([]);
+  const [citLoading, setCitLoading] = useState(false);
   const { shareState, openShare, closeShare } = useShareDialog();
+
+  const searchCit = async (q: string) => {
+    if (!q.trim()) return;
+    setCitLoading(true);
+    try {
+      const API_BASE = import.meta.env.DEV ? 'http://localhost:3001' : import.meta.env.VITE_API_URL || '';
+      const res = await fetch(`${API_BASE}/api/citations?search=${encodeURIComponent(q)}&limit=10`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) { const d = await res.json(); setCitResults(d.rows || []); }
+    } catch {}
+    setCitLoading(false);
+  };
+
+  const insertCit = (citation: string, title: string, court: string, year: number) => {
+    if (!editor) return;
+    const c = `"${title}", ${citation} (${court.replace(' of Pakistan', '')}, ${year})`;
+    editor.chain().focus().setParagraph().insertContent(`[${c}]`).run();
+    saveEntryRef.current(editor.getHTML());
+    setShowCitPanel(false);
+  };
 
   const getShareContacts = () => {
     const st = useStore.getState();
@@ -91,6 +118,7 @@ export default function LawyerJournal() {
       todos: finalTodos,
       plans: plans,
       content: contentHtml,
+      sketch: sketchRef.current || '',
     };
     if (today) {
       await updateJournalEntry(today.id, entry);
@@ -149,19 +177,20 @@ export default function LawyerJournal() {
 
   // Load content for current date when journals arrive or date changes
   const prevDateKey = useRef('');
-  const contentLoaded = useRef(false);
+  const prevJournalsLen = useRef(0);
   useEffect(() => {
     if (!editor) return;
     const entry = journals.find(j => j.userId === currentUser?.id && j.date === dateKey);
-    // Skip only if date hasn't changed AND content was already loaded
-    if (prevDateKey.current === dateKey && contentLoaded.current) return;
+    // Skip only if date AND journals haven't changed (avoids overwriting editor content on auto-save)
+    if (prevDateKey.current === dateKey && journals.length === prevJournalsLen.current) return;
     prevDateKey.current = dateKey;
+    prevJournalsLen.current = journals.length;
     activeDateKey.current = dateKey;
     editor.commands.setContent(entry?.content || '', { emitUpdate: false });
     setTodos(entry?.todos || []);
     setPlans(entry?.plans || '');
+    setSketchData(entry?.sketch || '');
     setEntryCreated(entry?.createdAt || (entry ? new Date().toISOString() : null));
-    contentLoaded.current = true;
   }, [dateKey, journals, editor, currentUser?.id]);
 
   const shareEntry = () => {
@@ -383,6 +412,13 @@ export default function LawyerJournal() {
                 <Share2 size={18} />
               </button>
               <button
+                onClick={() => setShowCitPanel(true)}
+                className="p-2 rounded-xl text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 transition"
+                title="Search & insert citations"
+              >
+                <Scale size={18} />
+              </button>
+              <button
                 onClick={insertTimestamp}
                 className="p-2 rounded-xl text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 transition"
                 title="Insert current time & date"
@@ -481,6 +517,39 @@ export default function LawyerJournal() {
                 </div>
               </BubbleMenu>
 
+              {/* Citation Search Panel */}
+              {showCitPanel && (
+                <div className="mb-3 p-3 bg-indigo-50 border border-indigo-200 rounded-xl">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Scale size={14} className="text-indigo-600" />
+                    <span className="text-xs font-semibold text-indigo-700">Insert Citation</span>
+                    <button onClick={() => setShowCitPanel(false)} className="ml-auto p-0.5 text-indigo-400 hover:text-indigo-600"><X size={14} /></button>
+                  </div>
+                  <div className="flex gap-1">
+                    <input value={citSearch} onChange={e => setCitSearch(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && searchCit(citSearch)}
+                      placeholder="Search case name, citation..."
+                      className="flex-1 px-2 py-1.5 bg-white border border-indigo-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <button onClick={() => searchCit(citSearch)} disabled={citLoading}
+                      className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs hover:bg-indigo-700 transition"
+                    >{citLoading ? <Loader className="animate-spin" size={12} /> : <Search size={12} />}</button>
+                  </div>
+                  {citResults.length > 0 && (
+                    <div className="mt-2 space-y-1 max-h-40 overflow-y-auto">
+                      {citResults.map(c => (
+                        <div key={c.id} className="flex items-center gap-2 bg-white border border-indigo-100 rounded-lg px-2 py-1.5 text-[11px]">
+                          <span className="font-bold text-indigo-600 flex-shrink-0">{c.citation}</span>
+                          <span className="text-slate-700 truncate flex-1">{c.title}</span>
+                          <button onClick={() => insertCit(c.citation, c.title, c.court, c.year)}
+                            className="p-0.5 text-slate-400 hover:text-indigo-600 flex-shrink-0"><Clipboard size={11} /></button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {showSlash && (
                 <div ref={slashRef} className="absolute z-50 w-72 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden" style={{ marginTop: -40 }}>
                   <div className="px-3 py-2 border-b border-slate-100">
@@ -533,7 +602,7 @@ export default function LawyerJournal() {
         ) : (
           /* Sketch Tab */
           <div className="p-6 md:p-8">
-            <DrawingCanvas />
+            <DrawingCanvas externalData={sketchData} onDataChange={(d) => { setSketchData(d); saveEntryRef.current(editor?.getHTML() || ''); }} />
           </div>
         )}
 

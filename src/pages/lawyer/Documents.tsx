@@ -407,7 +407,7 @@ export default function LawyerDocuments() {
   };
 
   const insertCitationText = (text: string) => {
-    const html = `<p style="margin-left:1.5em;text-indent:-1.5em;padding-left:0;"><strong>${text}</strong> <span style="font-size:0.85em;color:#6366f1;">— Citation</span></p>`;
+    const html = `<p style="margin-left:1.5em;text-indent:-1.5em;padding-left:0;font-family:'Times New Roman',serif;font-size:12pt;line-height:2;"><strong>${text}</strong></p>`;
     insertAtCursor(html);
     setShowCitationPanel(false);
   };
@@ -887,7 +887,13 @@ export default function LawyerDocuments() {
               <span className="text-indigo-700 flex-1 truncate">
                 Citation ready: <strong>{pendingCitation}</strong>
               </span>
-              <button onClick={() => { insertCitationText(pendingCitation!); setPendingCitation(null); localStorage.removeItem('opencode_insert_citation'); }}
+              <button onClick={() => {
+                const text = pendingCitation!;
+                const html = `<p style="margin-left:1.5em;text-indent:-1.5em;padding-left:0;font-family:'Times New Roman',serif;font-size:12pt;line-height:2;"><strong>${text}</strong></p>`;
+                insertAtCursor(html);
+                setPendingCitation(null);
+                localStorage.removeItem('opencode_insert_citation');
+              }}
                 className="px-3 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-[11px] font-medium"
               >Insert</button>
               <button onClick={() => { setPendingCitation(null); localStorage.removeItem('opencode_insert_citation'); }}
@@ -985,6 +991,28 @@ export default function LawyerDocuments() {
           >
             {/* Formatting Toolbar */}
             <div className="flex items-center gap-0.5 px-3 py-2 border-b border-slate-100 bg-slate-50 flex-wrap">
+              <select onChange={e => { const v = e.target.value; if (v) applyFormat('fontName', v); }}
+                className="px-1 py-0.5 text-[11px] bg-white border border-slate-200 rounded outline-none"
+              >
+                <option value="">Font</option>
+                <option value="Georgia, serif">Georgia</option>
+                <option value="Times New Roman, serif">Times New Roman</option>
+                <option value="Arial, sans-serif">Arial</option>
+                <option value="Calibri, sans-serif">Calibri</option>
+                <option value="Palatino, serif">Palatino</option>
+                <option value="Courier New, monospace">Courier New</option>
+              </select>
+              <select onChange={e => { const v = e.target.value; if (v) applyFormat('fontSize', v); }}
+                className="px-1 py-0.5 text-[11px] bg-white border border-slate-200 rounded outline-none"
+              >
+                <option value="">Size</option>
+                <option value="3">8pt</option>
+                <option value="4">10pt</option>
+                <option value="5">12pt</option>
+                <option value="6">14pt</option>
+                <option value="7">18pt</option>
+              </select>
+              <span className="w-px h-5 bg-slate-200 mx-1" />
               {[
                 [Bold, 'bold'], [Italic, 'italic'], [Underline, 'underline'],
               ].map(([Icon, cmd]) => (

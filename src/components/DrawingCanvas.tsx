@@ -1,7 +1,12 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { Pencil, Square, Circle, Minus, ArrowRight, Eraser, RotateCcw, Trash2 } from 'lucide-react';
 
-export default function DrawingCanvas() {
+interface Props {
+  externalData?: string | null;
+  onDataChange?: (dataUrl: string) => void;
+}
+
+export default function DrawingCanvas({ externalData, onDataChange }: Props = {}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [ctx, setCtx] = useState<CanvasRenderingContext2D | null>(null);
   const [tool, setTool] = useState<'pen' | 'rect' | 'circle' | 'line' | 'arrow' | 'eraser'>('pen');
@@ -27,8 +32,14 @@ export default function DrawingCanvas() {
     context.lineJoin = 'round';
     setCtx(context);
 
+    if (externalData) {
+      const img = new Image();
+      img.onload = () => { context.drawImage(img, 0, 0); };
+      img.src = externalData;
+    }
+
     saveSnapshot(context, canvas.width, canvas.height);
-  }, []);
+  }, [externalData]);
 
   const saveSnapshot = (c: CanvasRenderingContext2D, w: number, h: number) => {
     const data = c.getImageData(0, 0, w, h);
@@ -36,6 +47,7 @@ export default function DrawingCanvas() {
     snapshots.current = snapshots.current.slice(0, snapshotIndex.current + 1);
     snapshots.current.push(url);
     snapshotIndex.current++;
+    if (onDataChange) onDataChange(canvasRef.current?.toDataURL() || '');
   };
 
   const restoreSnapshot = (idx: number) => {

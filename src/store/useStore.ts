@@ -106,6 +106,7 @@ export interface JournalEntry {
   todos: { id: string; text: string; completed: boolean }[];
   plans: string;
   content: string;
+  sketch?: string;
   createdAt?: string;
 }
 
@@ -154,6 +155,7 @@ function normalizeJournalEntry(e: Record<string, unknown>): JournalEntry {
     todos: e.todos as { id: string; text: string; completed: boolean }[] || [],
     plans: e.plans as string || '',
     content: (e.content as string) || '',
+    sketch: (e.sketch as string) || '',
     createdAt: ts ? (ts.includes('Z') ? ts : ts + 'Z') : undefined,
   };
 }

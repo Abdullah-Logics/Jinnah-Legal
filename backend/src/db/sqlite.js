@@ -313,7 +313,6 @@ export class SqliteAdapter {
         created_at TEXT DEFAULT (datetime('now'))
       );
     `);
-    try { this.db.run("ALTER TABLE cases ADD COLUMN client_status TEXT DEFAULT 'pending'"); } catch {}
     try { this.db.run("ALTER TABLE documents ADD COLUMN content TEXT DEFAULT ''"); } catch {}
     try { this.db.run("ALTER TABLE documents ADD COLUMN type TEXT DEFAULT 'draft'"); } catch {}
     try { this.db.run("ALTER TABLE documents ADD COLUMN case_id TEXT"); } catch {}

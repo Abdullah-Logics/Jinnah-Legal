@@ -101,6 +101,8 @@ export async function createApp() {
       environment: process.env.NODE_ENV || 'development',
       supabase_ipv6: ipv6,
       rest_fallback: process.env.SUPABASE_PROJECT_REF && process.env.SUPABASE_MANAGEMENT_KEY ? 'available' : 'unavailable',
+      anon_key_set: !!process.env.SUPABASE_ANON_KEY,
+      service_key_set: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
       time: new Date().toISOString(),
       uptime: process.uptime(),
     });

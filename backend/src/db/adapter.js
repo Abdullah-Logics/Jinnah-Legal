@@ -26,10 +26,16 @@ async function seedDefaultAdmin() {
 export async function getAdapter() {
   if (_adapter) return _adapter;
   if (process.env.SUPABASE_URL || process.env.DATABASE_URL) {
-    const { PostgresAdapter } = await import('./postgres.js');
-    _adapter = new PostgresAdapter();
-    await _adapter.connect();
-    await seedFromBackup(_adapter);
+    if (process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      const { SupabaseJsAdapter } = await import('./supabase-js.js');
+      _adapter = new SupabaseJsAdapter();
+      await _adapter.connect();
+    } else {
+      const { PostgresAdapter } = await import('./postgres.js');
+      _adapter = new PostgresAdapter();
+      await _adapter.connect();
+    }
+    try { await seedFromBackup(_adapter); } catch (err) { console.warn('Seed-from-backup skipped:', err.message); }
   } else if (process.env.MSSQL_SERVER) {
     const { MssqlAdapter } = await import('./mssql.js');
     _adapter = new MssqlAdapter();
@@ -39,9 +45,9 @@ export async function getAdapter() {
     _adapter = new SqliteAdapter();
     await _adapter.connect();
   }
-  await seedDefaultAdmin();
-  await seedCitations();
-  await seedLandmarkCases();
+  try { await seedDefaultAdmin(); } catch (err) { console.warn('Seeding admin skipped:', err.message); }
+  try { await seedCitations(); } catch (err) { console.warn('Seeding citations skipped:', err.message); }
+  try { await seedLandmarkCases(); } catch (err) { console.warn('Seeding landmark cases skipped:', err.message); }
   return _adapter;
 }
 

@@ -69,8 +69,6 @@ export default function LawyerResearch() {
   const [citYearFrom, setCitYearFrom] = useState('');
   const [citYearTo, setCitYearTo] = useState('');
   const [citPage, setCitPage] = useState(0);
-  const searchRef = useRef(searchCitations);
-  searchRef.current = searchCitations;
   const [citCart, setCitCart] = useState<any[]>([]);
   const [citGroupBy, setCitGroupBy] = useState<'category' | 'court' | 'year'>('category');
   const [citExpandedGroups, setCitExpandedGroups] = useState<Record<string, boolean>>({});
@@ -78,7 +76,7 @@ export default function LawyerResearch() {
 
   const API = import.meta.env.DEV ? 'http://localhost:3001' : import.meta.env.VITE_API_URL || '';
 
-  const searchCitations = async (q?: string, opts?: { category?: string; court?: string; yearFrom?: string; yearTo?: string }) => {
+  const searchCitations = async (q?: string, opts?: { category?: string; court?: string; yearFrom?: string; yearTo?: string; all?: boolean }) => {
     const searchTerm = q ?? citSearch;
     const cat = opts?.category ?? citCategory;
     const c = opts?.court ?? citCourt;
@@ -92,8 +90,12 @@ export default function LawyerResearch() {
       if (c) params.set('court', c);
       if (yf) params.set('year_from', yf);
       if (yt) params.set('year_to', yt);
-      params.set('limit', '50');
-      params.set('offset', String(citPage * 50));
+      if (opts?.all || citViewMode === 'groups') {
+        params.set('limit', '2500');
+      } else {
+        params.set('limit', '50');
+        params.set('offset', String(citPage * 50));
+      }
       const res = await fetch(`${API}/api/citations?${params}`, { headers: { Authorization: `Bearer ${token}` } });
       if (res.ok) {
         const data = await res.json();
@@ -121,7 +123,7 @@ export default function LawyerResearch() {
 
   useEffect(() => { if (activeTab === 'citations') { loadCitCart(); setCitPage(0); } }, [activeTab]);
 
-  useEffect(() => { if (activeTab === 'citations') searchRef.current(); }, [citPage]);
+  useEffect(() => { if (activeTab === 'citations') searchCitations(); }, [citPage, activeTab, searchCitations]);
 
   useEffect(() => {
     try {

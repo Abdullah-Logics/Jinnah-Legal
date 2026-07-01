@@ -49,6 +49,14 @@ citationsRouter.post('/seed', asyncHandler(async (req, res) => {
   res.status(201).json({ message: `${inserted} landmark cases seeded`, count: inserted });
 }));
 
+/* ─── Seed: Expand with Additional Courts ──────────────────── */
+
+citationsRouter.post('/seed-expand', asyncHandler(async (req, res) => {
+  const { seedExpand } = await import('../db/seed-expand.js');
+  const result = await seedExpand();
+  res.json(result || { message: 'Expansion complete' });
+}));
+
 /* ─── Bulk Import from External Dataset ─────────────────────── */
 
 citationsRouter.post('/bulk', asyncHandler(async (req, res) => {

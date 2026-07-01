@@ -86,14 +86,25 @@ export async function createApp() {
     app.set('trust proxy', 1);
   }
 
-  app.get('/api/health', (_req, res) => res.json({
-    status: 'ok',
-    db: process.env.SUPABASE_URL || process.env.DATABASE_URL ? 'postgres' : process.env.MSSQL_SERVER ? 'mssql' : 'sqlite',
-    ai: process.env.GEMINI_API_KEY ? 'gemini' : 'unavailable',
-    environment: process.env.NODE_ENV || 'development',
-    time: new Date().toISOString(),
-    uptime: process.uptime(),
-  }));
+  app.get('/api/health', async (_req, res) => {
+    let ipv6 = 'unknown';
+    try {
+      const { lookup } = await import('dns/promises');
+      const { address } = await lookup('db.vqvygljfroqzkxyzpvlo.supabase.co', { family: 6 });
+      ipv6 = address || 'none';
+    } catch { ipv6 = 'unreachable'; }
+
+    res.json({
+      status: 'ok',
+      db: process.env.SUPABASE_URL || process.env.DATABASE_URL ? 'postgres' : process.env.MSSQL_SERVER ? 'mssql' : 'sqlite',
+      ai: process.env.GEMINI_API_KEY ? 'gemini' : 'unavailable',
+      environment: process.env.NODE_ENV || 'development',
+      supabase_ipv6: ipv6,
+      rest_fallback: process.env.SUPABASE_PROJECT_REF && process.env.SUPABASE_MANAGEMENT_KEY ? 'available' : 'unavailable',
+      time: new Date().toISOString(),
+      uptime: process.uptime(),
+    });
+  });
 
   app.use('/api/auth',      authRouter);
   app.use('/api/cases',     casesRouter);

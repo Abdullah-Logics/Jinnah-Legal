@@ -2,17 +2,7 @@
   "framework": "vite",
   "buildCommand": "npm run render-build",
   "outputDirectory": "dist",
-  "functions": {
-    "api/index.js": {
-      "maxDuration": 30
-    },
-    "api/test-imports.js": {
-      "maxDuration": 60
-    }
-  },
   "rewrites": [
-    { "source": "/api/test-imports", "destination": "/api/test-imports" },
-    { "source": "/api/(.*)", "destination": "/api" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

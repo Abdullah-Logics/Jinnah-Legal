@@ -32,3 +32,7 @@ services:
         value: AIzaSyBlRW6D8l4E5qacyvidzDX6b1VIS_yK2AY
       - key: GEMINI_MODEL
         value: gemini-2.5-flash
+      - key: SUPABASE_PROJECT_REF
+        value: vqvygljfroqzkxyzpvlo
+      - key: SUPABASE_ANON_KEY
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZxdnlnbGpmcm9xemt4eXpwdmxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4Nzc4MTMsImV4cCI6MjA5NzQ1MzgxM30.Bve-HhJu-DQvkh2P56CrVQVNZRu7RQ0v3Vs8hQL9hFY

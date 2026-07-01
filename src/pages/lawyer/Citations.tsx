@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, Scale, BookOpen, FileText, Loader, ChevronRight, ShoppingCart, Plus, Trash2, Share2,
@@ -50,6 +50,103 @@ const CATEGORIES = [
 
 const COURTS = ['Supreme Court of Pakistan', 'Lahore High Court', 'Sindh High Court', 'Peshawar High Court', 'Balochistan High Court', 'Islamabad High Court'];
 
+const CitationCard = memo(({ c, selected, onSelect, onAddToCart, onRemoveFromCart, onInsertDoc, onSaveJournal, onShare, shareTarget, onSetShareTarget, getShareContacts, shareCitation, sending }: {
+  c: Citation | CartItem; inCart?: boolean; selected: boolean; onSelect: () => void;
+  onAddToCart?: () => void; onRemoveFromCart?: () => void;
+  onInsertDoc: () => void; onSaveJournal: () => void;
+  onShare?: () => void; shareTarget: boolean; onSetShareTarget: () => void;
+  getShareContacts: () => any[]; shareCitation: (contactId: string) => void; sending: boolean;
+}) => (
+  <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
+    className={`p-3 sm:p-4 bg-white rounded-xl border transition ${
+      selected ? 'border-indigo-400 ring-2 ring-indigo-100' : 'border-slate-200 hover:border-indigo-200'
+    }`}
+  >
+    <div className="flex items-start gap-2 sm:gap-3">
+      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-indigo-50 rounded-lg flex items-center justify-center flex-shrink-0">
+        <Gavel size={14} className="text-indigo-600" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+          <span className="text-[10px] sm:text-xs font-bold text-indigo-700 bg-indigo-50 px-1.5 sm:px-2 py-0.5 rounded">{c.citation || `${c.year} Reference`}</span>
+          <span className="text-[10px] text-slate-400">{c.court?.includes('High Court') ? '⚖' : '🏛'} {c.court.replace(' of Pakistan', '')}</span>
+          <span className="text-[9px] sm:text-[10px] px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded">{c.category}</span>
+          <span className="text-[9px] sm:text-[10px] text-slate-400 flex items-center gap-0.5"><Calendar size={9} />{c.year}</span>
+        </div>
+        <button onClick={onSelect} className="text-left w-full">
+          <h3 className="font-semibold text-slate-900 text-xs sm:text-sm leading-snug">{c.title}</h3>
+          {c.parties && <p className="text-[11px] text-slate-500 mt-0.5 truncate">{c.parties}</p>}
+        </button>
+      </div>
+      <div className="flex flex-col gap-1 flex-shrink-0">
+        {onAddToCart ? (
+          <button onClick={onAddToCart}
+            className="p-1 sm:p-1.5 hover:bg-emerald-50 rounded-lg text-slate-400 hover:text-emerald-600 transition"
+            title="Save"
+          ><Plus size={13} /></button>
+        ) : onRemoveFromCart ? (
+          <button onClick={onRemoveFromCart}
+            className="p-1 sm:p-1.5 hover:bg-red-50 rounded-lg text-slate-400 hover:text-red-600 transition"
+            title="Remove"
+          ><Trash2 size={13} /></button>
+        ) : null}
+        <ChevronRight size={13} className={`text-slate-400 transition ${selected ? 'rotate-90' : ''}`} />
+      </div>
+    </div>
+    {selected && (
+      <div className="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-slate-100 space-y-1.5 sm:space-y-2 text-xs text-slate-600">
+        {c.description && <p className="text-slate-700 text-[11px] sm:text-xs">{c.description}</p>}
+        {c.relevant_statutes && (
+          <div className="flex items-center gap-1 text-[11px]">
+            <FileText size={11} className="text-slate-400" />
+            <span className="font-medium">Statutes:</span> {c.relevant_statutes}
+          </div>
+        )}
+        {'full_text' in c && c.full_text && c.full_text.length > 0 && (
+          <div className="text-[10px] sm:text-[11px] text-slate-500 bg-slate-50 rounded-lg p-2 max-h-20 sm:max-h-24 overflow-y-auto leading-relaxed">
+            {(c as Citation).full_text?.slice(0, 600)}...
+          </div>
+        )}
+        {c.keywords && (
+          <div className="flex flex-wrap gap-1">
+            {c.keywords.split(',').map(k => (
+              <span key={k} className="px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded text-[9px] sm:text-[10px]">{k.trim()}</span>
+            ))}
+          </div>
+        )}
+        <div className="flex items-center gap-1.5 sm:gap-2 pt-1.5 sm:pt-2 flex-wrap">
+          <button onClick={onInsertDoc}
+            className="flex items-center gap-1 text-[10px] sm:text-[11px] font-medium text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-2 sm:px-2.5 py-1.5 rounded-lg transition"
+          ><Clipboard size={11} /> Use in Doc</button>
+          <button onClick={onSaveJournal}
+            className="flex items-center gap-1 text-[10px] sm:text-[11px] font-medium text-amber-600 bg-amber-50 hover:bg-amber-100 px-2 sm:px-2.5 py-1.5 rounded-lg transition"
+          ><BookOpen size={11} /> Journal</button>
+          <div className="relative">
+            <button onClick={onShare}
+              className="flex items-center gap-1 text-[10px] sm:text-[11px] font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 px-2 sm:px-2.5 py-1.5 rounded-lg transition"
+            ><Share2 size={11} /> Share</button>
+            {shareTarget && (
+              <div className="absolute bottom-full left-0 mb-2 bg-white border border-slate-200 rounded-xl shadow-xl p-2 z-20 w-44 sm:w-52">
+                <p className="text-[10px] text-slate-400 px-2 pb-1 font-medium">Share with client</p>
+                <div className="max-h-32 overflow-y-auto space-y-0.5">
+                  {getShareContacts().map(contact => (
+                    <button key={contact.id} onClick={() => shareCitation(contact.id)} disabled={sending}
+                      className="w-full flex items-center gap-2 px-2 py-1.5 text-[11px] text-slate-700 hover:bg-slate-50 rounded-lg transition"
+                    >
+                      <img src={contact.avatar || `https://ui-avatars.com/api/?name=${contact.name}&background=e2e8f0&color=64748b`} alt="" className="w-5 h-5 sm:w-6 sm:h-6 rounded-full" loading="lazy" />
+                      {contact.name} <Send size={11} className="ml-auto text-slate-400" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    )}
+  </motion.div>
+));
+
 export default function CaseLibrary() {
   const { token, currentUser, users, cases } = useStore();
   const navigate = useNavigate();
@@ -72,6 +169,8 @@ export default function CaseLibrary() {
   const [viewMode, setViewMode] = useState<'categories' | 'courts' | 'list'>('categories');
   const [expandedCats, setExpandedCats] = useState<Record<string, boolean>>({});
   const [expandedCourts, setExpandedCourts] = useState<Record<string, boolean>>({});
+  const toggleCat = useCallback((key: string) => setExpandedCats(p => ({ ...p, [key]: !p[key] })), []);
+  const toggleCourt = useCallback((key: string) => setExpandedCourts(p => ({ ...p, [key]: !p[key] })), []);
 
   const API = import.meta.env.DEV ? 'http://localhost:3001' : import.meta.env.VITE_API_URL || '';
 
@@ -107,27 +206,34 @@ export default function CaseLibrary() {
     setCartLoading(false);
   }, [API, token]);
 
-  const loadAllCategories = useCallback(async () => {
+  const loadAllCategories = useCallback(async (filters?: { search?: string; category?: string; court?: string; yearFrom?: string; yearTo?: string }) => {
     setLoading(true);
     try {
-      const res = await fetch(`${API}/api/citations?limit=2500`, { headers: headers() });
+      const params = new URLSearchParams();
+      params.set('limit', '2500');
+      if (filters?.search) params.set('search', filters.search);
+      if (filters?.category) params.set('category', filters.category);
+      if (filters?.court) params.set('court', filters.court);
+      if (filters?.yearFrom) params.set('year_from', filters.yearFrom);
+      if (filters?.yearTo) params.set('year_to', filters.yearTo);
+      const res = await fetch(`${API}/api/citations?${params}`, { headers: headers() });
       if (res.ok) {
         const data = await res.json();
         const rows = data.rows || data;
         setCitations(rows);
-        setTotal(rows.length);
+        setTotal(data.total || rows.length || 0);
       }
     } catch {}
     setLoading(false);
   }, [API, token]);
 
   useEffect(() => {
-    if (viewMode === 'categories' && !search && !category && !court) {
-      loadAllCategories();
+    if (viewMode === 'categories' || viewMode === 'courts') {
+      loadAllCategories({ search, category, court, yearFrom, yearTo });
     } else {
       loadCitations();
     }
-  }, [viewMode, loadCitations, loadAllCategories, search, category, court]);
+  }, [viewMode, loadCitations, loadAllCategories, search, category, court, yearFrom, yearTo]);
 
   useEffect(() => { loadCart(); }, []);
 
@@ -177,121 +283,30 @@ export default function CaseLibrary() {
     });
   };
 
-  const getShareContacts = () => {
+  const getShareContacts = useCallback(() => {
     const myClientIds = new Set(cases.filter(cc => cc.lawyerId === currentUser?.id).map(cc => cc.clientId));
     return users.filter(u => myClientIds.has(u.id));
-  };
+  }, [cases, currentUser, users]);
 
-  const groupedByCategory = citations.reduce((acc, c) => {
+  const groupedByCategory = useMemo(() => citations.reduce((acc, c) => {
     if (!acc[c.category]) acc[c.category] = [];
     acc[c.category].push(c);
     return acc;
-  }, {} as Record<string, Citation[]>);
+  }, {} as Record<string, Citation[]>), [citations]);
 
-  const groupedByCourt = citations.reduce((acc, c) => {
+  const groupedByCourt = useMemo(() => citations.reduce((acc, c) => {
     if (!acc[c.court]) acc[c.court] = [];
     acc[c.court].push(c);
     return acc;
-  }, {} as Record<string, Citation[]>);
-
-  const CitationCard = ({ c, inCart = false }: { c: Citation | CartItem; inCart?: boolean }) => (
-    <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
-      className={`p-3 sm:p-4 bg-white rounded-xl border transition ${
-        selected?.id === c.id ? 'border-indigo-400 ring-2 ring-indigo-100' : 'border-slate-200 hover:border-indigo-200'
-      }`}
-    >
-      <div className="flex items-start gap-2 sm:gap-3">
-        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-indigo-50 rounded-lg flex items-center justify-center flex-shrink-0">
-          <Gavel size={14} className="text-indigo-600" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-            <span className="text-[10px] sm:text-xs font-bold text-indigo-700 bg-indigo-50 px-1.5 sm:px-2 py-0.5 rounded">{c.citation || `${c.year} Reference`}</span>
-            <span className="text-[10px] text-slate-400">{c.court?.includes('High Court') ? '⚖' : '🏛'} {c.court.replace(' of Pakistan', '')}</span>
-            <span className="text-[9px] sm:text-[10px] px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded">{c.category}</span>
-            <span className="text-[9px] sm:text-[10px] text-slate-400 flex items-center gap-0.5"><Calendar size={9} />{c.year}</span>
-          </div>
-          <button onClick={() => setSelected(selected?.id === c.id ? null : c)} className="text-left w-full">
-            <h3 className="font-semibold text-slate-900 text-xs sm:text-sm leading-snug">{c.title}</h3>
-            {c.parties && <p className="text-[11px] text-slate-500 mt-0.5 truncate">{c.parties}</p>}
-          </button>
-        </div>
-        <div className="flex flex-col gap-1 flex-shrink-0">
-          {!inCart ? (
-            <button onClick={() => addToCart(c.id)}
-              className="p-1 sm:p-1.5 hover:bg-emerald-50 rounded-lg text-slate-400 hover:text-emerald-600 transition"
-              title="Save"
-            ><Plus size={13} /></button>
-          ) : (
-            <button onClick={() => removeFromCart((c as CartItem).cart_id)}
-              className="p-1 sm:p-1.5 hover:bg-red-50 rounded-lg text-slate-400 hover:text-red-600 transition"
-              title="Remove"
-            ><Trash2 size={13} /></button>
-          )}
-          <ChevronRight size={13} className={`text-slate-400 transition ${selected?.id === c.id ? 'rotate-90' : ''}`} />
-        </div>
-      </div>
-      {selected?.id === c.id && (
-        <div className="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-slate-100 space-y-1.5 sm:space-y-2 text-xs text-slate-600">
-          {c.description && <p className="text-slate-700 text-[11px] sm:text-xs">{c.description}</p>}
-          {c.relevant_statutes && (
-            <div className="flex items-center gap-1 text-[11px]">
-              <FileText size={11} className="text-slate-400" />
-              <span className="font-medium">Statutes:</span> {c.relevant_statutes}
-            </div>
-          )}
-          {'full_text' in c && c.full_text && c.full_text.length > 0 && (
-            <div className="text-[10px] sm:text-[11px] text-slate-500 bg-slate-50 rounded-lg p-2 max-h-20 sm:max-h-24 overflow-y-auto leading-relaxed">
-              {(c as Citation).full_text?.slice(0, 600)}...
-            </div>
-          )}
-          {c.keywords && (
-            <div className="flex flex-wrap gap-1">
-              {c.keywords.split(',').map(k => (
-                <span key={k} className="px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded text-[9px] sm:text-[10px]">{k.trim()}</span>
-              ))}
-            </div>
-          )}
-          <div className="flex items-center gap-1.5 sm:gap-2 pt-1.5 sm:pt-2 flex-wrap">
-            <button onClick={() => insertIntoDocument(c)}
-              className="flex items-center gap-1 text-[10px] sm:text-[11px] font-medium text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-2 sm:px-2.5 py-1.5 rounded-lg transition"
-            ><Clipboard size={11} /> Use in Doc</button>
-            <button onClick={() => saveToJournal(c as Citation)}
-              className="flex items-center gap-1 text-[10px] sm:text-[11px] font-medium text-amber-600 bg-amber-50 hover:bg-amber-100 px-2 sm:px-2.5 py-1.5 rounded-lg transition"
-            ><BookOpen size={11} /> Journal</button>
-            <div className="relative">
-              <button onClick={() => setShareTarget(shareTarget?.id === c.id ? null : c)}
-                className="flex items-center gap-1 text-[10px] sm:text-[11px] font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 px-2 sm:px-2.5 py-1.5 rounded-lg transition"
-              ><Share2 size={11} /> Share</button>
-              {shareTarget?.id === c.id && (
-                <div className="absolute bottom-full left-0 mb-2 bg-white border border-slate-200 rounded-xl shadow-xl p-2 z-20 w-44 sm:w-52">
-                  <p className="text-[10px] text-slate-400 px-2 pb-1 font-medium">Share with client</p>
-                  <div className="max-h-32 overflow-y-auto space-y-0.5">
-                    {getShareContacts().map(contact => (
-                      <button key={contact.id} onClick={() => shareCitation(c, contact.id)} disabled={sending}
-                        className="w-full flex items-center gap-2 px-2 py-1.5 text-[11px] text-slate-700 hover:bg-slate-50 rounded-lg transition"
-                      >
-                        <img src={contact.avatar || `https://ui-avatars.com/api/?name=${contact.name}&background=e2e8f0&color=64748b`} alt="" className="w-5 h-5 sm:w-6 sm:h-6 rounded-full" />
-                        {contact.name} <Send size={11} className="ml-auto text-slate-400" />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-    </motion.div>
-  );
+  }, {} as Record<string, Citation[]>), [citations]);
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20">
-      <div className="px-3 sm:px-4 lg:px-6 pt-4 sm:pt-6 max-w-6xl mx-auto">
+    <div className="min-h-screen bg-slate-50 pb-20" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
+      <div className="px-3 sm:px-4 lg:px-6 pt-4 sm:pt-6 max-w-6xl mx-auto" style={{ willChange: 'transform' }}>
         <div className="flex items-center justify-between mb-3 sm:mb-4">
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Pakistani Case Law</h1>
-            <p className="text-xs sm:text-sm text-slate-500 mt-0.5">{total.toLocaleString()} real Supreme Court judgments (2000–2024) — Jinnah Data</p>
+            <p className="text-xs sm:text-sm text-slate-500 mt-0.5">{total.toLocaleString()} Pakistani judgments (2000–2026) — Jinnah Data</p>
           </div>
         </div>
 
@@ -383,13 +398,13 @@ export default function CaseLibrary() {
                       {total > (page + 1) * 50 && <button onClick={() => setPage(p => p + 1)} className="px-2 sm:px-3 py-1 text-xs bg-white border border-slate-200 rounded-lg hover:bg-slate-50">Next →</button>}
                     </div>
                   </div>
-                  {citations.map(c => <CitationCard key={c.id} c={c} />)}
+                  {citations.map(c => <CitationCard key={c.id} c={c} selected={selected?.id === c.id} onSelect={() => setSelected(selected?.id === c.id ? null : c)} onAddToCart={() => addToCart(c.id)} onInsertDoc={() => insertIntoDocument(c)} onSaveJournal={() => saveToJournal(c)} onShare={() => setShareTarget(shareTarget?.id === c.id ? null : c)} shareTarget={shareTarget?.id === c.id} onSetShareTarget={() => setShareTarget(c)} getShareContacts={getShareContacts} shareCitation={(contactId) => shareCitation(c, contactId)} sending={sending} />)}
                 </>
               ) : viewMode === 'courts' ? (
                 <div className="space-y-2 sm:space-y-3">
                   {COURTS.filter(c => groupedByCourt[c]).map(courtName => {
                     const items = groupedByCourt[courtName];
-                    const isExpanded = expandedCourts[courtName] !== false;
+                     const isExpanded = expandedCourts[courtName] !== false;
                     const IconComponent = courtName === 'Supreme Court of Pakistan' ? Scale : Gavel;
                     const colors = {
                       'Supreme Court of Pakistan': { color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-200' },
@@ -402,13 +417,13 @@ export default function CaseLibrary() {
                     const c = colors[courtName] || { color: 'text-slate-600', bg: 'bg-slate-50', border: 'border-slate-200' };
                     return (
                       <div key={courtName} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                        <button onClick={() => setExpandedCourts(p => ({ ...p, [courtName]: !isExpanded }))}
+                        <button onClick={() => toggleCourt(courtName)}
                           className={`w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 ${c.bg} ${c.color}`}
                         >
                           <IconComponent size={15} />
                           <span className="text-xs sm:text-sm font-semibold">{courtName.replace(' of Pakistan', '')}</span>
                           <span className="text-[10px] opacity-60">({items.length})</span>
-                          <span className="text-[10px] opacity-50 ml-1">{items.filter(x => x.year === 2025).length > 0 ? `${items.filter(x => x.year === 2025).length} new` : ''}</span>
+                          <span className="text-[10px] opacity-50 ml-1">{items.filter(x => x.year >= 2025).length > 0 ? `${items.filter(x => x.year >= 2025).length} new` : ''}</span>
                           <ChevronDown size={14} className={`ml-auto transition ${isExpanded ? '' : 'rotate-180'}`} />
                         </button>
                         <AnimatePresence>
@@ -424,7 +439,7 @@ export default function CaseLibrary() {
                                           <span className="text-[10px] sm:text-[11px] font-bold text-indigo-700">{c.citation}</span>
                                           <span className="text-[9px] sm:text-[10px] px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded">{c.category}</span>
                                           <span className="text-[9px] text-slate-400">{c.year}</span>
-                                          {c.year === 2025 && <span className="text-[8px] px-1 py-0.5 bg-amber-100 text-amber-700 rounded font-medium">NEW</span>}
+                                          {c.year >= 2025 && <span className="text-[8px] px-1 py-0.5 bg-amber-100 text-amber-700 rounded font-medium">NEW</span>}
                                         </div>
                                         <p className="text-[11px] sm:text-xs font-medium text-slate-900 mt-0.5 leading-tight">{c.title}</p>
                                       </div>
@@ -452,7 +467,7 @@ export default function CaseLibrary() {
                     const isExpanded = expandedCats[cat.key] !== false;
                     return (
                       <div key={cat.key} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                        <button onClick={() => setExpandedCats(p => ({ ...p, [cat.key]: !isExpanded }))}
+                        <button onClick={() => toggleCat(cat.key)}
                           className={`w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 ${cat.bg} ${cat.color}`}
                         >
                           <cat.icon size={15} />
@@ -473,7 +488,7 @@ export default function CaseLibrary() {
                                           <span className="text-[10px] sm:text-[11px] font-bold text-indigo-700">{c.citation}</span>
                                           <span className="text-[9px] text-slate-400">{c.court.replace(' of Pakistan', '')}</span>
                                           <span className="text-[9px] text-slate-400">{c.year}</span>
-                                          {c.year === 2025 && <span className="text-[8px] px-1 py-0.5 bg-amber-100 text-amber-700 rounded font-medium">NEW</span>}
+                                          {c.year >= 2025 && <span className="text-[8px] px-1 py-0.5 bg-amber-100 text-amber-700 rounded font-medium">NEW</span>}
                                         </div>
                                         <p className="text-[11px] sm:text-xs font-medium text-slate-900 mt-0.5 leading-tight">{c.title}</p>
                                       </div>
@@ -516,7 +531,7 @@ export default function CaseLibrary() {
                 <p className="text-xs text-slate-400 mt-1">Browse and save cases to your collection</p>
               </div>
             ) : (
-              cart.map(c => <CitationCard key={c.cart_id} c={c} inCart />)
+              cart.map(c => <CitationCard key={c.cart_id} c={c} selected={selected?.id === c.id} onSelect={() => setSelected(selected?.id === c.id ? null : c)} onRemoveFromCart={() => removeFromCart(c.cart_id)} onInsertDoc={() => insertIntoDocument(c)} onSaveJournal={() => saveToJournal(c)} onShare={() => setShareTarget(shareTarget?.id === c.id ? null : c)} shareTarget={shareTarget?.id === c.id} onSetShareTarget={() => setShareTarget(c)} getShareContacts={getShareContacts} shareCitation={(contactId) => shareCitation(c, contactId)} sending={sending} />)
             )}
           </div>
         )}

@@ -32,9 +32,15 @@ body {
   overflow: hidden;
 }
 
+html {
+  scroll-behavior: smooth;
+  overscroll-behavior: contain;
+}
+
 @media (hover: none) {
-  button, a {
+  button, a, select, input, textarea {
     -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
   }
 }
 

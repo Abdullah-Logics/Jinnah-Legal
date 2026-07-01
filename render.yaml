@@ -27,7 +27,7 @@ services:
       - key: FRONTEND_URL
         value: https://ai-lawyer-blush.vercel.app
       - key: DATABASE_URL
-        value: postgresql://neondb_owner:npg_y7Czlpdfs4EG@ep-muddy-morning-adsqi9v5-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+        value: postgresql://postgres:%21%40%23abcABC123%21%40%23@db.vqvygljfroqzkxyzpvlo.supabase.co:5432/postgres
       - key: GEMINI_API_KEY
         value: AIzaSyBlRW6D8l4E5qacyvidzDX6b1VIS_yK2AY
       - key: GEMINI_MODEL

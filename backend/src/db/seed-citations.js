@@ -43,6 +43,8 @@ const DATA_SOURCES = [
   { path: '../scp-2025-results.json', label: 'SCP 2025 Results' },
   { path: '../scripts/fsc-judgments.json', label: 'FSC Judgments' },
   { path: '../scripts/ihc-judgments.json', label: 'IHC Judgments' },
+  { path: '../backend/data/supreme_court_cases.json', label: 'Supreme Court Cases' },
+  { path: '../backend/data/sc_cases_2015_2024.json', label: 'SC Cases 2015-2024' },
 ];
 
 export async function seedCitations() {

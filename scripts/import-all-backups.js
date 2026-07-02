@@ -98,6 +98,7 @@ async function importCitations() {
     { path: 'scp-2025-results.json', label: 'SCP 2025 Results' },
     { path: 'scripts/fsc-judgments.json', label: 'FSC Judgments' },
     { path: 'scripts/ihc-judgments.json', label: 'IHC Judgments' },
+    { path: 'scripts/shc-afr-judgments.json', label: 'SHC Judgments' },
   ];
 
   // Get existing citation strings

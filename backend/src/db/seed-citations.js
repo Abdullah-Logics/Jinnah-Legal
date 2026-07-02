@@ -45,6 +45,7 @@ const DATA_SOURCES = [
   { path: '../scripts/ihc-judgments.json', label: 'IHC Judgments' },
   { path: '../backend/data/supreme_court_cases.json', label: 'Supreme Court Cases' },
   { path: '../backend/data/sc_cases_2015_2024.json', label: 'SC Cases 2015-2024' },
+  { path: '../scripts/shc-afr-judgments.json', label: 'SHC Judgments' },
 ];
 
 export async function seedCitations() {

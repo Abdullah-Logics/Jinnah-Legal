@@ -11,33 +11,37 @@ function parseAFRPage(html, judgeCode, judgeName) {
 
   for (const row of rows) {
     const cells = row.match(/<td[^>]*>[\s\S]*?<\/td>/g);
-    if (!cells || cells.length < 11) continue;
+    if (!cells || cells.length < 13) continue;
 
-    const sno = cells[0]?.replace(/<[^>]+>/g, '').trim() || '';
+    // SHC table has 14 columns:
+    // 0: code (hidden), 1: S.No., 2: Citation, 3: Case No. (with link),
+    // 4: Case Type, 5: Case Year, 6: Parties, 7: Bench (hidden),
+    // 8: Order Date, 9: AFR, 10: Head Notes, 11: Bench, 12: Apex Court, 13: Apex Status
+    const sno = cells[1]?.replace(/<[^>]+>/g, '').trim() || '';
     if (!sno || sno === 'S.No.') continue;
 
-    const citation = cells[1]?.replace(/<[^>]+>/g, '').trim() || '';
+    const citation = cells[2]?.replace(/<[^>]+>/g, '').trim() || '';
 
-    const caseNoMatch = cells[2]?.match(/<a[^>]*>([\s\S]*?)<\/a>/);
-    const caseNo = caseNoMatch ? caseNoMatch[1].replace(/<[^>]+>/g, '').trim() : cells[2]?.replace(/<[^>]+>/g, '').trim() || '';
+    const caseNoMatch = cells[3]?.match(/<a[^>]*>([\s\S]*?)<\/a>/);
+    const caseNo = caseNoMatch ? caseNoMatch[1].replace(/<[^>]+>/g, '').trim() : cells[3]?.replace(/<[^>]+>/g, '').replace(/-->\s*$/, '').trim() || '';
 
-    const caseType = cells[3]?.replace(/<[^>]+>/g, '').trim() || '';
+    const caseType = cells[4]?.replace(/<[^>]+>/g, '').trim() || '';
 
-    const caseYear = cells[4]?.replace(/<[^>]+>/g, '').trim() || '';
+    const caseYear = cells[5]?.replace(/<[^>]+>/g, '').trim() || '';
 
-    const parties = cells[5]?.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() || '';
+    const parties = cells[6]?.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() || '';
 
-    const orderDate = cells[6]?.replace(/<[^>]+>/g, '').trim() || '';
+    const orderDate = cells[8]?.replace(/<[^>]+>/g, '').trim() || '';
 
-    const afr = cells[7]?.replace(/<[^>]+>/g, '').trim() || '';
+    const afr = cells[9]?.replace(/<[^>]+>/g, '').trim() || '';
 
-    const headNotes = cells[8]?.replace(/<[^>]+>/g, '').trim() || '';
+    const headNotes = cells[10]?.replace(/<[^>]+>/g, '').trim() || '';
 
-    const bench = cells[9]?.replace(/<[^>]+>/g, '').trim() || '';
+    const bench = cells[11]?.replace(/<[^>]+>/g, '').trim() || '';
 
-    const apexCourt = cells[10]?.replace(/<[^>]+>/g, '').trim() || '';
+    const apexCourt = cells[12]?.replace(/<[^>]+>/g, '').trim() || '';
 
-    const apexStatus = cells[11]?.replace(/<[^>]+>/g, '').trim() || '';
+    const apexStatus = cells[13]?.replace(/<[^>]+>/g, '').trim() || '';
 
     if (!caseNo && !citation) continue;
 

@@ -304,7 +304,7 @@ export const useStore = create<AppState>()(
             apiFetch(role === 'admin' ? '/api/admin/users' : '/api/users/all', {}, token),
             apiFetch('/api/cases', {}, token),
           ]);
-          set({ users: usersData, cases: casesData });
+          set({ users: role === 'admin' ? (usersData as any).users : usersData, cases: casesData });
         } catch {}
         return true;
       },
@@ -547,8 +547,8 @@ export const useStore = create<AppState>()(
         const { token, currentUser } = get();
         try {
           if (currentUser?.role === 'admin') {
-            const users = await apiFetch('/api/admin/users', {}, token);
-            set({ users });
+            const data = await apiFetch('/api/admin/users', {}, token);
+            set({ users: (data as any).users });
           } else {
             const users = await apiFetch('/api/users/all', {}, token);
             set({ users });

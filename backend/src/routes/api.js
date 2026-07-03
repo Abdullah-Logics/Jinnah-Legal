@@ -6,7 +6,7 @@ import { toPublic } from './auth.js';
 import {
   validate, messageSchema, connectionRequestSchema, invoiceSchema, timeEntrySchema,
   journalSchema, journalUpdateSchema, adminVerifySchema, userUpdateSchema,
-  firmRegisterSchema,
+  firmRegisterSchema, paymentMethodSchema, payInvoiceSchema,
 } from '../middleware/validate.js';
 import bcrypt from 'bcryptjs';
 import { AppError, asyncHandler } from '../middleware/errorHandler.js';
@@ -283,6 +283,60 @@ apiRouter.patch('/invoices/:id', asyncHandler(async (req, res) => {
   const updated = await queryOne('SELECT * FROM invoices WHERE id = ?', [req.params.id]);
   if (!updated) throw new AppError('Invoice not found', 404);
   res.json(updated);
+}));
+
+// ── PAYMENT METHODS ───────────────────────────────────────
+apiRouter.get('/payment-methods', asyncHandler(async (req, res) => {
+  const methods = await query('SELECT * FROM payment_methods WHERE user_id=? ORDER BY is_default DESC, created_at DESC', [req.user.id]);
+  res.json(methods);
+}));
+
+apiRouter.post('/payment-methods', validate(paymentMethodSchema), asyncHandler(async (req, res) => {
+  const { type, lastFour, expiry, cardBrand, isDefault } = req.body;
+  const id = uuid();
+  if (isDefault) {
+    await run('UPDATE payment_methods SET is_default=0 WHERE user_id=?', [req.user.id]);
+  }
+  await run('INSERT INTO payment_methods (id,user_id,type,last_four,expiry,card_brand,is_default) VALUES (?,?,?,?,?,?,?)',
+    [id, req.user.id, type, lastFour, expiry, cardBrand, isDefault ? 1 : 0]);
+  res.status(201).json(await queryOne('SELECT * FROM payment_methods WHERE id = ?', [id]));
+}));
+
+apiRouter.delete('/payment-methods/:id', asyncHandler(async (req, res) => {
+  const pm = await queryOne('SELECT * FROM payment_methods WHERE id=? AND user_id=?', [req.params.id, req.user.id]);
+  if (!pm) throw new AppError('Payment method not found', 404);
+  await run('DELETE FROM payment_methods WHERE id=?', [req.params.id]);
+  res.json({ ok: true });
+}));
+
+// ── PAYMENTS ──────────────────────────────────────────────
+apiRouter.get('/payments', asyncHandler(async (req, res) => {
+  const rows = await query(
+    `SELECT p.*, inv.case_id, inv.description as invoice_description, inv.amount as invoice_amount
+     FROM payments p JOIN invoices inv ON inv.id = p.invoice_id
+     WHERE inv.client_id=? OR inv.lawyer_id=?
+     ORDER BY p.paid_at DESC`,
+    [req.user.id, req.user.id]
+  );
+  res.json(rows);
+}));
+
+apiRouter.post('/invoices/:id/pay', validate(payInvoiceSchema), asyncHandler(async (req, res) => {
+  const invoice = await queryOne('SELECT * FROM invoices WHERE id=? AND client_id=? AND status=?', [req.params.id, req.user.id, 'pending']);
+  if (!invoice) throw new AppError('Invoice not found, already paid, or not yours', 404);
+
+  const pm = await queryOne('SELECT * FROM payment_methods WHERE id=? AND user_id=?', [req.body.paymentMethodId, req.user.id]);
+  if (!pm) throw new AppError('Payment method not found', 404);
+
+  const paymentId = uuid();
+  const transactionId = 'TXN-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8).toUpperCase();
+
+  await run('INSERT INTO payments (id,invoice_id,payment_method_id,amount,status,transaction_id) VALUES (?,?,?,?,?,?)',
+    [paymentId, req.params.id, pm.id, invoice.amount, 'completed', transactionId]);
+  await run('UPDATE invoices SET status=? WHERE id=?', ['paid', req.params.id]);
+
+  const payment = await queryOne('SELECT * FROM payments WHERE id = ?', [paymentId]);
+  res.status(201).json({ payment, invoice: { ...invoice, status: 'paid' } });
 }));
 
 // ── TIME TRACKING ─────────────────────────────────────────

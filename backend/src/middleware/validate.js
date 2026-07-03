@@ -190,3 +190,15 @@ export const userUpdateSchema = z.object({
   avatar: z.string().max(500).optional().nullable(),
   bio: z.string().max(1000).optional().nullable(),
 });
+
+export const paymentMethodSchema = z.object({
+  type: z.enum(['card', 'bank_transfer']).default('card'),
+  lastFour: z.string().regex(/^\d{4}$/, 'Must be 4 digits'),
+  expiry: z.string().regex(/^\d{2}\/\d{2}$/, 'Must be MM/YY format'),
+  cardBrand: z.string().max(20).optional().default('Visa'),
+  isDefault: z.boolean().optional().default(false),
+});
+
+export const payInvoiceSchema = z.object({
+  paymentMethodId: z.string().min(1, 'Payment method is required'),
+});

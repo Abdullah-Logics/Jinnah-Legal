@@ -154,6 +154,8 @@ export class PostgresAdapter {
       `CREATE TABLE IF NOT EXISTS call_logs (id TEXT PRIMARY KEY, caller_id TEXT NOT NULL, receiver_id TEXT NOT NULL, type TEXT NOT NULL DEFAULT 'audio', status TEXT NOT NULL, duration INTEGER DEFAULT 0, started_at TIMESTAMP, ended_at TIMESTAMP, created_at TIMESTAMP DEFAULT NOW())`,
       `CREATE TABLE IF NOT EXISTS citations (id TEXT PRIMARY KEY, title TEXT NOT NULL, citation TEXT NOT NULL, court TEXT NOT NULL, year INTEGER NOT NULL, parties TEXT, category TEXT, description TEXT, full_text TEXT, relevant_statutes TEXT, keywords TEXT, created_at TIMESTAMP DEFAULT NOW())`,
       `CREATE TABLE IF NOT EXISTS citation_cart (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, citation_id TEXT NOT NULL REFERENCES citations(id) ON DELETE CASCADE, notes TEXT, created_at TIMESTAMP DEFAULT NOW(), UNIQUE(user_id, citation_id))`,
+      `CREATE TABLE IF NOT EXISTS payment_methods (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, type TEXT NOT NULL DEFAULT 'card', last_four TEXT, expiry TEXT, card_brand TEXT, is_default INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT NOW())`,
+      `CREATE TABLE IF NOT EXISTS payments (id TEXT PRIMARY KEY, invoice_id TEXT NOT NULL REFERENCES invoices(id) ON DELETE CASCADE, payment_method_id TEXT REFERENCES payment_methods(id) ON DELETE SET NULL, amount DOUBLE PRECISION NOT NULL, status TEXT DEFAULT 'completed', transaction_id TEXT, paid_at TIMESTAMP DEFAULT NOW())`,
       `ALTER TABLE messages ADD COLUMN share_data TEXT`,
       `ALTER TABLE messages ADD COLUMN group_id TEXT`,
       `ALTER TABLE users ADD COLUMN bio TEXT`,

@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, Briefcase, User, Calendar, FileText, MessageSquare,
   Clock, Plus, Download, Edit, Trash2, Loader, X, Save,
-  Share2, CheckCircle,
+  Share2, CheckCircle, DollarSign,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useState, useRef, useEffect } from 'react';
@@ -14,7 +14,7 @@ import { avatarUrl } from '../../utils/resolveUrl';
 export default function LawyerCaseDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { cases, users, token, updateCase, deleteCase, loadCases, loadUsers, currentUser } = useStore();
+  const { cases, users, token, updateCase, deleteCase, loadCases, loadUsers, currentUser, addInvoice } = useStore();
 
   useEffect(() => { loadCases(); loadUsers(); }, [loadCases, loadUsers]);
   const [uploading, setUploading] = useState(false);
@@ -29,6 +29,8 @@ export default function LawyerCaseDetail() {
   const [editForm, setEditForm] = useState({ title: '', description: '', type: '', status: '', lawyerId: '' });
   const [courtForm, setCourtForm] = useState({ date: '', time: '', court: '', notes: '' });
   const [timelineForm, setTimelineForm] = useState({ date: '', time: '', event: '', description: '' });
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [invoiceForm, setInvoiceForm] = useState({ amount: 0, hours: 0, description: '', dueDate: '' });
 
   const { shareState, openShare, closeShare } = useShareDialog();
   const share = (type: 'hearing' | 'document' | 'calendar', title: string, details?: Record<string, any>) => {
@@ -338,10 +340,81 @@ export default function LawyerCaseDetail() {
               <button onClick={() => setShowDelete(true)} className="flex items-center gap-2 w-full p-3 bg-red-50 rounded-xl hover:bg-red-100 transition text-red-600">
                 <Trash2 size={18} /> Delete Case
               </button>
+              <button onClick={() => setShowInvoiceModal(true)} className="flex items-center gap-2 w-full p-3 bg-emerald-50 rounded-xl hover:bg-emerald-100 transition text-emerald-700">
+                <DollarSign size={18} /> Generate Invoice
+              </button>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Generate Invoice Modal */}
+      <AnimatePresence>
+        {showInvoiceModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+            onClick={() => setShowInvoiceModal(false)}
+          >
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
+              className="bg-white rounded-2xl w-full max-w-md p-6"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-slate-900">Generate Invoice</h2>
+                <button onClick={() => setShowInvoiceModal(false)} className="p-2 hover:bg-slate-100 rounded-lg"><X size={20} /></button>
+              </div>
+              <div className="space-y-4">
+                <div className="p-3 bg-slate-50 rounded-xl">
+                  <p className="text-xs text-slate-500">Case</p>
+                  <p className="font-medium text-slate-900">{caseData.title}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Amount (Rs) *</label>
+                    <input type="number" value={invoiceForm.amount || ''} onChange={e => setInvoiceForm(p => ({ ...p, amount: Number(e.target.value) }))}
+                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Hours</label>
+                    <input type="number" value={invoiceForm.hours || ''} onChange={e => setInvoiceForm(p => ({ ...p, hours: Number(e.target.value) }))}
+                      className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Description</label>
+                  <textarea value={invoiceForm.description} onChange={e => setInvoiceForm(p => ({ ...p, description: e.target.value }))}
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500 resize-none h-20"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Due Date</label>
+                  <input type="date" value={invoiceForm.dueDate} onChange={e => setInvoiceForm(p => ({ ...p, dueDate: e.target.value }))}
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+                <button onClick={() => {
+                  if (invoiceForm.amount <= 0) return;
+                  addInvoice({
+                    caseId: caseData.id,
+                    clientId: caseData.clientId,
+                    lawyerId: caseData.lawyerId || currentUser?.id || '',
+                    amount: invoiceForm.amount,
+                    hours: invoiceForm.hours || undefined,
+                    description: invoiceForm.description,
+                    dueDate: invoiceForm.dueDate || undefined,
+                  });
+                  setShowInvoiceModal(false);
+                  setInvoiceForm({ amount: 0, hours: 0, description: '', dueDate: '' });
+                }} disabled={invoiceForm.amount <= 0}
+                  className="w-full py-3 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition disabled:opacity-50"
+                >Create Invoice</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Edit Case Modal */}
       <AnimatePresence>

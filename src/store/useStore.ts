@@ -123,6 +123,30 @@ export interface Invoice {
   createdAt: string;
 }
 
+export interface PaymentMethod {
+  id: string;
+  user_id: string;
+  type: 'card' | 'bank_transfer';
+  last_four: string;
+  expiry: string;
+  card_brand: string;
+  is_default: number;
+  created_at: string;
+}
+
+export interface Payment {
+  id: string;
+  invoice_id: string;
+  payment_method_id: string;
+  amount: number;
+  status: 'completed' | 'failed' | 'refunded';
+  transaction_id: string;
+  paid_at: string;
+  case_id?: string;
+  invoice_description?: string;
+  invoice_amount?: number;
+}
+
 export interface TimeEntry {
   id: string;
   lawyerId: string;
@@ -211,6 +235,8 @@ interface AppState {
   messages: Message[];
   journals: JournalEntry[];
   invoices: Invoice[];
+  paymentMethods: PaymentMethod[];
+  payments: Payment[];
   timeEntries: TimeEntry[];
 
   // Auth actions
@@ -255,6 +281,15 @@ interface AppState {
   addInvoice: (invoice: Omit<Invoice, 'id' | 'createdAt'>) => Promise<void>;
   updateInvoice: (invoiceId: string, updates: Partial<Invoice>) => Promise<void>;
 
+  // Payment method actions
+  loadPaymentMethods: () => Promise<void>;
+  addPaymentMethod: (method: { type: string; lastFour: string; expiry: string; cardBrand: string; isDefault?: boolean }) => Promise<void>;
+  deletePaymentMethod: (id: string) => Promise<void>;
+
+  // Payment actions
+  loadPayments: () => Promise<void>;
+  payInvoice: (invoiceId: string, paymentMethodId: string) => Promise<void>;
+
   // Time tracking
   loadTimeEntries: () => Promise<void>;
   addTimeEntry: (entry: Omit<TimeEntry, 'id'>) => Promise<void>;
@@ -287,6 +322,8 @@ export const useStore = create<AppState>()(
       requests: { sent: [], received: [] },
       connections: [],
       invoices: [],
+      paymentMethods: [],
+      payments: [],
       timeEntries: [],
 
       login: async (email, _password, _role) => {
@@ -332,7 +369,7 @@ export const useStore = create<AppState>()(
         return true;
       },
 
-      logout: () => set({ currentUser: null, isAuthenticated: false, token: null, cases: [], messages: [], journals: [], invoices: [], timeEntries: [] }),
+      logout: () => set({ currentUser: null, isAuthenticated: false, token: null, cases: [], messages: [], journals: [], invoices: [], paymentMethods: [], payments: [], timeEntries: [] }),
 
       updateUser: async (userId, updates) => {
         const { token } = get();
@@ -519,6 +556,43 @@ export const useStore = create<AppState>()(
         const { token } = get();
         const updated = await apiFetch(`/api/invoices/${invoiceId}`, { method: 'PATCH', body: JSON.stringify(updates) }, token);
         set(state => ({ invoices: state.invoices.map(i => i.id === invoiceId ? updated : i) }));
+      },
+
+      loadPaymentMethods: async () => {
+        const { token } = get();
+        try {
+          const methods = await apiFetch('/api/payment-methods', {}, token);
+          set({ paymentMethods: methods });
+        } catch {}
+      },
+
+      addPaymentMethod: async (method) => {
+        const { token } = get();
+        const newMethod = await apiFetch('/api/payment-methods', { method: 'POST', body: JSON.stringify(method) }, token);
+        set(state => ({ paymentMethods: [newMethod, ...state.paymentMethods] }));
+      },
+
+      deletePaymentMethod: async (id) => {
+        const { token } = get();
+        await apiFetch(`/api/payment-methods/${id}`, { method: 'DELETE' }, token);
+        set(state => ({ paymentMethods: state.paymentMethods.filter(p => p.id !== id) }));
+      },
+
+      loadPayments: async () => {
+        const { token } = get();
+        try {
+          const p = await apiFetch('/api/payments', {}, token);
+          set({ payments: p });
+        } catch {}
+      },
+
+      payInvoice: async (invoiceId, paymentMethodId) => {
+        const { token } = get();
+        const result = await apiFetch(`/api/invoices/${invoiceId}/pay`, { method: 'POST', body: JSON.stringify({ paymentMethodId }) }, token);
+        set(state => ({
+          invoices: state.invoices.map(i => i.id === invoiceId ? result.invoice : i),
+          payments: [result.payment, ...state.payments],
+        }));
       },
 
       loadTimeEntries: async () => {

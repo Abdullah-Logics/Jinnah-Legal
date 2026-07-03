@@ -2,15 +2,17 @@ import { useParams, Link } from 'react-router-dom';
 import { useEffect } from 'react';
 import { useStore } from '../../store/useStore';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Briefcase, User, Calendar, FileText, MessageSquare, Clock, Download, CheckCircle, XCircle, Share2 } from 'lucide-react';
+import { ArrowLeft, Briefcase, User, Calendar, FileText, MessageSquare, Clock, Download, CheckCircle, XCircle, Share2, DollarSign } from 'lucide-react';
 import { format } from 'date-fns';
 import ShareDialog, { useShareDialog } from '../../components/ShareDialog';
 
 export default function ClientCaseDetail() {
   const { id } = useParams();
-  const { cases, users, respondToCase, loadCases } = useStore();
+  const { cases, users, invoices, respondToCase, loadCases, loadInvoices, loadPaymentMethods, paymentMethods, payInvoice } = useStore();
 
-  useEffect(() => { loadCases(); }, [loadCases]);
+  useEffect(() => { loadCases(); loadInvoices(); loadPaymentMethods(); }, []);
+
+  const caseInvoices = invoices.filter(i => i.caseId === id);
   
   const caseData = cases.find(c => c.id === id);
   const lawyer = users.find(u => u.id === caseData?.lawyerId);
@@ -221,6 +223,40 @@ export default function ClientCaseDetail() {
               <p className="text-sm text-slate-500 mt-1">You have rejected this case.</p>
             </div>
           )}
+
+          {/* Invoices */}
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+            <div className="flex items-center gap-2 mb-4">
+              <DollarSign size={18} className="text-emerald-600" />
+              <h2 className="text-lg font-bold text-slate-900">Invoices</h2>
+            </div>
+            {caseInvoices.length > 0 ? (
+              <div className="space-y-3">
+                {caseInvoices.map(inv => (
+                  <div key={inv.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                      inv.status === 'paid' ? 'bg-emerald-100 text-emerald-600' :
+                      inv.status === 'pending' ? 'bg-amber-100 text-amber-600' :
+                      'bg-red-100 text-red-600'
+                    }`}>
+                      <DollarSign size={16} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-900">Rs {inv.amount.toLocaleString()}</p>
+                      {inv.dueDate && <p className="text-xs text-slate-400">Due: {format(new Date(inv.dueDate), 'MMM d, yyyy')}</p>}
+                    </div>
+                    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                      inv.status === 'paid' ? 'bg-emerald-100 text-emerald-700' :
+                      inv.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                      'bg-red-100 text-red-700'
+                    }`}>{inv.status}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-center text-slate-400 py-4 text-sm">No invoices for this case</p>
+            )}
+          </div>
 
           {/* Court Dates */}
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">

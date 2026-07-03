@@ -312,6 +312,18 @@ export class SqliteAdapter {
         keywords TEXT,
         created_at TEXT DEFAULT (datetime('now'))
       );
+      CREATE TABLE IF NOT EXISTS payment_methods (
+        id TEXT PRIMARY KEY, user_id TEXT NOT NULL,
+        type TEXT NOT NULL DEFAULT 'card', last_four TEXT,
+        expiry TEXT, card_brand TEXT, is_default INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT (datetime('now'))
+      );
+      CREATE TABLE IF NOT EXISTS payments (
+        id TEXT PRIMARY KEY, invoice_id TEXT NOT NULL,
+        payment_method_id TEXT, amount REAL NOT NULL,
+        status TEXT DEFAULT 'completed', transaction_id TEXT,
+        paid_at TEXT DEFAULT (datetime('now'))
+      );
     `);
     try { this.db.run("ALTER TABLE documents ADD COLUMN content TEXT DEFAULT ''"); } catch {}
     try { this.db.run("ALTER TABLE documents ADD COLUMN type TEXT DEFAULT 'draft'"); } catch {}

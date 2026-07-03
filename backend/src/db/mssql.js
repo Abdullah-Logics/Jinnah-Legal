@@ -177,13 +177,27 @@ export class MssqlAdapter {
         created_at DATETIME2 DEFAULT GETDATE()
       )`,
       `IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='ai_chat_history' AND xtype='U')
-      CREATE TABLE ai_chat_history (
-        id NVARCHAR(36) PRIMARY KEY, user_id NVARCHAR(36),
-        role NVARCHAR(20) NOT NULL, content NVARCHAR(MAX) NOT NULL,
-        session_id NVARCHAR(36),
-        created_at DATETIME2 DEFAULT GETDATE()
-      )`,
-    ];
+       CREATE TABLE ai_chat_history (
+         id NVARCHAR(36) PRIMARY KEY, user_id NVARCHAR(36),
+         role NVARCHAR(20) NOT NULL, content NVARCHAR(MAX) NOT NULL,
+         session_id NVARCHAR(36),
+         created_at DATETIME2 DEFAULT GETDATE()
+       )`,
+       `IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='payment_methods' AND xtype='U')
+       CREATE TABLE payment_methods (
+         id NVARCHAR(36) PRIMARY KEY, user_id NVARCHAR(36) NOT NULL,
+         type NVARCHAR(20) NOT NULL DEFAULT 'card', last_four NVARCHAR(4),
+         expiry NVARCHAR(5), card_brand NVARCHAR(20), is_default INT DEFAULT 0,
+         created_at DATETIME2 DEFAULT GETDATE()
+       )`,
+       `IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='payments' AND xtype='U')
+       CREATE TABLE payments (
+         id NVARCHAR(36) PRIMARY KEY, invoice_id NVARCHAR(36) NOT NULL,
+         payment_method_id NVARCHAR(36), amount FLOAT NOT NULL,
+         status NVARCHAR(20) DEFAULT 'completed', transaction_id NVARCHAR(100),
+         paid_at DATETIME2 DEFAULT GETDATE()
+       )`,
+     ];
 
     for (const t of tables) {
       await this.pool.request().query(t);

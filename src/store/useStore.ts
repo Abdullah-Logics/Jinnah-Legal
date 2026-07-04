@@ -720,6 +720,7 @@ export const useStore = create<AppState>()(
         users: state.users,
         cases: state.cases,
       }),
+      merge: (persisted, initial) => ({ ...initial, ...persisted }),
     }
   )
 );

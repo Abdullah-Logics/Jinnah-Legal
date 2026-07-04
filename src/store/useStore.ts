@@ -605,14 +605,18 @@ export const useStore = create<AppState>()(
 
       addInvoice: async (invoice) => {
         const { token } = get();
-        const newInv = await apiFetch('/api/invoices', { method: 'POST', body: JSON.stringify(invoice) }, token);
-        set(state => ({ invoices: [newInv, ...state.invoices] }));
+        try {
+          const newInv = await apiFetch('/api/invoices', { method: 'POST', body: JSON.stringify(invoice) }, token);
+          set(state => ({ invoices: [normalizeInvoice(newInv as Record<string, unknown>), ...state.invoices] }));
+        } catch {}
       },
 
       updateInvoice: async (invoiceId, updates) => {
         const { token } = get();
-        const updated = await apiFetch(`/api/invoices/${invoiceId}`, { method: 'PATCH', body: JSON.stringify(updates) }, token);
-        set(state => ({ invoices: state.invoices.map(i => i.id === invoiceId ? updated : i) }));
+        try {
+          const updated = await apiFetch(`/api/invoices/${invoiceId}`, { method: 'PATCH', body: JSON.stringify(updates) }, token);
+          set(state => ({ invoices: state.invoices.map(i => i.id === invoiceId ? normalizeInvoice(updated as Record<string, unknown>) : i) }));
+        } catch {}
       },
 
       loadPaymentMethods: async () => {
@@ -662,8 +666,10 @@ export const useStore = create<AppState>()(
 
       addTimeEntry: async (entry) => {
         const { token } = get();
-        const newEntry = await apiFetch('/api/time-entries', { method: 'POST', body: JSON.stringify(entry) }, token);
-        set(state => ({ timeEntries: [newEntry, ...state.timeEntries] }));
+        try {
+          const newEntry = await apiFetch('/api/time-entries', { method: 'POST', body: JSON.stringify(entry) }, token);
+          set(state => ({ timeEntries: [normalizeTimeEntry(newEntry as Record<string, unknown>), ...state.timeEntries] }));
+        } catch {}
       },
 
       verifyLawyer: async (lawyerId, status) => {

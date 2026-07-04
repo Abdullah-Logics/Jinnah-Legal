@@ -54,8 +54,8 @@ adminRouter.get('/messages/:userId', asyncHandler(async (req, res) => {
   if (!targetUser) throw new AppError('User not found', 404);
   const messages = await query(
     `SELECT m.*, 
-      (SELECT name FROM users WHERE id=m.sender_id) as sender_name,
-      (SELECT name FROM users WHERE id=m.receiver_id) as receiver_name
+      (SELECT name FROM users WHERE id=m.sender_id::uuid) as sender_name,
+      (SELECT name FROM users WHERE id=m.receiver_id::uuid) as receiver_name
     FROM messages m 
     WHERE m.sender_id=? OR m.receiver_id=?
     ORDER BY m.created_at ASC`,
@@ -68,10 +68,10 @@ adminRouter.get('/messages', asyncHandler(async (req, res) => {
   await requireAdmin(req);
   const { page = 1, limit = 50, userId } = req.query;
   let sql = `SELECT m.*,
-    (SELECT name FROM users WHERE id=m.sender_id) as sender_name,
-    (SELECT name FROM users WHERE id=m.receiver_id) as receiver_name,
-    (SELECT email FROM users WHERE id=m.sender_id) as sender_email,
-    (SELECT email FROM users WHERE id=m.receiver_id) as receiver_email
+    (SELECT name FROM users WHERE id=m.sender_id::uuid) as sender_name,
+    (SELECT name FROM users WHERE id=m.receiver_id::uuid) as receiver_name,
+    (SELECT email FROM users WHERE id=m.sender_id::uuid) as sender_email,
+    (SELECT email FROM users WHERE id=m.receiver_id::uuid) as receiver_email
     FROM messages m WHERE 1=1`;
   const params = [];
   if (userId) { sql += ' AND (m.sender_id=? OR m.receiver_id=?)'; params.push(userId, userId); }
@@ -111,9 +111,9 @@ adminRouter.get('/blocks', asyncHandler(async (req, res) => {
   await requireAdmin(req);
   const { active } = req.query;
   let sql = `SELECT b.*,
-    (SELECT name FROM users WHERE id=b.user_id) as user_name,
-    (SELECT email FROM users WHERE id=b.user_id) as user_email,
-    (SELECT name FROM users WHERE id=b.blocked_by) as blocked_by_name
+    (SELECT name FROM users WHERE id=b.user_id::uuid) as user_name,
+    (SELECT email FROM users WHERE id=b.user_id::uuid) as user_email,
+    (SELECT name FROM users WHERE id=b.blocked_by::uuid) as blocked_by_name
     FROM blocks b`;
   const params = [];
   if (active === 'true' || active === '1') { sql += ' WHERE b.unblocked_at IS NULL'; }
@@ -126,9 +126,9 @@ adminRouter.get('/reports', asyncHandler(async (req, res) => {
   await requireAdmin(req);
   const { status } = req.query;
   let sql = `SELECT r.*,
-    (SELECT name FROM users WHERE id=r.reporter_id) as reporter_name,
-    (SELECT name FROM users WHERE id=r.reported_id) as reported_name,
-    (SELECT email FROM users WHERE id=r.reported_id) as reported_email
+    (SELECT name FROM users WHERE id=r.reporter_id::uuid) as reporter_name,
+    (SELECT name FROM users WHERE id=r.reported_id::uuid) as reported_name,
+    (SELECT email FROM users WHERE id=r.reported_id::uuid) as reported_email
     FROM reports r`;
   const params = [];
   if (status) { sql += ' WHERE r.status=?'; params.push(status); }

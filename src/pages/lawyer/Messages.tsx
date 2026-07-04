@@ -33,6 +33,7 @@ const EMOJIS = [
 
 function formatMsgTime(t: string) {
   const d = new Date(t);
+  if (isNaN(d.getTime())) return '';
   if (isToday(d)) return format(d, 'hh:mm a');
   if (isYesterday(d)) return `Yesterday ${format(d, 'hh:mm a')}`;
   return format(d, 'MMM d, hh:mm a');
@@ -40,6 +41,7 @@ function formatMsgTime(t: string) {
 
 function formatDateSep(t: string) {
   const d = new Date(t);
+  if (isNaN(d.getTime())) return '';
   if (isToday(d)) return 'Today';
   if (isYesterday(d)) return 'Yesterday';
   return format(d, 'MMMM d, yyyy');

@@ -494,7 +494,7 @@ export const useStore = create<AppState>()(
             senderId: m.sender_id ?? m.senderId,
             receiverId: m.receiver_id ?? m.receiverId,
             content: m.content,
-            timestamp: (m.created_at || m.timestamp || '').includes('Z') ? (m.created_at ?? m.timestamp) : (m.created_at ?? m.timestamp) + 'Z',
+            timestamp: m.created_at ?? m.timestamp ?? new Date().toISOString(),
             read: !!(m.is_read ?? m.read),
             caseId: m.case_id ?? m.caseId,
             attachments: m.attachments,

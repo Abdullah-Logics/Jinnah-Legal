@@ -41,10 +41,10 @@ groupsRouter.post('/', asyncHandler(async (req, res) => {
 groupsRouter.get('/', asyncHandler(async (req, res) => {
   const groups = await query(
     `SELECT g.*,
-      (SELECT name FROM users WHERE id=g.created_by) as created_by_name,
-      (SELECT COUNT(*) FROM group_members WHERE group_id=g.id) as member_count
+      (SELECT name FROM users WHERE id=g.created_by::uuid) as created_by_name,
+      (SELECT COUNT(*) FROM group_members WHERE group_id::uuid=g.id) as member_count
     FROM groups_table g
-    WHERE g.id IN (SELECT group_id FROM group_members WHERE user_id=?)
+    WHERE g.id IN (SELECT group_id::uuid FROM group_members WHERE user_id=?)
     ORDER BY g.created_at DESC`,
     [req.user.id]
   );
@@ -54,7 +54,7 @@ groupsRouter.get('/', asyncHandler(async (req, res) => {
 groupsRouter.get('/:id', asyncHandler(async (req, res) => {
   const group = await queryOne(
     `SELECT g.*,
-      (SELECT name FROM users WHERE id=g.created_by) as created_by_name
+      (SELECT name FROM users WHERE id=g.created_by::uuid) as created_by_name
     FROM groups_table g WHERE g.id=?`,
     [req.params.id]
   );
@@ -66,13 +66,13 @@ groupsRouter.get('/:id', asyncHandler(async (req, res) => {
   if (!isMember) throw new AppError('Not a member of this group', 403);
   const members = await query(
     `SELECT gm.*, u.name, u.email, u.role, u.avatar
-    FROM group_members gm JOIN users u ON u.id=gm.user_id
+    FROM group_members gm JOIN users u ON u.id=gm.user_id::uuid
     WHERE gm.group_id=? ORDER BY gm.joined_at ASC`,
     [req.params.id]
   );
   const messages = await query(
     `SELECT m.*,
-      (SELECT name FROM users WHERE id=m.sender_id) as sender_name
+      (SELECT name FROM users WHERE id=m.sender_id::uuid) as sender_name
     FROM messages m
     WHERE m.group_id=? ORDER BY m.created_at ASC`,
     [req.params.id]
@@ -104,7 +104,7 @@ groupsRouter.post('/:id/members', asyncHandler(async (req, res) => {
   }
   const members = await query(
     `SELECT gm.*, u.name, u.email, u.role, u.avatar
-    FROM group_members gm JOIN users u ON u.id=gm.user_id
+    FROM group_members gm JOIN users u ON u.id=gm.user_id::uuid
     WHERE gm.group_id=? ORDER BY gm.joined_at ASC`,
     [req.params.id]
   );

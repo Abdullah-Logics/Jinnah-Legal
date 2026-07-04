@@ -54,10 +54,10 @@ export class SupabaseJsAdapter {
 
   async _createSchema() {
     await this._ensureTable(
-      `CREATE TABLE IF NOT EXISTS invoices (id TEXT PRIMARY KEY, case_id TEXT, client_id TEXT, lawyer_id TEXT, amount DOUBLE PRECISION NOT NULL, hours DOUBLE PRECISION, description TEXT, status TEXT DEFAULT 'pending', due_date TEXT, created_at TIMESTAMP DEFAULT NOW())`
+      `CREATE TABLE IF NOT EXISTS invoices (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), case_id UUID, client_id UUID, lawyer_id UUID, amount DOUBLE PRECISION NOT NULL, hours DOUBLE PRECISION, description TEXT, status TEXT DEFAULT 'pending', due_date TEXT, created_at TIMESTAMP DEFAULT NOW())`
     );
     await this._ensureTable(
-      `CREATE TABLE IF NOT EXISTS time_entries (id TEXT PRIMARY KEY, lawyer_id TEXT, case_id TEXT, hours DOUBLE PRECISION NOT NULL, description TEXT, date TEXT NOT NULL, rate DOUBLE PRECISION, created_at TIMESTAMP DEFAULT NOW())`
+      `CREATE TABLE IF NOT EXISTS time_entries (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), lawyer_id UUID, case_id UUID, hours DOUBLE PRECISION NOT NULL, description TEXT, date TEXT NOT NULL, rate DOUBLE PRECISION, created_at TIMESTAMP DEFAULT NOW())`
     );
     await this._ensureTable(
       `CREATE TABLE IF NOT EXISTS payment_methods (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID NOT NULL, type TEXT NOT NULL DEFAULT 'card', last_four TEXT, expiry TEXT, card_brand TEXT, is_default INTEGER DEFAULT 0, created_at TIMESTAMPTZ DEFAULT NOW())`

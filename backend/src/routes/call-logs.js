@@ -26,10 +26,10 @@ callLogsRouter.get('/', asyncHandler(async (req, res) => {
   const { page = 1, limit = 50 } = req.query;
   const logs = await query(
     `SELECT cl.*,
-      (SELECT name FROM users WHERE id=cl.caller_id) as caller_name,
-      (SELECT name FROM users WHERE id=cl.receiver_id) as receiver_name,
-      (SELECT avatar FROM users WHERE id=cl.caller_id) as caller_avatar,
-      (SELECT avatar FROM users WHERE id=cl.receiver_id) as receiver_avatar
+      (SELECT name FROM users WHERE id=cl.caller_id::uuid) as caller_name,
+      (SELECT name FROM users WHERE id=cl.receiver_id::uuid) as receiver_name,
+      (SELECT avatar FROM users WHERE id=cl.caller_id::uuid) as caller_avatar,
+      (SELECT avatar FROM users WHERE id=cl.receiver_id::uuid) as receiver_avatar
     FROM call_logs cl
     WHERE cl.caller_id=? OR cl.receiver_id=?
     ORDER BY cl.created_at DESC LIMIT ? OFFSET ?`,
@@ -50,8 +50,8 @@ callLogsRouter.get('/admin/:userId', asyncHandler(async (req, res) => {
   if (!user) throw new AppError('User not found', 404);
   const logs = await query(
     `SELECT cl.*,
-      (SELECT name FROM users WHERE id=cl.caller_id) as caller_name,
-      (SELECT name FROM users WHERE id=cl.receiver_id) as receiver_name
+      (SELECT name FROM users WHERE id=cl.caller_id::uuid) as caller_name,
+      (SELECT name FROM users WHERE id=cl.receiver_id::uuid) as receiver_name
     FROM call_logs cl
     WHERE cl.caller_id=? OR cl.receiver_id=?
     ORDER BY cl.created_at DESC`,

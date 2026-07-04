@@ -8,6 +8,7 @@ import api from '../../utils/api';
 
 function formatMsgTime(t: string) {
   const d = new Date(t);
+  if (isNaN(d.getTime())) return '';
   if (isToday(d)) return format(d, 'hh:mm a');
   if (isYesterday(d)) return `Yesterday ${format(d, 'hh:mm a')}`;
   return format(d, 'MMM d, hh:mm a');

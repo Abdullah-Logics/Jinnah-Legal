@@ -26,9 +26,9 @@ reportsRouter.get('/', asyncHandler(async (req, res) => {
   const user = await queryOne('SELECT role FROM users WHERE id=?', [req.user.id]);
   if (!user || user.role !== 'admin') throw new AppError('Admin only', 403);
   let sql = `SELECT r.*,
-    (SELECT name FROM users WHERE id=r.reporter_id) as reporter_name,
-    (SELECT name FROM users WHERE id=r.reported_id) as reported_name,
-    (SELECT email FROM users WHERE id=r.reported_id) as reported_email
+    (SELECT name FROM users WHERE id=r.reporter_id::uuid) as reporter_name,
+    (SELECT name FROM users WHERE id=r.reported_id::uuid) as reported_name,
+    (SELECT email FROM users WHERE id=r.reported_id::uuid) as reported_email
     FROM reports r`;
   const params = [];
   if (status) { sql += ' WHERE r.status=?'; params.push(status); }

@@ -107,8 +107,8 @@ apiRouter.patch('/messages/:id/read', asyncHandler(async (req, res) => {
 // ── CONNECTION REQUESTS ─────────────────────────────────────
 apiRouter.get('/requests', asyncHandler(async (req, res) => {
   const { id } = req.user;
-  const sent = await query('SELECT r.*, u.name as receiver_name, u.avatar as receiver_avatar FROM connection_requests r JOIN users u ON u.id=r.receiver_id WHERE r.sender_id=? ORDER BY r.created_at DESC', [id]);
-  const received = await query('SELECT r.*, u.name as sender_name, u.avatar as sender_avatar FROM connection_requests r JOIN users u ON u.id=r.sender_id WHERE r.receiver_id=? ORDER BY r.created_at DESC', [id]);
+  const sent = await query('SELECT r.*, u.name as receiver_name, u.avatar as receiver_avatar FROM connection_requests r JOIN users u ON u.id=r.receiver_id::uuid WHERE r.sender_id=? ORDER BY r.created_at DESC', [id]);
+  const received = await query('SELECT r.*, u.name as sender_name, u.avatar as sender_avatar FROM connection_requests r JOIN users u ON u.id=r.sender_id::uuid WHERE r.receiver_id=? ORDER BY r.created_at DESC', [id]);
   res.json({ sent, received });
 }));
 
@@ -143,7 +143,7 @@ apiRouter.get('/connections', asyncHandler(async (req, res) => {
   const { id } = req.user;
   const rows = await query(
     `SELECT c.*, u.name as connected_name, u.avatar as connected_avatar, u.role as connected_role
-     FROM connections c JOIN users u ON (u.id=c.user1_id OR u.id=c.user2_id)
+     FROM connections c JOIN users u ON (u.id=c.user1_id::uuid OR u.id=c.user2_id::uuid)
      WHERE (c.user1_id=? OR c.user2_id=?) AND u.id!=? ORDER BY c.created_at DESC`,
     [id, id, id]
   );
@@ -227,11 +227,11 @@ apiRouter.get('/firms/requests', asyncHandler(async (req, res) => {
   const { id, role } = req.user;
   let rows;
   if (role === 'lawyer') {
-    rows = await query('SELECT fr.*, f.name as firm_name FROM firm_requests fr JOIN firms f ON f.id=fr.firm_id WHERE fr.lawyer_id=? ORDER BY fr.created_at DESC', [id]);
+    rows = await query('SELECT fr.*, f.name as firm_name FROM firm_requests fr JOIN firms f ON f.id=fr.firm_id::uuid WHERE fr.lawyer_id=? ORDER BY fr.created_at DESC', [id]);
   } else if (role === 'firm_admin') {
     const firm = await queryOne('SELECT id FROM firms WHERE admin_id=?', [id]);
     if (!firm) return res.json([]);
-    rows = await query('SELECT fr.*, u.name as lawyer_name, u.email as lawyer_email FROM firm_requests fr JOIN users u ON u.id=fr.lawyer_id WHERE fr.firm_id=? ORDER BY fr.created_at DESC', [firm.id]);
+    rows = await query('SELECT fr.*, u.name as lawyer_name, u.email as lawyer_email FROM firm_requests fr JOIN users u ON u.id=fr.lawyer_id::uuid WHERE fr.firm_id=? ORDER BY fr.created_at DESC', [firm.id]);
   } else {
     return res.json([]);
   }
@@ -518,8 +518,8 @@ apiRouter.get('/admin/stats', asyncHandler(async (req, res) => {
       : queryOne('SELECT COUNT(*) as c FROM users'),
     queryOne("SELECT COUNT(*) as c FROM users WHERE role='lawyer' " + firmFilter, firmParams),
     queryOne("SELECT COUNT(*) as c FROM users WHERE role='client' " + firmFilter, firmParams),
-    queryOne('SELECT COUNT(*) as c FROM cases' + (firmId ? ' WHERE lawyer_id IN (SELECT id FROM users WHERE firm_id=?)' : ''), firmParams2),
-    queryOne("SELECT COUNT(*) as c FROM cases WHERE status='active'" + (firmId ? ' AND lawyer_id IN (SELECT id FROM users WHERE firm_id=?)' : ''), firmParams2),
+    queryOne('SELECT COUNT(*) as c FROM cases' + (firmId ? ' WHERE lawyer_id::uuid IN (SELECT id FROM users WHERE firm_id=?)' : ''), firmParams2),
+    queryOne("SELECT COUNT(*) as c FROM cases WHERE status='active'" + (firmId ? ' AND lawyer_id::uuid IN (SELECT id FROM users WHERE firm_id=?)' : ''), firmParams2),
     queryOne("SELECT COUNT(*) as c FROM users WHERE role='lawyer' AND verification_status='pending' " + firmFilter, firmParams),
   ]);
   res.json({

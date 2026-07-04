@@ -374,11 +374,11 @@ export default function ClientMessages() {
                       <span className={`text-sm truncate ${unread > 0 ? 'font-semibold text-slate-900' : 'font-medium text-slate-700'}`}>
                         {contact.name}
                       </span>
-                      {lastMsg && (
+                      {lastMsg?.timestamp ? (
                         <span className="text-[11px] text-slate-400 flex-shrink-0">
                           {format(new Date(lastMsg.timestamp), 'hh:mm a')}
                         </span>
-                      )}
+                      ) : null}
                     </div>
                     <div className="flex items-center justify-between gap-2 mt-0.5">
                       <p className={`text-xs truncate ${unread > 0 ? 'text-slate-700 font-medium' : 'text-slate-400'}`}>
@@ -586,7 +586,7 @@ export default function ClientMessages() {
                             )}
                             {msg.shareData && <ShareCard data={parseShareData(msg.shareData)!} />}
                             <div className={`flex items-center gap-1 mt-0.5 px-1 ${isMine ? 'justify-end' : 'justify-start'}`}>
-                              <span className="text-[10px] text-slate-400">{format(new Date(msg.timestamp), 'hh:mm a')}</span>
+                              <span className="text-[10px] text-slate-400">{msg.timestamp ? format(new Date(msg.timestamp), 'hh:mm a') : ''}</span>
                               {isMine && (
                                 msg.read
                                   ? <CheckCheck size={11} className="text-emerald-500" />

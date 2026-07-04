@@ -215,7 +215,7 @@ export default function LawyerDashboard() {
                       {!msg.read && <span className="w-2 h-2 bg-emerald-500 rounded-full" />}
                     </div>
                     <p className="text-sm text-slate-500 truncate">{msg.content}</p>
-                    <p className="text-xs text-slate-400">{format(new Date(msg.timestamp), 'MMM d, h:mm a')}</p>
+                    <p className="text-xs text-slate-400">{msg.timestamp ? format(new Date(msg.timestamp), 'MMM d, h:mm a') : ''}</p>
                   </div>
                 </div>
               );

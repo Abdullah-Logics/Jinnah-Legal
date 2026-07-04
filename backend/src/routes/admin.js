@@ -25,10 +25,19 @@ adminRouter.get('/dashboard', asyncHandler(async (req, res) => {
 }));
 
 adminRouter.get('/users', asyncHandler(async (req, res) => {
-  await requireAdmin(req);
+  if (!['admin','firm_admin'].includes(req.user.role)) throw new AppError('Forbidden', 403);
   const { role, search, page = 1, limit = 20 } = req.query;
-  let sql = 'SELECT id, email, name, role, phone, city, is_verified, verification_status, created_at FROM users WHERE 1=1';
+  let sql = `SELECT id,email,name,role,phone,city,avatar,address,firm_id,subscription_plan,
+                    is_verified,verification_status,bar_number,license_number,
+                    specialization,experience,education,created_at FROM users WHERE 1=1`;
   const params = [];
+  if (req.user.role === 'firm_admin') {
+    const firm = await queryOne('SELECT id FROM firms WHERE admin_id = ?', [req.user.id]);
+    if (firm) {
+      sql += ' AND (firm_id=? OR id=?)';
+      params.push(firm.id, req.user.id);
+    }
+  }
   if (role) { sql += ' AND role=?'; params.push(role); }
   if (search) { sql += ' AND (name ILIKE ? OR email ILIKE ?)'; params.push(`%${search}%`, `%${search}%`); }
   sql += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';

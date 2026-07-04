@@ -32,7 +32,12 @@ apiRouter.get('/users/search', asyncHandler(async (req, res) => {
 }));
 
 apiRouter.get('/users/all', asyncHandler(async (req, res) => {
-  const rows = await query('SELECT id,name,email,phone,city,avatar,role,firm_id FROM users WHERE id != ? ORDER BY name', [req.user.id]);
+  const rows = await query(
+    `SELECT id,name,email,phone,city,avatar,role,address,firm_id,subscription_plan,
+            is_verified,verification_status,bar_number,license_number,
+            specialization,experience,education,created_at
+     FROM users WHERE id != ? ORDER BY name`,
+    [req.user.id]);
   res.json(rows);
 }));
 

@@ -184,6 +184,60 @@ function normalizeJournalEntry(e: Record<string, unknown>): JournalEntry {
   };
 }
 
+function normalizeUser(u: Record<string, unknown>): User {
+  const spec = u.specialization as string | undefined;
+  return {
+    id: u.id as string,
+    email: u.email as string,
+    name: u.name as string,
+    role: u.role as UserRole,
+    avatar: (u.avatar as string) || undefined,
+    phone: u.phone as string | undefined,
+    address: u.address as string | undefined,
+    city: u.city as string | undefined,
+    firmId: (u.firm_id || u.firmId) as string | undefined,
+    subscriptionPlan: (u.subscription_plan || u.subscriptionPlan || 'free') as SubscriptionPlan,
+    isVerified: !!(u.is_verified ?? u.isVerified),
+    verificationStatus: (u.verification_status || u.verificationStatus || 'pending') as VerificationStatus,
+    coordinates: (u.lat && u.lng ? { lat: Number(u.lat), lng: Number(u.lng) } : undefined) as { lat: number; lng: number } | undefined,
+    credentials: (u.bar_number || u.license_number || spec || u.experience || u.education) ? {
+      barNumber: (u.bar_number || u.barNumber) as string | undefined,
+      licenseNumber: (u.license_number || u.licenseNumber) as string | undefined,
+      specialization: spec ? spec.split(',').map(s => s.trim()) : (u.specialization as string[] | undefined),
+      experience: Number(u.experience ?? u.experience) || undefined,
+      education: (u.education as string) || undefined,
+    } : undefined,
+    createdAt: (u.created_at || u.createdAt) as string,
+  };
+}
+
+function normalizeInvoice(i: Record<string, unknown>): Invoice {
+  return {
+    id: i.id as string,
+    caseId: (i.case_id || i.caseId) as string,
+    clientId: (i.client_id || i.clientId) as string,
+    lawyerId: (i.lawyer_id || i.lawyerId) as string,
+    amount: Number(i.amount) || 0,
+    hours: i.hours ? Number(i.hours) : undefined as unknown as number,
+    description: (i.description as string) || '',
+    status: (i.status as 'pending' | 'paid' | 'overdue') || 'pending',
+    dueDate: (i.due_date || i.dueDate) as string,
+    createdAt: (i.created_at || i.createdAt) as string,
+  };
+}
+
+function normalizeTimeEntry(t: Record<string, unknown>): TimeEntry {
+  return {
+    id: t.id as string,
+    lawyerId: (t.lawyer_id || t.lawyerId) as string,
+    caseId: (t.case_id || t.caseId) as string,
+    hours: Number(t.hours) || 0,
+    description: (t.description as string) || '',
+    date: t.date as string,
+    rate: Number(t.rate) || 0,
+  };
+}
+
 function normalizeFirm(f: Record<string, unknown>): Firm {
   return {
     id: f.id as string,
@@ -338,10 +392,13 @@ export const useStore = create<AppState>()(
         const role = data.user.role;
         try {
           const [usersData, casesData] = await Promise.all([
-            apiFetch(role === 'admin' ? '/api/admin/users' : '/api/users/all', {}, token),
+            apiFetch(['admin','firm_admin'].includes(role) ? '/api/admin/users' : '/api/users/all', {}, token),
             apiFetch('/api/cases', {}, token),
           ]);
-          set({ users: role === 'admin' ? (usersData as any).users : usersData, cases: casesData });
+          set({
+            users: ((['admin','firm_admin'].includes(role) ? (usersData as any).users : usersData) as Record<string, unknown>[]).map(normalizeUser),
+            cases: casesData || [],
+          });
         } catch {}
         return true;
       },
@@ -542,7 +599,7 @@ export const useStore = create<AppState>()(
         const { token } = get();
         try {
           const inv = await apiFetch('/api/invoices', {}, token);
-          set({ invoices: inv });
+          set({ invoices: (inv as Record<string, unknown>[]).map(normalizeInvoice) });
         } catch {}
       },
 
@@ -599,7 +656,7 @@ export const useStore = create<AppState>()(
         const { token } = get();
         try {
           const t = await apiFetch('/api/time-entries', {}, token);
-          set({ timeEntries: t });
+          set({ timeEntries: (t as Record<string, unknown>[]).map(normalizeTimeEntry) });
         } catch {}
       },
 
@@ -620,12 +677,12 @@ export const useStore = create<AppState>()(
       loadUsers: async () => {
         const { token, currentUser } = get();
         try {
-          if (currentUser?.role === 'admin') {
+          if (currentUser?.role === 'admin' || currentUser?.role === 'firm_admin') {
             const data = await apiFetch('/api/admin/users', {}, token);
-            set({ users: (data as any).users });
+            set({ users: ((data as any).users as Record<string, unknown>[]).map(normalizeUser) });
           } else {
             const users = await apiFetch('/api/users/all', {}, token);
-            set({ users });
+            set({ users: (users as Record<string, unknown>[]).map(normalizeUser) });
           }
         } catch {}
       },

@@ -60,10 +60,10 @@ export class SupabaseJsAdapter {
       `CREATE TABLE IF NOT EXISTS time_entries (id TEXT PRIMARY KEY, lawyer_id TEXT, case_id TEXT, hours DOUBLE PRECISION NOT NULL, description TEXT, date TEXT NOT NULL, rate DOUBLE PRECISION, created_at TIMESTAMP DEFAULT NOW())`
     );
     await this._ensureTable(
-      `CREATE TABLE IF NOT EXISTS payment_methods (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, type TEXT NOT NULL DEFAULT 'card', last_four TEXT, expiry TEXT, card_brand TEXT, is_default INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT NOW())`
+      `CREATE TABLE IF NOT EXISTS payment_methods (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID NOT NULL, type TEXT NOT NULL DEFAULT 'card', last_four TEXT, expiry TEXT, card_brand TEXT, is_default INTEGER DEFAULT 0, created_at TIMESTAMPTZ DEFAULT NOW())`
     );
     await this._ensureTable(
-      `CREATE TABLE IF NOT EXISTS payments (id TEXT PRIMARY KEY, invoice_id TEXT NOT NULL, payment_method_id TEXT, amount DOUBLE PRECISION NOT NULL, status TEXT DEFAULT 'completed', transaction_id TEXT, paid_at TIMESTAMP DEFAULT NOW())`
+      `CREATE TABLE IF NOT EXISTS payments (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), invoice_id UUID NOT NULL, payment_method_id UUID, amount DOUBLE PRECISION NOT NULL, status TEXT DEFAULT 'completed', transaction_id TEXT, paid_at TIMESTAMPTZ DEFAULT NOW())`
     );
   }
 

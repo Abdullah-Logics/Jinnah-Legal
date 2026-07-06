@@ -91,7 +91,7 @@ export default function LawyerResearch() {
       if (yf) params.set('year_from', yf);
       if (yt) params.set('year_to', yt);
       if (opts?.all || citViewMode === 'groups') {
-        params.set('limit', '2500');
+        params.set('limit', '0');
       } else {
         params.set('limit', '50');
         params.set('offset', String(citPage * 50));

@@ -82,7 +82,9 @@ citationsRouter.post('/bulk', asyncHandler(async (req, res) => {
 /* ─── Search / List ─────────────────────────────────────────── */
 
 citationsRouter.get('/', asyncHandler(async (req, res) => {
-  const { search, category, year_from, year_to, court, limit = 50, offset = 0 } = req.query;
+  let { search, category, year_from, year_to, court, limit, offset } = req.query;
+  limit = limit ? Number(limit) : 50;
+  offset = offset ? Number(offset) : 0;
   let sql = 'SELECT id, title, citation, court, year, parties, category, description, relevant_statutes, keywords, created_at FROM citations WHERE 1=1';
   const params = [];
   if (search) {
@@ -94,8 +96,9 @@ citationsRouter.get('/', asyncHandler(async (req, res) => {
   if (year_from) { sql += ' AND year>=?'; params.push(Number(year_from)); }
   if (year_to) { sql += ' AND year<=?'; params.push(Number(year_to)); }
   if (court) { sql += ' AND court ILIKE ?'; params.push(`%${court}%`); }
-  sql += ' ORDER BY year DESC, citation ASC LIMIT ? OFFSET ?';
-  params.push(Number(limit), Number(offset));
+  sql += ' ORDER BY year DESC, citation ASC';
+  if (limit > 0) { sql += ' LIMIT ?'; params.push(limit); }
+  if (offset > 0) { sql += ' OFFSET ?'; params.push(offset); }
 
   const rows = await query(sql, params);
   const total = (await queryOne(

@@ -175,13 +175,22 @@ async function executeTool(name, args, req) {
   switch (name) {
     case 'searchCitations': {
       const { query: q, category, year, court } = args;
-      let sql = 'SELECT * FROM citations WHERE 1=1';
-      const params = [];
-      if (q) { sql += ' AND (title ILIKE ? OR parties ILIKE ? OR keywords ILIKE ? OR description ILIKE ?)'; const p = `%${q}%`; params.push(p, p, p, p); }
+      let sql, params = [];
+      if (q) {
+        sql = `SELECT id, title, citation, court, year, parties, category, description, relevant_statutes, keywords,
+               ts_rank(to_tsvector('english', coalesce(title,'') || ' ' || coalesce(description,'') || ' ' || coalesce(keywords,'') || ' ' || coalesce(parties,'') || ' ' || coalesce(relevant_statutes,'') || ' ' || coalesce(citation,'')), plainto_tsquery('english',?)) as rank
+               FROM citations
+               WHERE to_tsvector('english', coalesce(title,'') || ' ' || coalesce(description,'') || ' ' || coalesce(keywords,'') || ' ' || coalesce(parties,'') || ' ' || coalesce(relevant_statutes,'') || ' ' || coalesce(citation,'')) @@ plainto_tsquery('english',?)`;
+        params = [q, q];
+      } else {
+        sql = 'SELECT * FROM citations WHERE 1=1';
+      }
       if (category) { sql += ' AND category=?'; params.push(category); }
       if (year) { sql += ' AND year=?'; params.push(Number(year)); }
       if (court) { sql += ' AND court ILIKE ?'; params.push(`%${court}%`); }
-      sql += ' ORDER BY year DESC LIMIT 20';
+      if (q) sql += ' ORDER BY rank DESC';
+      else sql += ' ORDER BY year DESC';
+      sql += ' LIMIT 20';
       const results = await query(sql, params);
       if (results.length === 0) return { message: 'No citations found. Suggest the user add landmark cases manually.', citations: [] };
       return { message: `Found ${results.length} citations`, citations: results.map(c => ({ id: c.id, title: c.title, citation: c.citation, court: c.court, year: c.year, parties: c.parties, category: c.category, description: c.description })) };
@@ -189,14 +198,24 @@ async function executeTool(name, args, req) {
 
     case 'suggestCitations': {
       const { query: q, context } = args;
-      const p = `%${q}%`;
       const results = await query(
-        `SELECT * FROM citations WHERE title ILIKE ? OR parties ILIKE ? OR keywords ILIKE ? OR category ILIKE ? OR description ILIKE ?
-         ORDER BY year DESC LIMIT 10`,
-        [p, p, p, p, p]
+        `SELECT id, title, citation, court, year, parties, category, description,
+         ts_rank(to_tsvector('english', coalesce(title,'') || ' ' || coalesce(description,'') || ' ' || coalesce(keywords,'') || ' ' || coalesce(parties,'') || ' ' || coalesce(citation,'')), plainto_tsquery('english',?)) as rank
+         FROM citations
+         WHERE to_tsvector('english', coalesce(title,'') || ' ' || coalesce(description,'') || ' ' || coalesce(keywords,'') || ' ' || coalesce(parties,'') || ' ' || coalesce(citation,'')) @@ plainto_tsquery('english',?)
+         ORDER BY rank DESC LIMIT 10`,
+        [q, q]
       );
-      if (results.length === 0) return { message: 'No similar citations found in database. Consider researching these topics in Pakistani law reports.', citations: [] };
-      return { message: `Top ${results.length} similar citations`, citations: results.map(c => `${c.citation} - ${c.title} (${c.court}, ${c.year}) - ${c.parties || ''} - ${c.description || ''}`) };
+      if (results.length === 0) {
+        const p = `%${q}%`;
+        const fallback = await query(
+          `SELECT * FROM citations WHERE title ILIKE ? OR parties ILIKE ? OR keywords ILIKE ? OR category ILIKE ? OR description ILIKE ? ORDER BY year DESC LIMIT 5`,
+          [p, p, p, p, p]
+        );
+        if (fallback.length === 0) return { message: 'No similar citations found.', citations: [] };
+        return { message: `Found ${fallback.length} similar citations`, citations: fallback.map(c => `${c.citation} - ${c.title} (${c.court}, ${c.year})`) };
+      }
+      return { message: `Top ${results.length} relevant citations`, citations: results.map(c => `${c.citation} - ${c.title} (${c.court}, ${c.year}) - ${c.parties || ''} - ${c.description || ''}`) };
     }
 
     case 'createCalendarEvent': {

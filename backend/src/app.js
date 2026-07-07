@@ -21,6 +21,7 @@ import { adminRouter } from './routes/admin.js';
 import { groupsRouter } from './routes/groups.js';
 import { callLogsRouter } from './routes/call-logs.js';
 import { citationsRouter } from './routes/citations.js';
+import { evidenceRouter } from './routes/evidence.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -117,6 +118,7 @@ export async function createApp() {
   app.use('/api/groups',    groupsRouter);
   app.use('/api/call-logs', callLogsRouter);
   app.use('/api/citations', citationsRouter);
+  app.use('/api/evidence',  evidenceRouter);
   app.use('/api',           apiRouter);
 
   if (!process.env.VERCEL) {

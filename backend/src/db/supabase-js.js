@@ -65,6 +65,111 @@ export class SupabaseJsAdapter {
     await this._ensureTable(
       `CREATE TABLE IF NOT EXISTS payments (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), invoice_id UUID NOT NULL, payment_method_id UUID, amount DOUBLE PRECISION NOT NULL, status TEXT DEFAULT 'completed', transaction_id TEXT, paid_at TIMESTAMPTZ DEFAULT NOW())`
     );
+    await this._ensureExtension();
+    await this._ensureFtsIndexes();
+    await this._ensureNewTables();
+    await this._autoLinkReferences();
+  }
+
+  async _ensureExtension() {
+    try {
+      await this._execRpc(`CREATE EXTENSION IF NOT EXISTS pg_trgm`);
+    } catch (e) {
+      console.warn('pg_trgm extension:', e.message);
+    }
+  }
+
+  async _ensureFtsIndexes() {
+    try {
+      await this._execRpc(`CREATE INDEX IF NOT EXISTS idx_citations_fts ON citations USING GIN(to_tsvector('english', coalesce(title,'') || ' ' || coalesce(description,'') || ' ' || coalesce(keywords,'') || ' ' || coalesce(full_text,'') || ' ' || coalesce(parties,'') || ' ' || coalesce(relevant_statutes,'') || ' ' || coalesce(citation,'')))`);
+    } catch (e) {
+      console.warn('FTS index:', e.message);
+    }
+    try {
+      await this._execRpc(`CREATE INDEX IF NOT EXISTS idx_citations_trgm_title ON citations USING GIN(title gin_trgm_ops)`);
+    } catch (e) {
+      console.warn('trgm title index:', e.message);
+    }
+    try {
+      await this._execRpc(`CREATE INDEX IF NOT EXISTS idx_citations_trgm_description ON citations USING GIN(description gin_trgm_ops)`);
+    } catch (e) {
+      console.warn('trgm description index:', e.message);
+    }
+  }
+
+  async _ensureNewTables() {
+    await this._ensureTable(
+      `CREATE TABLE IF NOT EXISTS citation_references (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        citation_id UUID NOT NULL REFERENCES citations(id) ON DELETE CASCADE,
+        referenced_citation_id UUID NOT NULL REFERENCES citations(id) ON DELETE CASCADE,
+        reference_type TEXT NOT NULL DEFAULT 'cited_in',
+        context TEXT,
+        created_by TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(citation_id, referenced_citation_id, reference_type)
+      )`
+    );
+    await this._ensureTable(
+      `CREATE TABLE IF NOT EXISTS evidence (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id TEXT NOT NULL,
+        case_id TEXT,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL DEFAULT 'document',
+        file_url TEXT NOT NULL,
+        file_size INTEGER DEFAULT 0,
+        category TEXT DEFAULT 'general',
+        description TEXT,
+        status TEXT DEFAULT 'pending',
+        metadata TEXT DEFAULT '{}',
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )`
+    );
+    await this._ensureTable(
+      `CREATE TABLE IF NOT EXISTS evidence_analysis (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        evidence_id UUID NOT NULL REFERENCES evidence(id) ON DELETE CASCADE,
+        user_id TEXT NOT NULL,
+        analysis_type TEXT NOT NULL DEFAULT 'full',
+        result TEXT DEFAULT '{}',
+        summary TEXT,
+        facts TEXT DEFAULT '[]',
+        contradictions TEXT DEFAULT '[]',
+        confidence_score DOUBLE PRECISION DEFAULT 0,
+        authenticity_score DOUBLE PRECISION DEFAULT 0,
+        consistency_score DOUBLE PRECISION DEFAULT 0,
+        tags TEXT DEFAULT '[]',
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )`
+    );
+  }
+
+  async _autoLinkReferences() {
+    try {
+      const hasRefs = await this.queryOne('SELECT COUNT(*) as c FROM citation_references');
+      if (Number(hasRefs?.c || 0) > 0) return;
+      const citations = await this.query("SELECT id, full_text, description, citation FROM citations WHERE full_text IS NOT NULL AND full_text != '' LIMIT 500");
+      for (const c of citations) {
+        const text = (c.full_text || '') + ' ' + (c.description || '');
+        const matches = text.match(/\d{4}\s+(PLD|SCMR|PCrLJ|CLC|MLD|YLR|PTD|CLD)\s+\d+/g);
+        if (!matches) continue;
+        for (const m of matches) {
+          const target = await this.queryOne('SELECT id FROM citations WHERE citation=? AND id!=?', [m, c.id]);
+          if (target) {
+            try {
+              await this.run(
+                "INSERT INTO citation_references (id, citation_id, referenced_citation_id, reference_type, context) VALUES (gen_random_uuid(),?,?,?,?) ON CONFLICT (citation_id, referenced_citation_id, reference_type) DO NOTHING",
+                [c.id, target.id, 'cites', text.slice(0, 300)]
+              );
+            } catch {}
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Auto-link references:', e.message);
+    }
   }
 
   async queryOne(sqlText, params = []) {

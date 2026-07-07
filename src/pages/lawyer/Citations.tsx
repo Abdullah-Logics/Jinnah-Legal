@@ -50,12 +50,13 @@ const CATEGORIES = [
 
 const COURTS = ['Supreme Court of Pakistan', 'Lahore High Court', 'Sindh High Court', 'Peshawar High Court', 'Balochistan High Court', 'Islamabad High Court'];
 
-const CitationCard = memo(({ c, selected, onSelect, onAddToCart, onRemoveFromCart, onInsertDoc, onSaveJournal, onShare, shareTarget, onSetShareTarget, getShareContacts, shareCitation, sending }: {
+const CitationCard = memo(({ c, selected, onSelect, onAddToCart, onRemoveFromCart, onInsertDoc, onSaveJournal, onShare, shareTarget, onSetShareTarget, getShareContacts, shareCitation, sending, references, loadingRefs, onLoadRefs }: {
   c: Citation | CartItem; inCart?: boolean; selected: boolean; onSelect: () => void;
   onAddToCart?: () => void; onRemoveFromCart?: () => void;
   onInsertDoc: () => void; onSaveJournal: () => void;
   onShare?: () => void; shareTarget: boolean; onSetShareTarget: () => void;
   getShareContacts: () => any[]; shareCitation: (contactId: string) => void; sending: boolean;
+  references?: { citing: any[]; citedBy: any[] } | null; loadingRefs?: boolean; onLoadRefs?: () => void;
 }) => (
   <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
     className={`p-3 sm:p-4 bg-white rounded-xl border transition ${
@@ -114,6 +115,21 @@ const CitationCard = memo(({ c, selected, onSelect, onAddToCart, onRemoveFromCar
             ))}
           </div>
         )}
+        <div className="flex items-center gap-2 text-[10px] sm:text-[11px]">
+          {loadingRefs ? (
+            <span className="text-slate-400">Loading references...</span>
+          ) : references ? (
+            <div className="flex items-center gap-2 text-slate-500">
+              <span>Cited by <strong>{references.citedBy?.length || 0}</strong></span>
+              <span className="text-slate-300">|</span>
+              <span>Cites <strong>{references.citing?.length || 0}</strong></span>
+            </div>
+          ) : (
+            <button onClick={onLoadRefs} className="text-indigo-600 hover:text-indigo-800 font-medium">
+              Load references →
+            </button>
+          )}
+        </div>
         <div className="flex items-center gap-1.5 sm:gap-2 pt-1.5 sm:pt-2 flex-wrap">
           <button onClick={onInsertDoc}
             className="flex items-center gap-1 text-[10px] sm:text-[11px] font-medium text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-2 sm:px-2.5 py-1.5 rounded-lg transition"
@@ -167,6 +183,9 @@ export default function CaseLibrary() {
   const [shareTarget, setShareTarget] = useState<Citation | null>(null);
   const [sending, setSending] = useState(false);
   const [viewMode, setViewMode] = useState<'categories' | 'courts' | 'list'>('categories');
+  const [searchMode, setSearchMode] = useState<'fts' | 'fuzzy' | 'standard'>('fts');
+  const [references, setReferences] = useState<Record<string, { citing: any[]; citedBy: any[] }>>({});
+  const [loadingRefs, setLoadingRefs] = useState<string | null>(null);
   const [expandedCats, setExpandedCats] = useState<Record<string, boolean>>({});
   const [expandedCourts, setExpandedCourts] = useState<Record<string, boolean>>({});
   const toggleCat = useCallback((key: string) => setExpandedCats(p => ({ ...p, [key]: !p[key] })), []);
@@ -185,6 +204,7 @@ export default function CaseLibrary() {
       if (court) params.set('court', court);
       if (yearFrom) params.set('year_from', yearFrom);
       if (yearTo) params.set('year_to', yearTo);
+      params.set('mode', searchMode);
       params.set('limit', '50');
       params.set('offset', String(page * 50));
       const res = await fetch(`${API}/api/citations?${params}`, { headers: headers() });
@@ -216,6 +236,7 @@ export default function CaseLibrary() {
       if (filters?.court) params.set('court', filters.court);
       if (filters?.yearFrom) params.set('year_from', filters.yearFrom);
       if (filters?.yearTo) params.set('year_to', filters.yearTo);
+      if (search) params.set('mode', searchMode);
       const res = await fetch(`${API}/api/citations?${params}`, { headers: headers() });
       if (res.ok) {
         const data = await res.json();
@@ -263,6 +284,19 @@ export default function CaseLibrary() {
       }),
     });
     setShareTarget(null);
+  };
+
+  const loadReferences = async (citationId: string) => {
+    if (references[citationId]) return;
+    setLoadingRefs(citationId);
+    try {
+      const res = await fetch(`${API}/api/citations/${citationId}/references`, { headers: headers() });
+      if (res.ok) {
+        const data = await res.json();
+        setReferences(prev => ({ ...prev, [citationId]: { citing: data.citing || [], citedBy: data.citedBy || [] } }));
+      }
+    } catch {}
+    setLoadingRefs(null);
   };
 
   const insertIntoDocument = (c: Citation) => {
@@ -334,6 +368,13 @@ export default function CaseLibrary() {
                 />
                 {search && <button onClick={() => setSearch('')} className="absolute right-2.5 sm:right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"><X size={14} /></button>}
               </div>
+              <select value={searchMode} onChange={e => setSearchMode(e.target.value as any)}
+                className="px-2 py-2 bg-white border border-slate-200 rounded-xl text-[11px] outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="fts">FTS</option>
+                <option value="fuzzy">Fuzzy</option>
+                <option value="standard">Standard</option>
+              </select>
               <button onClick={() => setShowFilters(!showFilters)}
                 className={`px-2.5 sm:px-3 py-2 sm:py-2.5 border rounded-xl text-xs transition flex items-center gap-1 ${showFilters ? 'bg-indigo-50 border-indigo-300 text-indigo-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
               ><SlidersHorizontal size={13} /></button>
@@ -398,7 +439,7 @@ export default function CaseLibrary() {
                       {total > (page + 1) * 50 && <button onClick={() => setPage(p => p + 1)} className="px-2 sm:px-3 py-1 text-xs bg-white border border-slate-200 rounded-lg hover:bg-slate-50">Next →</button>}
                     </div>
                   </div>
-                  {citations.map(c => <CitationCard key={c.id} c={c} selected={selected?.id === c.id} onSelect={() => setSelected(selected?.id === c.id ? null : c)} onAddToCart={() => addToCart(c.id)} onInsertDoc={() => insertIntoDocument(c)} onSaveJournal={() => saveToJournal(c)} onShare={() => setShareTarget(shareTarget?.id === c.id ? null : c)} shareTarget={shareTarget?.id === c.id} onSetShareTarget={() => setShareTarget(c)} getShareContacts={getShareContacts} shareCitation={(contactId) => shareCitation(c, contactId)} sending={sending} />)}
+                  {citations.map(c => <CitationCard key={c.id} c={c} selected={selected?.id === c.id} onSelect={() => { setSelected(selected?.id === c.id ? null : c); if (selected?.id !== c.id) loadReferences(c.id); }} onAddToCart={() => addToCart(c.id)} onInsertDoc={() => insertIntoDocument(c)} onSaveJournal={() => saveToJournal(c)} onShare={() => setShareTarget(shareTarget?.id === c.id ? null : c)} shareTarget={shareTarget?.id === c.id} onSetShareTarget={() => setShareTarget(c)} getShareContacts={getShareContacts} shareCitation={(contactId) => shareCitation(c, contactId)} sending={sending} references={references[c.id]} loadingRefs={loadingRefs === c.id} onLoadRefs={() => loadReferences(c.id)} />)}
                 </>
               ) : viewMode === 'courts' ? (
                 <div className="space-y-2 sm:space-y-3">
@@ -531,7 +572,7 @@ export default function CaseLibrary() {
                 <p className="text-xs text-slate-400 mt-1">Browse and save cases to your collection</p>
               </div>
             ) : (
-              cart.map(c => <CitationCard key={c.cart_id} c={c} selected={selected?.id === c.id} onSelect={() => setSelected(selected?.id === c.id ? null : c)} onRemoveFromCart={() => removeFromCart(c.cart_id)} onInsertDoc={() => insertIntoDocument(c)} onSaveJournal={() => saveToJournal(c)} onShare={() => setShareTarget(shareTarget?.id === c.id ? null : c)} shareTarget={shareTarget?.id === c.id} onSetShareTarget={() => setShareTarget(c)} getShareContacts={getShareContacts} shareCitation={(contactId) => shareCitation(c, contactId)} sending={sending} />)
+              cart.map(c => <CitationCard key={c.cart_id} c={c} selected={selected?.id === c.id} onSelect={() => { setSelected(selected?.id === c.id ? null : c); if (selected?.id !== c.id) loadReferences(c.id); }} onRemoveFromCart={() => removeFromCart(c.cart_id)} onInsertDoc={() => insertIntoDocument(c)} onSaveJournal={() => saveToJournal(c)} onShare={() => setShareTarget(shareTarget?.id === c.id ? null : c)} shareTarget={shareTarget?.id === c.id} onSetShareTarget={() => setShareTarget(c)} getShareContacts={getShareContacts} shareCitation={(contactId) => shareCitation(c, contactId)} sending={sending} references={references[c.id]} loadingRefs={loadingRefs === c.id} onLoadRefs={() => loadReferences(c.id)} />)
             )}
           </div>
         )}

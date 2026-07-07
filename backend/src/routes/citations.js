@@ -79,44 +79,63 @@ citationsRouter.post('/bulk', asyncHandler(async (req, res) => {
   res.status(201).json({ message: `${imported} cases imported`, count: imported });
 }));
 
-/* ─── Search / List ─────────────────────────────────────────── */
+/* ─── Search / List (FTS + ILIKE + pg_trgm) ─────────────────── */
 
 citationsRouter.get('/', asyncHandler(async (req, res) => {
-  let { search, category, year_from, year_to, court, limit, offset } = req.query;
+  let { search, category, year_from, year_to, court, limit, offset, mode } = req.query;
   limit = limit ? Number(limit) : 50;
   offset = offset ? Number(offset) : 0;
-  let sql = 'SELECT id, title, citation, court, year, parties, category, description, relevant_statutes, keywords, created_at FROM citations WHERE 1=1';
+  mode = mode || 'fts';
+
+  let sql, countSql;
   const params = [];
-  if (search) {
-    sql += ' AND (title ILIKE ? OR citation ILIKE ? OR parties ILIKE ? OR keywords ILIKE ? OR description ILIKE ? OR full_text ILIKE ?)';
+  const countParams = [];
+
+  if (search && mode === 'fts') {
+    sql = `SELECT id, title, citation, court, year, parties, category, description, relevant_statutes, keywords, created_at,
+           ts_rank(to_tsvector('english', coalesce(title,'') || ' ' || coalesce(description,'') || ' ' || coalesce(keywords,'') || ' ' || coalesce(full_text,'') || ' ' || coalesce(parties,'') || ' ' || coalesce(relevant_statutes,'') || ' ' || coalesce(citation,'')), plainto_tsquery('english',?)) as rank
+           FROM citations
+           WHERE to_tsvector('english', coalesce(title,'') || ' ' || coalesce(description,'') || ' ' || coalesce(keywords,'') || ' ' || coalesce(full_text,'') || ' ' || coalesce(parties,'') || ' ' || coalesce(relevant_statutes,'') || ' ' || coalesce(citation,'')) @@ plainto_tsquery('english',?)`;
+    params.push(search, search);
+    countSql = `SELECT COUNT(*) as c FROM citations WHERE to_tsvector('english', coalesce(title,'') || ' ' || coalesce(description,'') || ' ' || coalesce(keywords,'') || ' ' || coalesce(full_text,'') || ' ' || coalesce(parties,'') || ' ' || coalesce(relevant_statutes,'') || ' ' || coalesce(citation,'')) @@ plainto_tsquery('english',?)`;
+    countParams.push(search);
+  } else if (search && mode === 'fuzzy') {
+    sql = `SELECT id, title, citation, court, year, parties, category, description, relevant_statutes, keywords, created_at,
+           similarity(title, ?) as sim
+           FROM citations
+           WHERE title % ? OR description % ? OR keywords % ? OR parties % ? OR citation % ?
+           ORDER BY similarity(title, ?) DESC, year DESC, citation ASC`;
+    const s = search;
+    params.push(s, s, s, s, s, s, s);
+    countSql = `SELECT COUNT(*) as c FROM citations WHERE title % ? OR description % ? OR keywords % ? OR parties % ? OR citation % ?`;
+    countParams.push(s, s, s, s, s);
+  } else if (search) {
+    sql = `SELECT id, title, citation, court, year, parties, category, description, relevant_statutes, keywords, created_at FROM citations
+           WHERE title ILIKE ? OR citation ILIKE ? OR parties ILIKE ? OR keywords ILIKE ? OR description ILIKE ? OR full_text ILIKE ?`;
     const p = `%${search}%`;
     params.push(p, p, p, p, p, p);
+    countSql = `SELECT COUNT(*) as c FROM citations WHERE title ILIKE ? OR citation ILIKE ? OR parties ILIKE ? OR keywords ILIKE ? OR description ILIKE ? OR full_text ILIKE ?`;
+    countParams.push(p, p, p, p, p, p);
+  } else {
+    sql = 'SELECT id, title, citation, court, year, parties, category, description, relevant_statutes, keywords, created_at FROM citations WHERE 1=1';
+    countSql = 'SELECT COUNT(*) as c FROM citations WHERE 1=1';
   }
-  if (category) { sql += ' AND category=?'; params.push(category); }
-  if (year_from) { sql += ' AND year>=?'; params.push(Number(year_from)); }
-  if (year_to) { sql += ' AND year<=?'; params.push(Number(year_to)); }
-  if (court) { sql += ' AND court ILIKE ?'; params.push(`%${court}%`); }
-  sql += ' ORDER BY year DESC, citation ASC';
+
+  if (category) { sql += ' AND category=?'; params.push(category); countSql += ' AND category=?'; countParams.push(category); }
+  if (year_from) { sql += ' AND year>=?'; params.push(Number(year_from)); countSql += ' AND year>=?'; countParams.push(Number(year_from)); }
+  if (year_to) { sql += ' AND year<=?'; params.push(Number(year_to)); countSql += ' AND year<=?'; countParams.push(Number(year_to)); }
+  if (court) { sql += ' AND court ILIKE ?'; params.push(`%${court}%`); countSql += ' AND court ILIKE ?'; countParams.push(`%${court}%`); }
+
+  if (mode === 'fts') sql += ' ORDER BY rank DESC';
+  else if (mode !== 'fuzzy') sql += ' ORDER BY year DESC, citation ASC';
+
   if (limit > 0) { sql += ' LIMIT ?'; params.push(limit); }
   if (offset > 0) { sql += ' OFFSET ?'; params.push(offset); }
 
   const rows = await query(sql, params);
-  const total = (await queryOne(
-    `SELECT COUNT(*) as c FROM citations WHERE 1=1${
-      search ? ' AND (title ILIKE ? OR citation ILIKE ? OR parties ILIKE ? OR keywords ILIKE ? OR description ILIKE ? OR full_text ILIKE ?)' : ''
-    }${category ? ' AND category=?' : ''}${year_from ? ' AND year>=?' : ''}${year_to ? ' AND year<=?' : ''}${court ? ' AND court ILIKE ?' : ''}`,
-    (() => {
-      const p = [];
-      if (search) { const s = `%${search}%`; p.push(s, s, s, s, s, s); }
-      if (category) p.push(category);
-      if (year_from) p.push(Number(year_from));
-      if (year_to) p.push(Number(year_to));
-      if (court) p.push(`%${court}%`);
-      return p;
-    })()
-  ))?.c || 0;
+  const total = (await queryOne(countSql, countParams))?.c || 0;
 
-  res.json({ rows, total });
+  res.json({ rows, total, mode });
 }));
 
 /* ─── Single Citation ───────────────────────────────────────── */
@@ -225,4 +244,72 @@ citationsRouter.delete('/cart/:cartId', asyncHandler(async (req, res) => {
 citationsRouter.delete('/cart', asyncHandler(async (req, res) => {
   await run('DELETE FROM citation_cart WHERE user_id=?', [req.user.id]);
   res.json({ ok: true });
+}));
+
+/* ─── Citation References ──────────────────────────────────── */
+
+citationsRouter.get('/:id/references', asyncHandler(async (req, res) => {
+  const citing = await query(
+    `SELECT cr.id as ref_id, cr.reference_type, cr.context, cr.created_at,
+            c.id, c.title, c.citation, c.court, c.year, c.category
+     FROM citation_references cr
+     JOIN citations c ON c.id = cr.referenced_citation_id
+     WHERE cr.citation_id=?
+     ORDER BY c.year DESC`,
+    [req.params.id]
+  );
+  const citedBy = await query(
+    `SELECT cr.id as ref_id, cr.reference_type, cr.context, cr.created_at,
+            c.id, c.title, c.citation, c.court, c.year, c.category
+     FROM citation_references cr
+     JOIN citations c ON c.id = cr.citation_id
+     WHERE cr.referenced_citation_id=?
+     ORDER BY c.year DESC`,
+    [req.params.id]
+  );
+  res.json({ citing, citedBy, total: citing.length + citedBy.length });
+}));
+
+citationsRouter.post('/:id/references', asyncHandler(async (req, res) => {
+  const { referencedCitationId, referenceType, context } = req.body;
+  if (!referencedCitationId) throw new AppError('referencedCitationId required', 400);
+  const target = await queryOne('SELECT id FROM citations WHERE id=?', [referencedCitationId]);
+  if (!target) throw new AppError('Referenced citation not found', 404);
+  await run(
+    `INSERT INTO citation_references (id, citation_id, referenced_citation_id, reference_type, context)
+     VALUES (?,?,?,?,?) ON CONFLICT (citation_id, referenced_citation_id, reference_type) DO NOTHING`,
+    [uuid(), req.params.id, referencedCitationId, referenceType || 'cites', context || null]
+  );
+  res.status(201).json({ ok: true });
+}));
+
+citationsRouter.delete('/references/:refId', asyncHandler(async (req, res) => {
+  await run('DELETE FROM citation_references WHERE id=?', [req.params.refId]);
+  res.json({ ok: true });
+}));
+
+citationsRouter.post('/auto-link', asyncHandler(async (req, res) => {
+  const existing = await queryOne('SELECT COUNT(*) as c FROM citation_references');
+  if (Number(existing?.c || 0) > 0) {
+    return res.json({ message: 'References already linked', count: Number(existing.c) });
+  }
+  const rows = await query("SELECT id, full_text, description, citation FROM citations WHERE full_text IS NOT NULL AND full_text != '' LIMIT 1000");
+  let linked = 0;
+  for (const c of rows) {
+    const text = (c.full_text || '') + ' ' + (c.description || '');
+    const matches = text.match(/\d{4}\s+(PLD|SCMR|PCrLJ|CLC|MLD|YLR|PTD|CLD)\s+\d+/g);
+    if (!matches) continue;
+    for (const m of [...new Set(matches)]) {
+      const target = await queryOne('SELECT id FROM citations WHERE citation=? AND id!=?', [m, c.id]);
+      if (target) {
+        await run(
+          `INSERT INTO citation_references (id, citation_id, referenced_citation_id, reference_type, context)
+           VALUES (?,?,?,?,?) ON CONFLICT DO NOTHING`,
+          [uuid(), c.id, target.id, 'cites', text.slice(0, 300)]
+        );
+        linked++;
+      }
+    }
+  }
+  res.json({ message: `${linked} references auto-linked`, count: linked });
 }));

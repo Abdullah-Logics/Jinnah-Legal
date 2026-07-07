@@ -27,6 +27,7 @@ import LawyerMessages from './pages/lawyer/Messages';
 import LawyerProfile from './pages/lawyer/Profile';
 import LawyerAIBrain from './pages/lawyer/AIBrain';
 import LawyerCitations from './pages/lawyer/Citations';
+import LawyerEvidence from './pages/lawyer/Evidence';
 import LawyerGroups from './pages/lawyer/Groups';
 
 // Client Portal
@@ -111,6 +112,7 @@ function App() {
             <Route path="profile" element={<LawyerProfile />} />
             <Route path="ai-brain" element={<LawyerAIBrain />} />
             <Route path="citations" element={<LawyerCitations />} />
+            <Route path="evidence" element={<LawyerEvidence />} />
             <Route path="groups" element={<LawyerGroups />} />
           </Route>
 

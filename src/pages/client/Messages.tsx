@@ -341,7 +341,7 @@ export default function ClientMessages() {
   const totalUnread = myContacts.reduce((sum, c) => sum + getUnreadCount(c.id), 0);
 
   return (
-    <div className="flex-1 min-h-0 flex overflow-hidden bg-slate-100 max-h-dvh">
+    <div className="flex-1 flex overflow-hidden bg-slate-100">
 
       {/* ─── CONTACTS SIDEBAR ─────────────────────────────────────────────── */}
       <aside
@@ -452,7 +452,7 @@ export default function ClientMessages() {
       >
         {selectedUser && selectedContact ? (
           <>
-            <div className="sticky top-0 z-20 flex items-center gap-2 sm:gap-3 px-2 sm:px-4 py-2.5 bg-gradient-to-r from-emerald-700 to-emerald-800 flex-shrink-0 shadow-md">
+            <div className="flex items-center gap-2 sm:gap-3 px-2 sm:px-4 py-2.5 bg-gradient-to-r from-emerald-700 to-emerald-800 flex-shrink-0 shadow-md">
               <button
                 onClick={goBackToContacts}
                 className="lg:hidden p-2 -ml-1 hover:bg-white/10 rounded-xl transition flex-shrink-0"

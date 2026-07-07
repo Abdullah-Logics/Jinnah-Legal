@@ -60,7 +60,7 @@ export default function LawyerGroups() {
   }
 
   return (
-    <div className="flex-1 min-h-0 flex overflow-hidden bg-slate-100 max-h-dvh">
+    <div className="flex-1 flex overflow-hidden bg-slate-100">
 
       {/* ─── GROUP LIST SIDEBAR ──────────────────────────────────────────────── */}
       <aside className={`

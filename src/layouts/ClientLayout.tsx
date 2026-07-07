@@ -152,8 +152,8 @@ export default function ClientLayout() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 lg:ml-72 pt-14 lg:pt-0 flex flex-col">
-        <div className="flex-1 p-3 lg:p-6 flex flex-col min-h-0 overflow-hidden">
+      <main className="flex-1 lg:ml-72 pt-14 lg:pt-0 flex flex-col min-h-0">
+        <div className={`flex-1 flex flex-col min-h-0 overflow-hidden ${location.pathname.startsWith('/client/messages') ? '' : 'p-3 lg:p-6'}`}>
           <Outlet />
         </div>
       </main>

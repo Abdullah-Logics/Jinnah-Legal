@@ -299,10 +299,16 @@ export const CONSTITUTION_ARTICLES = [
 ];
 
 export async function seedConstitution(adapter) {
-  try {
-    await adapter.run('DELETE FROM constitution');
-  } catch (e) {
-    console.warn('Could not clear constitution table:', e.message);
+  const existing = await adapter.queryOne('SELECT COUNT(*) as c FROM constitution');
+  const count = Number(existing?.c || 0);
+  if (count === CONSTITUTION_ARTICLES.length) return { message: 'Already seeded', count };
+  if (count > 0) {
+    const rows = await adapter.query('SELECT DISTINCT article FROM constitution');
+    for (const r of rows) {
+      try { await adapter.run('DELETE FROM constitution WHERE article=?', [r.article]); } catch {}
+    }
+    const after = await adapter.queryOne('SELECT COUNT(*) as c FROM constitution');
+    console.log('Cleared', Number(after?.c || 0), 'remaining');
   }
   let inserted = 0;
   for (const art of CONSTITUTION_ARTICLES) {

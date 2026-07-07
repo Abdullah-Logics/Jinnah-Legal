@@ -236,7 +236,7 @@ export default function CaseLibrary() {
       if (filters?.court) params.set('court', filters.court);
       if (filters?.yearFrom) params.set('year_from', filters.yearFrom);
       if (filters?.yearTo) params.set('year_to', filters.yearTo);
-      if (search) params.set('mode', searchMode);
+      params.set('mode', searchMode);
       const res = await fetch(`${API}/api/citations?${params}`, { headers: headers() });
       if (res.ok) {
         const data = await res.json();

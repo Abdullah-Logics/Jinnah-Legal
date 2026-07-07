@@ -126,7 +126,7 @@ citationsRouter.get('/', asyncHandler(async (req, res) => {
   if (year_to) { sql += ' AND year<=?'; params.push(Number(year_to)); countSql += ' AND year<=?'; countParams.push(Number(year_to)); }
   if (court) { sql += ' AND court ILIKE ?'; params.push(`%${court}%`); countSql += ' AND court ILIKE ?'; countParams.push(`%${court}%`); }
 
-  if (mode === 'fts') sql += ' ORDER BY rank DESC';
+  if (mode === 'fts' && search) sql += ' ORDER BY rank DESC';
   else if (mode !== 'fuzzy') sql += ' ORDER BY year DESC, citation ASC';
 
   if (limit > 0) { sql += ' LIMIT ?'; params.push(limit); }

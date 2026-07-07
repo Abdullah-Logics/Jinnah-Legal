@@ -712,7 +712,7 @@ export default function Register() {
             {renderStep()}
           </form>
 
-          <div className="mt-6 pt-6 border-t border-slate-100 text-center">
+          <div className="mt-4 pt-4 border-t border-slate-100 text-center">
             <p className="text-slate-600">
               Already have an account?{' '}
               <Link to="/login" className="text-emerald-600 font-semibold hover:text-emerald-700">

@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import {
   Search, ChevronDown, ChevronRight, Menu, X, Loader, Clipboard,
-  FileText, AlertCircle, Gavel,
+  FileText, AlertCircle, Gavel, Shield, Scale, BookOpen, Heart,
+  Home, Building, Briefcase,
 } from 'lucide-react';
 
 interface Article {
@@ -27,10 +28,17 @@ const CATEGORY_STYLES: Record<string, string> = {
   General: 'text-slate-600 bg-slate-100 border-slate-200',
 };
 
-const CATEGORY_ICONS: Record<string, string> = {
-  Fundamental: '🔰', Constitutional: '🏛️', Islamic: '🕌', Criminal: '⚖️',
-  Property: '🏠', Corporate: '🏢', Family: '👨‍👩‍👧‍👦', Service: '📋', General: '📄',
-};
+function CatIcon({ name, size = 14 }: { name: string; size?: number }) {
+  const props = { size, className: 'flex-shrink-0' };
+  const map: Record<string, JSX.Element> = {
+    Fundamental: <Shield {...props} />, Constitutional: <Scale {...props} />,
+    Islamic: <BookOpen {...props} />, Criminal: <Gavel {...props} />,
+    Property: <Home {...props} />, Corporate: <Building {...props} />,
+    Family: <Heart {...props} />, Service: <Briefcase {...props} />,
+    General: <FileText {...props} />,
+  };
+  return map[name] || <FileText {...props} />;
+}
 
 function sortKey(a: string) {
   const n = parseInt(a.replace(/\D/g, ''), 10) || 0;
@@ -267,7 +275,7 @@ export default function ConstitutionReader() {
                       : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                   }`}
                 >
-                  <span>{CATEGORY_ICONS[c.name] || '📄'}</span>
+                  <CatIcon name={c.name} size={12} />
                   {c.name}
                 </button>
               ))}
@@ -329,7 +337,7 @@ export default function ConstitutionReader() {
                     : 'text-slate-500 border-slate-200 hover:bg-slate-50'
                 }`}
               >
-                {CATEGORY_ICONS[c.name] || ''} {c.name}
+                <CatIcon name={c.name} size={10} /> {c.name}
               </button>
             ))}
           </div>

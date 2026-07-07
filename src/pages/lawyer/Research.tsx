@@ -99,8 +99,10 @@ export default function LawyerResearch() {
       const res = await fetch(`${API}/api/citations?${params}`, { headers: { Authorization: `Bearer ${token}` } });
       if (res.ok) {
         const data = await res.json();
-        setCitResults(data.rows || data);
-        setCitTotal(data.total || data.length || 0);
+        const raw = data.rows || data;
+        const safe = Array.isArray(raw) ? raw : [];
+        setCitResults(safe);
+        setCitTotal(typeof data.total === 'number' ? data.total : safe.length);
       }
     } catch (e) { console.error('Citation search failed', e); }
     setCitLoading(false);
@@ -109,7 +111,7 @@ export default function LawyerResearch() {
   const loadCitCart = async () => {
     try {
       const res = await fetch(`${API}/api/citations/cart/list`, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) setCitCart(await res.json());
+      if (res.ok) { const d = await res.json(); setCitCart(Array.isArray(d) ? d : []); }
     } catch {}
   };
 

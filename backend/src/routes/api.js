@@ -392,31 +392,33 @@ apiRouter.delete('/journal/:id', asyncHandler(async (req, res) => {
 
 // ── BLOCK / UNBLOCK ────────────────────────────────────────
 apiRouter.get('/blocks', asyncHandler(async (req, res) => {
-  const rows = await query('SELECT * FROM blocks WHERE user_id=? AND unblocked_at IS NULL ORDER BY blocked_at DESC', [req.user.id]);
+  const rows = await query('SELECT * FROM blocks WHERE blocked_by=? AND unblocked_at IS NULL ORDER BY created_at DESC', [req.user.id]);
   res.json(rows);
 }));
 
 apiRouter.post('/blocks', asyncHandler(async (req, res) => {
   const { blockedUserId, reason } = req.body;
   if (!blockedUserId) throw new AppError('blockedUserId required', 400);
-  const existing = await queryOne('SELECT id FROM blocks WHERE user_id=? AND blocked_user_id=? AND unblocked_at IS NULL', [req.user.id, blockedUserId]);
+  const existing = await queryOne('SELECT id FROM blocks WHERE blocked_by=? AND user_id=? AND unblocked_at IS NULL', [req.user.id, blockedUserId]);
   if (existing) throw new AppError('Already blocked', 409);
+  const target = await queryOne('SELECT email,phone FROM users WHERE id=?', [blockedUserId]);
+  if (!target) throw new AppError('User not found', 404);
   const id = uuid();
-  await run('INSERT INTO blocks (id,user_id,blocked_user_id,reason) VALUES (?,?,?,?)',
-    [id, req.user.id, blockedUserId, reason || '']);
+  await run("INSERT INTO blocks (id,user_id,email,phone,blocked_by,reason,type) VALUES (?,?,?,?,?,?,'user')",
+    [id, blockedUserId, target.email || '', target.phone || '', req.user.id, reason || '']);
   res.status(201).json(await queryOne('SELECT * FROM blocks WHERE id = ?', [id]));
 }));
 
 apiRouter.delete('/blocks/:blockedUserId', asyncHandler(async (req, res) => {
-  const existing = await queryOne('SELECT id FROM blocks WHERE user_id=? AND blocked_user_id=? AND unblocked_at IS NULL', [req.user.id, req.params.blockedUserId]);
+  const existing = await queryOne('SELECT id FROM blocks WHERE blocked_by=? AND user_id=? AND unblocked_at IS NULL', [req.user.id, req.params.blockedUserId]);
   if (!existing) throw new AppError('Block not found', 404);
-  await run('UPDATE blocks SET unblocked_at=? WHERE id=?', [new Date().toISOString(), existing.id]);
+  await run('UPDATE blocks SET unblocked_at=NOW(),unblocked_by=? WHERE id=?', [req.user.id, existing.id]);
   res.json({ ok: true });
 }));
 
 apiRouter.get('/blocks/check/:userId', asyncHandler(async (req, res) => {
-  const blocked = await queryOne('SELECT id FROM blocks WHERE user_id=? AND blocked_user_id=? AND unblocked_at IS NULL', [req.user.id, req.params.userId]);
-  const blockedBy = await queryOne('SELECT id FROM blocks WHERE user_id=? AND blocked_user_id=? AND unblocked_at IS NULL', [req.params.userId, req.user.id]);
+  const blocked = await queryOne('SELECT id FROM blocks WHERE blocked_by=? AND user_id=? AND unblocked_at IS NULL', [req.user.id, req.params.userId]);
+  const blockedBy = await queryOne('SELECT id FROM blocks WHERE blocked_by=? AND user_id=? AND unblocked_at IS NULL', [req.params.userId, req.user.id]);
   res.json({ blocked: !!blocked, blockedBy: !!blockedBy });
 }));
 

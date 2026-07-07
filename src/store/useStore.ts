@@ -162,9 +162,13 @@ export interface Review {
 export interface BlockedUser {
   id: string;
   user_id: string;
-  blocked_user_id: string;
+  email: string;
+  phone: string;
+  blocked_by: string;
   reason: string;
-  blocked_at: string;
+  type: string;
+  created_at: string;
+  unblocked_by: string | null;
   unblocked_at: string | null;
 }
 
@@ -722,7 +726,7 @@ export const useStore = create<AppState>()(
       unblockUser: async (blockedUserId) => {
         const { token } = get();
         await apiFetch(`/api/blocks/${blockedUserId}`, { method: 'DELETE' }, token);
-        set(state => ({ blockedUsers: state.blockedUsers.filter(b => b.blocked_user_id !== blockedUserId) }));
+        set(state => ({ blockedUsers: state.blockedUsers.filter(b => b.user_id !== blockedUserId) }));
       },
 
       checkBlocked: async (userId) => {

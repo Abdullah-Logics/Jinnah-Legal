@@ -679,3 +679,23 @@ VALUES
   (gen_random_uuid(), 'Shahida Parveen v. Federation of Pakistan', '2013 PLD 3200', 'Lahore High Court', 2013, 'Shahida Parveen v. Federation', 'Family', 'Suit for jactitation of marriage — declaration regarding validity', 'Dissolution of Muslim Marriages Act 1939, Family Courts Act 1964', 'marriage validity, jactitation, talaq, family, declaration'),
   (gen_random_uuid(), 'Federation of Pakistan v. Amina Bibi', '2013 SCMR 3300', 'Supreme Court of Pakistan', 2013, 'Federation v. Amina Bibi', 'Constitutional', 'Right of women to contract marriage without guardian consent', 'Article 25, 35, Muslim Family Laws Ordinance 1961', 'women rights, marriage, guardian, consent, fundamental rights'),
   (gen_random_uuid(), 'Liaqat Ali v. Province of Punjab', '2012 YLR 3400', 'Lahore High Court', 2012, 'Liaqat Ali v. Province of Punjab', 'Tort', 'Suit for damages for defamation and character assassination', 'Defamation Ordinance 2002, Law of Torts', 'defamation, libel, slander, damages, reputation');
+
+-- 1.23 Reviews Table
+CREATE TABLE IF NOT EXISTS reviews (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  case_id    UUID NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+  client_id  TEXT NOT NULL,
+  lawyer_id  TEXT NOT NULL,
+  rating     INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+  comment    TEXT DEFAULT '',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_reviews_lawyer ON reviews(lawyer_id);
+CREATE INDEX IF NOT EXISTS idx_reviews_case ON reviews(case_id);
+ALTER TABLE reviews ENABLE ROW LEVEL SECURITY;
+CREATE POLICY reviews_admin ON reviews USING (true) WITH CHECK (true);
+
+-- 1.24 Add close_requested columns to cases
+ALTER TABLE cases ADD COLUMN IF NOT EXISTS close_requested_by_lawyer INTEGER DEFAULT 0;
+ALTER TABLE cases ADD COLUMN IF NOT EXISTS close_requested_by_client INTEGER DEFAULT 0;

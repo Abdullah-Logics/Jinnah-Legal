@@ -79,7 +79,7 @@ export default function LawyerMessages() {
   const [showBlockConfirm, setShowBlockConfirm] = useState(false);
   const { blockedUsers, blockUser, unblockUser, loadBlockedUsers } = useStore();
 
-  const isBlocked = selectedUser ? blockedUsers.some(b => b.blocked_user_id === selectedUser) : false;
+  const isBlocked = selectedUser ? blockedUsers.some(b => b.user_id === selectedUser) : false;
 
   const handleBlock = async () => {
     if (!selectedUser) return;

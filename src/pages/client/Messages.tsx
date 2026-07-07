@@ -5,7 +5,7 @@ import {
   Search, Send, Paperclip, Phone, Video,
   Check, CheckCheck, Camera, Mic, MicOff, FileText, X,
   Image as ImageIcon, ArrowLeft, Smile, MessageSquare, AlertTriangle, UsersRound,
-  Info, Image, MoreVertical, Download,
+  Info, Image, MoreVertical, Download, Scale, Clipboard, Plus, Loader,
 } from 'lucide-react';
 
 import ReportModal from '../../components/ReportModal';
@@ -73,6 +73,10 @@ export default function ClientMessages() {
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const moreMenuRef = useRef<HTMLDivElement>(null);
   const [chatWallpaper] = useState(() => localStorage.getItem('chatWallpaper') || '');
+  const [showCitationPicker, setShowCitationPicker] = useState(false);
+  const [citSearch, setCitSearch] = useState('');
+  const [citResults, setCitResults] = useState<any[]>([]);
+  const [citLoading, setCitLoading] = useState(false);
 
   const WALLPAPER_CLASSES: Record<string, string> = {
     waves: 'bg-gradient-to-br from-cyan-100 via-blue-50 to-indigo-100',
@@ -244,6 +248,44 @@ export default function ClientMessages() {
     const file = e.target.files?.[0];
     if (file) uploadFile(file);
     e.target.value = '';
+  };
+
+  const searchCitations = async (q: string) => {
+    if (!q.trim()) return;
+    setCitLoading(true);
+    try {
+      const token = localStorage.getItem('token') || useStore.getState().token;
+      const res = await fetch(`${API}/api/citations?search=${encodeURIComponent(q)}&limit=15&mode=fts`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCitResults(data.rows || []);
+      }
+    } catch {}
+    setCitLoading(false);
+  };
+
+  const sendCitation = async (c: any) => {
+    if (!selectedUser) return;
+    try {
+      await sendMessage({
+        senderId: currentUser?.id || '',
+        receiverId: selectedUser,
+        content: `📚 ${c.citation} — ${c.title}`,
+        shareData: JSON.stringify({
+          type: 'citation',
+          title: `${c.citation} - ${c.title}`,
+          description: c.description,
+          details: { citation: c.citation, court: c.court, year: c.year, category: c.category, parties: c.parties, statutes: c.relevant_statutes },
+        }),
+      });
+      setShowCitationPicker(false);
+      setCitSearch('');
+      setCitResults([]);
+    } catch {
+      alert('Failed to send citation');
+    }
   };
 
   const handleSend = async () => {
@@ -700,6 +742,60 @@ export default function ClientMessages() {
                 >
                   <Camera size={20} className="text-slate-400" />
                 </button>
+
+                <div className="relative">
+                  <button
+                    onClick={() => setShowCitationPicker(v => !v)}
+                    className={`p-2 rounded-full transition flex-shrink-0 ${showCitationPicker ? 'bg-indigo-100 text-indigo-600' : 'hover:bg-slate-100 text-slate-400'}`}
+                    aria-label="Cite"
+                    title="Share a citation"
+                  >
+                    <Scale size={20} />
+                  </button>
+                  <AnimatePresence>
+                    {showCitationPicker && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                        className="absolute bottom-full left-0 mb-2 w-[320px] bg-white border border-slate-200 rounded-xl shadow-xl z-30 overflow-hidden"
+                        onClick={e => e.stopPropagation()}
+                      >
+                        <div className="p-3">
+                          <p className="text-[11px] font-medium text-slate-500 mb-2">Share a citation</p>
+                          <div className="flex gap-1">
+                            <input value={citSearch} onChange={e => setCitSearch(e.target.value)}
+                              onKeyDown={e => e.key === 'Enter' && searchCitations(citSearch)}
+                              placeholder="Search citations..."
+                              className="flex-1 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
+                            <button onClick={() => searchCitations(citSearch)} disabled={citLoading}
+                              className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-medium hover:bg-indigo-700 transition disabled:opacity-50"
+                            >{citLoading ? <Loader className="animate-spin" size={12} /> : <Search size={12} />}</button>
+                          </div>
+                          <div className="mt-2 space-y-1 max-h-48 overflow-y-auto">
+                            {citResults.map(c => (
+                              <div key={c.id}
+                                onClick={() => sendCitation(c)}
+                                className="flex items-center gap-2 p-2 rounded-lg hover:bg-indigo-50 cursor-pointer transition border border-transparent hover:border-indigo-200"
+                              >
+                                <Scale size={12} className="text-indigo-500 flex-shrink-0" />
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-[11px] font-medium text-slate-700 truncate">{c.citation} — {c.title}</p>
+                                  <p className="text-[10px] text-slate-400 truncate">{c.court} · {c.year}</p>
+                                </div>
+                                <Clipboard size={12} className="text-slate-400 flex-shrink-0" />
+                              </div>
+                            ))}
+                            {citSearch && !citLoading && citResults.length === 0 && (
+                              <p className="text-[11px] text-slate-400 py-4 text-center">No results</p>
+                            )}
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
 
                 <button
                   onClick={() => setShowEmojiPicker(v => !v)}

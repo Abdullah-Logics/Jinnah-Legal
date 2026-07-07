@@ -350,6 +350,7 @@ export default function LawyerDocuments() {
   const [citCart, setCitCart] = useState<CartItem[]>([]);
   const [citLoading, setCitLoading] = useState(false);
   const [citTab, setCitTab] = useState<'search' | 'cart'>('search');
+  const [citMode, setCitMode] = useState<'fts' | 'fuzzy' | 'standard'>('fts');
   const [pendingCitation, setPendingCitation] = useState<string | null>(() => {
     try { return localStorage.getItem('opencode_insert_citation'); } catch { return null; }
   });
@@ -376,7 +377,7 @@ export default function LawyerDocuments() {
     if (!q.trim()) return;
     setCitLoading(true);
     try {
-      const params = new URLSearchParams({ search: q, limit: '20' });
+      const params = new URLSearchParams({ search: q, limit: '20', mode: citMode });
       const res = await fetch(`${API}/api/citations?${params}`, { headers: { Authorization: `Bearer ${token}` } });
       if (res.ok) {
         const data = await res.json();
@@ -933,6 +934,13 @@ export default function LawyerDocuments() {
                         placeholder="Search case name, citation, keywords..."
                         className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-emerald-500"
                       />
+                      <select value={citMode} onChange={e => setCitMode(e.target.value as any)}
+                        className="px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-[10px] outline-none"
+                      >
+                        <option value="fts">FTS</option>
+                        <option value="fuzzy">Fuzzy</option>
+                        <option value="standard">Std</option>
+                      </select>
                       <button onClick={() => searchCitations(citSearch)} disabled={citLoading}
                         className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700 transition"
                       >{citLoading ? <Loader className="animate-spin" size={12} /> : <Search size={12} />}</button>

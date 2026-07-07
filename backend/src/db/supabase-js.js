@@ -68,6 +68,8 @@ export class SupabaseJsAdapter {
     await this._ensureExtension();
     await this._ensureFtsIndexes();
     await this._ensureNewTables();
+    await this._ensureConstitutionTable();
+    await this._seedConstitution();
     await this._autoLinkReferences();
   }
 
@@ -144,6 +146,40 @@ export class SupabaseJsAdapter {
         created_at TIMESTAMPTZ DEFAULT NOW()
       )`
     );
+  }
+
+  async _ensureConstitutionTable() {
+    await this._ensureTable(
+      `CREATE TABLE IF NOT EXISTS constitution (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        part TEXT NOT NULL,
+        part_title TEXT NOT NULL,
+        chapter TEXT DEFAULT '',
+        chapter_title TEXT DEFAULT '',
+        article TEXT NOT NULL,
+        title TEXT NOT NULL,
+        content TEXT NOT NULL,
+        category TEXT DEFAULT 'General',
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )`
+    );
+    try {
+      await this._execRpc(`CREATE INDEX IF NOT EXISTS idx_constitution_part ON constitution(part)`);
+      await this._execRpc(`CREATE INDEX IF NOT EXISTS idx_constitution_article ON constitution(article)`);
+      await this._execRpc(`CREATE INDEX IF NOT EXISTS idx_constitution_category ON constitution(category)`);
+    } catch (e) {
+      console.warn('Constitution indexes:', e.message);
+    }
+  }
+
+  async _seedConstitution() {
+    try {
+      const { seedConstitution } = await import('./seed-constitution.js');
+      const result = await seedConstitution(this);
+      console.log('📜 Constitution seeding:', result.message);
+    } catch (e) {
+      console.warn('Constitution seeding:', e.message);
+    }
   }
 
   async _autoLinkReferences() {

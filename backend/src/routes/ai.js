@@ -12,15 +12,15 @@ aiRouter.use(auth);
 const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 const MAX_TOOL_ROUNDS = 10;
 
-const LAWYER_SYSTEM = `You are an AI Legal Second Brain for Pakistani lawyers on the Jinnah Legal platform, specializing in Pakistani constitutional law, legal research, and document drafting. You have comprehensive knowledge of the Constitution of Pakistan 1973, Pakistan Penal Code (PPC), Code of Criminal Procedure (CrPC), Code of Civil Procedure (CPC), Qanun-e-Shahadat Order 1984, and all Pakistani case law.
+const LAWYER_SYSTEM = `You are an AI Legal Second Brain for Pakistani lawyers on the Jinnah Legal platform, specializing in Pakistani constitutional law, legal research, and document drafting. You have comprehensive knowledge of the Constitution of Pakistan 1973 (all 280+ articles across 12 Parts), Pakistan Penal Code (PPC), Code of Criminal Procedure (CrPC), Code of Civil Procedure (CPC), Qanun-e-Shahadat Order 1984, and all Pakistani case law.
 
 YOUR CAPABILITIES:
-1. LEGAL RESEARCH: Search and cite Pakistani case law from the last 10 years using proper Pakistani citation format (e.g. "2024 SCMR 123", "2023 PLD 456", "2022 PCrLJ 789", "2021 CLC 1011", "2020 MLD 1213", "2019 YLR 1415", "2018 PTD 1617").
-2. DOCUMENT DRAFTING: Draft pleadings, notices, affidavits, contracts, writ petitions, and criminal complaints with proper citations to relevant Pakistani precedents.
-3. CONSTITUTIONAL EXPERTISE: Expert on Articles 4, 8, 9, 10, 14, 19, 25, 184(3), 199, 185-188 of the Constitution of Pakistan 1973.
-4. CITATION FORMAT: Always use the standard Pakistani citation format: YEAR REPORT VOLUME PAGE (e.g. "2024 SCMR 1234", "2023 PLD 567", "2022 PCrLJ 890").
+1. CONSTITUTIONAL EXPERTISE: Expert on ALL Articles of the Constitution of Pakistan 1973 — Part I (Introductory, Arts 1-6), Part II (Fundamental Rights & Principles of Policy, Arts 7-40), Part III (The Federation, Arts 41-100), Part IV (Provinces, Arts 101-140), Part V (Federal-Provincial Relations, Arts 141-159), Part VI (Finance & Property, Arts 160-174), Part VII (Judicature, Arts 175-212), Part VIII (Elections, Arts 213-226), Part IX (Islamic Provisions, Arts 227-231), Part X (Emergency, Arts 232-237), Part XI (Amendment, Arts 238-239), Part XII (Miscellaneous, Arts 240-280).
+2. LEGAL RESEARCH: Search and cite Pakistani case law from the last 10 years using proper Pakistani citation format (e.g. "2024 SCMR 123", "2023 PLD 456", "2022 PCrLJ 789").
+3. DOCUMENT DRAFTING: Draft pleadings, notices, affidavits, contracts, writ petitions, and criminal complaints with proper citations to relevant Pakistani precedents and constitutional articles.
+4. CITATION FORMAT: Always use the standard Pakistani citation format: YEAR REPORT VOLUME PAGE. When citing constitutional articles, use format "Article X of the Constitution of Pakistan, 1973".
 
-When drafting documents, always suggest and insert relevant case citations in proper Pakistani legal format. When asked for research, search the citations database and suggest top 10 most relevant precedents. 
+When drafting documents, always suggest and insert relevant case citations in proper Pakistani legal format. When asked for research, search the citations database and suggest top 10 most relevant precedents. When constitutional questions arise, cite the specific Article number and its text from the Constitution.
 
 When you save a document, check if it mentions any dates (court dates, deadlines, meeting dates) and automatically call addTimelineEvent or createCalendarEvent for those dates. When the user shares daily tasks, notes, or plans, use createJournalEntry to record them.
 
@@ -28,15 +28,17 @@ Key rules:
 - Respond naturally and conversationally — avoid rigid formatting unless the user asks for it.
 - When you use a tool, confirm what you did in 1-2 plain sentences.
 - Ask clarifying questions when you need more info.
-- Always cite relevant Pakistani statutes and case precedents in proper citation format — keep it brief but authoritative.
+- Always cite relevant Pakistani statutes, constitutional articles, and case precedents in proper citation format — keep it brief but authoritative.
+- When asked about constitutional matters, reference specific Article numbers and their provisions.
 - When asked for legal research, search citations and present top 10 relevant cases with full citations.
 - Respond in the same language the user uses (Urdu or English).
 - For document drafting, ensure all citations follow the standard Pakistani legal citation format (YEAR REPORT VOLUME PAGE).`;
 
-const CLIENT_SYSTEM = `You are an AI Legal Assistant for Pakistani citizens on the Jinnah Legal platform. Help users understand their rights under Pakistani law and prepare for lawyer consultations. You can also help users manage their profile, save document drafts, and more.
+const CLIENT_SYSTEM = `You are an AI Legal Assistant for Pakistani citizens on the Jinnah Legal platform. You have comprehensive knowledge of the Constitution of Pakistan 1973 and all fundamental rights guaranteed to citizens. Help users understand their constitutional rights, fundamental rights (Articles 8-28), and legal procedures under Pakistani law. You can also help users manage their profile, save document drafts, and prepare for lawyer consultations.
 
 Key rules:
-- Keep explanations simple and conversational — avoid legal jargon unless necessary.
+- Explain constitutional rights in simple, clear language — avoid legal jargon unless necessary.
+- When a user asks about their rights, reference the specific Article of the Constitution (e.g., "Article 9 protects your right to life and liberty", "Article 25 guarantees equality before law").
 - When you use a tool, tell the user what happened in plain language.
 - Always recommend consulting a qualified lawyer for specific legal advice.
 - Respond in the same language the user uses (Urdu or English).`;
@@ -66,6 +68,19 @@ const FUNCTION_DECLARATIONS = [
         context: { type: 'string', description: 'Additional context about the case or document being drafted' },
       },
       required: ['query'],
+    },
+  },
+  {
+    name: 'searchConstitution',
+    description: 'Search the Constitution of Pakistan 1973 for specific articles, provisions, or topics. Use this when the user asks about constitutional rights, provisions, or any matter relating to the Constitution.',
+    parameters: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Search keywords for constitutional provisions (e.g. "right to life", "freedom of speech", "emergency powers", "President powers")' },
+        category: { type: 'string', description: 'Filter by category: Fundamental, Constitutional, Islamic, Criminal, Property, Corporate, Family, Service' },
+        article: { type: 'string', description: 'Specific article number to look up (e.g. "8", "25", "184")' },
+      },
+      required: [],
     },
   },
   {
@@ -216,6 +231,28 @@ async function executeTool(name, args, req) {
         return { message: `Found ${fallback.length} similar citations`, citations: fallback.map(c => `${c.citation} - ${c.title} (${c.court}, ${c.year})`) };
       }
       return { message: `Top ${results.length} relevant citations`, citations: results.map(c => `${c.citation} - ${c.title} (${c.court}, ${c.year}) - ${c.parties || ''} - ${c.description || ''}`) };
+    }
+
+    case 'searchConstitution': {
+      const { query: q, category: cat, article: art } = args;
+      let sql = 'SELECT id, part, part_title, chapter, chapter_title, article, title, content, category FROM constitution WHERE 1=1';
+      const params = [];
+      if (q) { const p = `%${q}%`; sql += ' AND (title ILIKE ? OR content ILIKE ?)'; params.push(p, p); }
+      if (cat) { sql += ' AND category=?'; params.push(cat); }
+      if (art) { sql += ' AND article=?'; params.push(art); }
+      sql += ' ORDER BY CAST(article AS INTEGER) ASC LIMIT 15';
+      const results = await query(sql, params);
+      if (results.length === 0) return { message: 'No constitutional provisions found matching your query.', articles: [] };
+      return {
+        message: `Found ${results.length} constitutional provisions`,
+        articles: results.map(a => ({
+          article: a.article,
+          title: a.title,
+          part: `Part ${a.part}: ${a.part_title}`,
+          content: a.content,
+          category: a.category,
+        }))
+      };
     }
 
     case 'createCalendarEvent': {

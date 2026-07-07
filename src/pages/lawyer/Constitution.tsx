@@ -248,12 +248,12 @@ export default function ConstitutionReader() {
             </div>
           </div>
           <button onClick={() => setShowSearch(o => !o)}
-            className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-lg transition"
+            className={`p-1.5 rounded-lg transition ${showSearch ? 'bg-emerald-100 text-emerald-700' : 'text-slate-500 hover:bg-slate-100'}`}
           ><Search size={16} /></button>
         </div>
         {showSearch && (
-          <div className="px-3 pb-3">
-            <div className="relative mb-2">
+          <div className="px-3 pb-2">
+            <div className="relative">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input value={search} onChange={e => setSearch(e.target.value)}
                 placeholder="Search by article, title, or content"
@@ -266,22 +266,23 @@ export default function ConstitutionReader() {
                 ><X size={14} /></button>
               )}
             </div>
-            <div className="flex gap-1.5 overflow-x-auto pb-0.5 -mx-0.5 px-0.5">
-              {catAgg.slice(0, 8).map(c => (
-                <button key={c.name} onClick={() => setCategory(c.name === category ? '' : c.name)}
-                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-medium whitespace-nowrap border transition flex-shrink-0 ${
-                    category === c.name
-                      ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                  }`}
-                >
-                  <CatIcon name={c.name} size={12} />
-                  {c.name}
-                </button>
-              ))}
-            </div>
           </div>
         )}
+        {/* Mobile category pills — always visible */}
+        <div className="px-3 pb-2 flex gap-1.5 overflow-x-auto scrollbar-none">
+          {catAgg.map(c => (
+            <button key={c.name} onClick={() => setCategory(c.name === category ? '' : c.name)}
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-medium whitespace-nowrap border transition flex-shrink-0 ${
+                category === c.name
+                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              <CatIcon name={c.name} size={11} />
+              {c.name}
+            </button>
+          ))}
+        </div>
       </header>
 
       {/* ─── SIDEBAR ─────────────────────────── */}

@@ -4,6 +4,7 @@ import { auth } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 
 const PART_ORDER = `CASE part WHEN 'I' THEN 1 WHEN 'II' THEN 2 WHEN 'III' THEN 3 WHEN 'IV' THEN 4 WHEN 'V' THEN 5 WHEN 'VI' THEN 6 WHEN 'VII' THEN 7 WHEN 'VIII' THEN 8 WHEN 'IX' THEN 9 WHEN 'X' THEN 10 WHEN 'XI' THEN 11 WHEN 'XII' THEN 12 ELSE 13 END`;
+const ARTICLE_ORDER = `LPAD(REGEXP_REPLACE(article, '[^0-9]', '', 'g'), 5, '0') ASC, article ASC`;
 
 export const constitutionRouter = Router();
 constitutionRouter.use(auth);
@@ -29,7 +30,7 @@ constitutionRouter.get('/', asyncHandler(async (req, res) => {
   if (part) { sql += ' AND part=?'; params.push(part); countSql += ' AND part=?'; countParams.push(part); }
   if (chapter) { sql += ' AND chapter=?'; params.push(chapter); countSql += ' AND chapter=?'; countParams.push(chapter); }
 
-  sql += ` ORDER BY CAST(article AS INTEGER) ASC, ${PART_ORDER} ASC`;
+  sql += ` ORDER BY ${ARTICLE_ORDER}, ${PART_ORDER} ASC`;
   if (limit > 0) { sql += ' LIMIT ?'; params.push(limit); }
   if (offset > 0) { sql += ' OFFSET ?'; params.push(offset); }
 

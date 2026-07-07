@@ -3,12 +3,14 @@ import { query, queryOne } from '../db/adapter.js';
 import { auth } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 
+const PART_ORDER = `CASE part WHEN 'I' THEN 1 WHEN 'II' THEN 2 WHEN 'III' THEN 3 WHEN 'IV' THEN 4 WHEN 'V' THEN 5 WHEN 'VI' THEN 6 WHEN 'VII' THEN 7 WHEN 'VIII' THEN 8 WHEN 'IX' THEN 9 WHEN 'X' THEN 10 WHEN 'XI' THEN 11 WHEN 'XII' THEN 12 ELSE 13 END`;
+
 export const constitutionRouter = Router();
 constitutionRouter.use(auth);
 
 constitutionRouter.get('/', asyncHandler(async (req, res) => {
   let { search, category, part, chapter, limit, offset } = req.query;
-  limit = limit ? Number(limit) : 200;
+  limit = limit ? Number(limit) : 300;
   offset = offset ? Number(offset) : 0;
 
   let sql = 'SELECT id, part, part_title, chapter, chapter_title, article, title, content, category FROM constitution WHERE 1=1';
@@ -27,7 +29,7 @@ constitutionRouter.get('/', asyncHandler(async (req, res) => {
   if (part) { sql += ' AND part=?'; params.push(part); countSql += ' AND part=?'; countParams.push(part); }
   if (chapter) { sql += ' AND chapter=?'; params.push(chapter); countSql += ' AND chapter=?'; countParams.push(chapter); }
 
-  sql += ' ORDER BY CAST(article AS INTEGER) ASC, part ASC';
+  sql += ` ORDER BY CAST(article AS INTEGER) ASC, ${PART_ORDER} ASC`;
   if (limit > 0) { sql += ' LIMIT ?'; params.push(limit); }
   if (offset > 0) { sql += ' OFFSET ?'; params.push(offset); }
 
@@ -38,7 +40,7 @@ constitutionRouter.get('/', asyncHandler(async (req, res) => {
 
 constitutionRouter.get('/structure', asyncHandler(async (req, res) => {
   const rows = await query(
-    `SELECT DISTINCT part, part_title FROM constitution ORDER BY CAST(part AS INTEGER) ASC`
+    `SELECT DISTINCT part, part_title FROM constitution ORDER BY ${PART_ORDER} ASC`
   );
   const parts = [];
   for (const p of rows) {

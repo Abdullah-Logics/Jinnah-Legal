@@ -5,7 +5,7 @@ import {
   Search, Send, Paperclip, Phone, Video,
   Check, CheckCheck, Camera, Mic, MicOff, FileText, X,
   Image as ImageIcon, ArrowLeft, Smile, MessageSquare, AlertTriangle, UsersRound,
-  Info, Image, MoreVertical, Download, Scale, Clipboard, Plus, Loader,
+  Info, Image, MoreVertical, Download, Scale, Clipboard, Plus, Loader, Ban,
 } from 'lucide-react';
 import ReportModal from '../../components/ReportModal';
 import { format, isToday, isYesterday } from 'date-fns';
@@ -76,6 +76,20 @@ export default function LawyerMessages() {
   const [citResults, setCitResults] = useState<any[]>([]);
   const [citLoading, setCitLoading] = useState(false);
   const [chatWallpaper] = useState(() => localStorage.getItem('chatWallpaper') || '');
+  const [showBlockConfirm, setShowBlockConfirm] = useState(false);
+  const { blockedUsers, blockUser, unblockUser, loadBlockedUsers } = useStore();
+
+  const isBlocked = selectedUser ? blockedUsers.some(b => b.blocked_user_id === selectedUser) : false;
+
+  const handleBlock = async () => {
+    if (!selectedUser) return;
+    if (isBlocked) {
+      await unblockUser(selectedUser);
+    } else {
+      await blockUser(selectedUser);
+    }
+    setShowBlockConfirm(false);
+  };
 
   const WALLPAPER_CLASSES: Record<string, string> = {
     waves: 'bg-gradient-to-br from-cyan-100 via-blue-50 to-indigo-100',
@@ -92,7 +106,7 @@ export default function LawyerMessages() {
   const audioChunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
 
-  useEffect(() => { loadMessages(); loadCases(); loadConnections(); }, [loadMessages, loadCases, loadConnections]);
+  useEffect(() => { loadMessages(); loadCases(); loadConnections(); loadBlockedUsers(); }, [loadMessages, loadCases, loadConnections, loadBlockedUsers]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -525,6 +539,13 @@ export default function LawyerMessages() {
                           Contact Info
                         </button>
                         <button
+                          onClick={() => { setShowBlockConfirm(true); setMoreMenuOpen(false); }}
+                          className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition ${isBlocked ? 'text-emerald-600 hover:bg-emerald-50' : 'text-red-600 hover:bg-red-50'}`}
+                        >
+                          <Ban size={16} />
+                          {isBlocked ? 'Unblock User' : 'Block User'}
+                        </button>
+                        <button
                           onClick={() => { setShowReport(true); setMoreMenuOpen(false); }}
                           className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition"
                         >
@@ -842,6 +863,36 @@ export default function LawyerMessages() {
           </div>
         )}
       </div>
+
+      <AnimatePresence>
+        {showBlockConfirm && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+            onClick={() => setShowBlockConfirm(false)}
+          >
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
+              className="bg-white rounded-2xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}
+            >
+              <h2 className="text-lg font-bold text-slate-900 mb-2">
+                {isBlocked ? 'Unblock' : 'Block'} {selectedContact?.name}?
+              </h2>
+              <p className="text-sm text-slate-500 mb-6">
+                {isBlocked
+                  ? 'They will be able to message you again.'
+                  : 'They will not be able to message you while blocked.'}
+              </p>
+              <div className="flex gap-3">
+                <button onClick={() => setShowBlockConfirm(false)}
+                  className="flex-1 px-4 py-2.5 border border-slate-200 text-slate-700 rounded-xl font-medium hover:bg-slate-50 transition text-sm"
+                >Cancel</button>
+                <button onClick={handleBlock}
+                  className={`flex-1 px-4 py-2.5 rounded-xl font-medium text-white transition text-sm ${isBlocked ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700'}`}
+                >{isBlocked ? 'Unblock' : 'Block'}</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {selectedContact && (
         <ReportModal

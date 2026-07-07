@@ -1,12 +1,32 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useStore } from '../../store/useStore';
 import { Search, MapPin, Star, Award, Filter, ChevronRight, CheckCircle } from 'lucide-react';
 
+const API = import.meta.env.DEV ? 'http://localhost:3001' : import.meta.env.VITE_API_URL || '';
+
 export default function ClientFindLawyer() {
-  const { users } = useStore();
+  const { users, token } = useStore();
   const [searchQuery, setSearchQuery] = useState('');
+  const [ratings, setRatings] = useState<Record<string, { avg: number; count: number }>>({});
+
+  useEffect(() => {
+    (async () => {
+      const lawyers = users.filter(u => u.role === 'lawyer' && u.isVerified);
+      for (const l of lawyers) {
+        try {
+          const res = await fetch(`${API}/api/cases/reviews/lawyer/${l.id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setRatings(prev => ({ ...prev, [l.id]: data.stats }));
+          }
+        } catch {}
+      }
+    })();
+  }, [users, token]);
   const [selectedCity, setSelectedCity] = useState('');
   const [selectedSpec, setSelectedSpec] = useState('');
 
@@ -115,9 +135,16 @@ export default function ClientFindLawyer() {
               </div>
 
               <div className="flex items-center justify-between pt-4 border-t border-slate-100">
-                <div className="flex items-center gap-1 text-sm text-slate-500">
+                <div className="flex items-center gap-2 text-sm text-slate-500">
                   <Award size={16} />
                   <span>{lawyer.credentials?.experience || 0} years exp.</span>
+                  {ratings[lawyer.id]?.count > 0 && (
+                    <span className="flex items-center gap-1 ml-2 text-amber-500">
+                      <Star size={14} className="fill-amber-400" />
+                      <span className="font-semibold">{ratings[lawyer.id].avg}</span>
+                      <span className="text-slate-400">({ratings[lawyer.id].count})</span>
+                    </span>
+                  )}
                 </div>
                 <span className="flex items-center gap-1 text-emerald-600 font-medium text-sm">
                   View Profile <ChevronRight size={16} />

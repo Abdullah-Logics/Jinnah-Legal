@@ -8,13 +8,15 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Star } from 'lucide-react';
 import ShareDialog, { useShareDialog } from '../../components/ShareDialog';
 import { avatarUrl } from '../../utils/resolveUrl';
 
 export default function LawyerCaseDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { cases, users, token, updateCase, deleteCase, loadCases, loadUsers, currentUser, addInvoice } = useStore();
+  const { cases, users, token, updateCase, deleteCase, loadCases, loadUsers, currentUser, addInvoice, requestClose, confirmClose, submitReview } = useStore();
 
   useEffect(() => { loadCases(); loadUsers(); }, [loadCases, loadUsers]);
   const [uploading, setUploading] = useState(false);
@@ -31,6 +33,8 @@ export default function LawyerCaseDetail() {
   const [timelineForm, setTimelineForm] = useState({ date: '', time: '', event: '', description: '' });
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [invoiceForm, setInvoiceForm] = useState({ amount: 0, hours: 0, description: '', dueDate: '' });
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false); // eslint-disable-line
 
   const { shareState, openShare, closeShare } = useShareDialog();
   const share = (type: 'hearing' | 'document' | 'calendar', title: string, details?: Record<string, any>) => {
@@ -188,11 +192,13 @@ export default function LawyerCaseDetail() {
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-slate-900">Documents</h2>
-              <button onClick={() => fileRef.current?.click()} disabled={uploading}
-                className="flex items-center gap-1 text-emerald-600 font-medium text-sm hover:text-emerald-700 disabled:opacity-50"
-              >
-                {uploading ? <Loader className="animate-spin" size={16} /> : <Plus size={16} />} Upload
-              </button>
+              {caseData.status === 'active' && (
+                <button onClick={() => fileRef.current?.click()} disabled={uploading}
+                  className="flex items-center gap-1 text-emerald-600 font-medium text-sm hover:text-emerald-700 disabled:opacity-50"
+                >
+                  {uploading ? <Loader className="animate-spin" size={16} /> : <Plus size={16} />} Upload
+                </button>
+              )}
             </div>
             <input ref={fileRef} type="file" className="hidden"
               onChange={async (e) => {
@@ -328,10 +334,11 @@ export default function LawyerCaseDetail() {
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
             <h2 className="text-lg font-bold text-slate-900 mb-4">Actions</h2>
             <div className="space-y-2">
-              {caseData.status !== 'closed' && caseData.status !== 'won' && caseData.status !== 'lost' && (
-                <button onClick={() => updateCase(caseData.id, { status: 'closed' })}
+              {caseData.status === 'active' && (
+                <button onClick={() => setShowCloseConfirm(true)}
                   className="flex items-center gap-2 w-full p-3 bg-emerald-50 rounded-xl hover:bg-emerald-100 transition text-emerald-700">
-                  <CheckCircle size={18} /> Complete Case
+                  <CheckCircle size={18} />
+                  {caseData.closeRequestedByLawyer ? 'Close Requested — Waiting Client' : 'Request Case Close'}
                 </button>
               )}
               <button onClick={openEdit} className="flex items-center gap-2 w-full p-3 bg-slate-50 rounded-xl hover:bg-slate-100 transition text-slate-700">
@@ -340,9 +347,11 @@ export default function LawyerCaseDetail() {
               <button onClick={() => setShowDelete(true)} className="flex items-center gap-2 w-full p-3 bg-red-50 rounded-xl hover:bg-red-100 transition text-red-600">
                 <Trash2 size={18} /> Delete Case
               </button>
-              <button onClick={() => setShowInvoiceModal(true)} className="flex items-center gap-2 w-full p-3 bg-emerald-50 rounded-xl hover:bg-emerald-100 transition text-emerald-700">
-                <DollarSign size={18} /> Generate Invoice
-              </button>
+              {caseData.status === 'active' && (
+                <button onClick={() => setShowInvoiceModal(true)} className="flex items-center gap-2 w-full p-3 bg-emerald-50 rounded-xl hover:bg-emerald-100 transition text-emerald-700">
+                  <DollarSign size={18} /> Generate Invoice
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -600,6 +609,52 @@ export default function LawyerCaseDetail() {
           </motion.div>
         )}
       </AnimatePresence>
+      {/* Close Confirm Modal */}
+      <AnimatePresence>
+        {showCloseConfirm && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+            onClick={() => setShowCloseConfirm(false)}
+          >
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
+              className="bg-white rounded-2xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}
+            >
+              <h2 className="text-xl font-bold text-slate-900 mb-2">Request Case Closure</h2>
+              <p className="text-slate-500 text-sm mb-6">
+                {caseData.closeRequestedByLawyer
+                  ? 'You already requested closure. The client needs to confirm to close this case.'
+                  : 'Request the client to close this case. They will need to confirm before it is closed.'}
+              </p>
+              {caseData.closeRequestedByClient && (
+                <div className="p-3 bg-emerald-50 rounded-xl mb-4">
+                  <p className="text-sm text-emerald-700 font-medium">The client has already requested closure. Confirm to close this case now.</p>
+                </div>
+              )}
+              <div className="flex gap-3">
+                <button onClick={() => setShowCloseConfirm(false)}
+                  className="flex-1 px-4 py-2.5 border border-slate-200 text-slate-700 rounded-xl font-medium hover:bg-slate-50 transition"
+                >Cancel</button>
+                <button onClick={async () => {
+                  if (caseData.closeRequestedByClient) {
+                    await confirmClose(caseData.id);
+                    setShowReviewModal(true);
+                  } else {
+                    await requestClose(caseData.id);
+                  }
+                  setShowCloseConfirm(false);
+                }}
+                  className="flex-1 px-4 py-2.5 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition"
+                >
+                  {caseData.closeRequestedByClient ? 'Confirm Close' : 'Request Close'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+
+
       <ShareDialog
         open={shareState.open}
         payload={shareState.payload}

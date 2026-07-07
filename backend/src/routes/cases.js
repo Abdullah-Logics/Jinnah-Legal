@@ -20,6 +20,8 @@ function parseCase(c) {
     timeline: safeJson(c.timeline, []),
     documents: safeJson(c.documents, []),
     courtDates: safeJson(c.court_dates, []),
+    closeRequestedByLawyer: !!c.close_requested_by_lawyer,
+    closeRequestedByClient: !!c.close_requested_by_client,
     createdAt: c.created_at, updatedAt: c.updated_at,
   };
 }
@@ -93,6 +95,59 @@ casesRouter.patch('/:id/respond', validate(caseRespondSchema), asyncHandler(asyn
   res.json(parseCase(updated));
 }));
 
+// ── CLOSE CASE FLOW ─────────────────────────────────────────
+casesRouter.patch('/:id/request-close', asyncHandler(async (req, res) => {
+  const c = await queryOne('SELECT * FROM cases WHERE id = ?', [req.params.id]);
+  if (!c) throw new AppError('Case not found', 404);
+  if (req.user.role === 'lawyer' && c.lawyer_id !== req.user.id) throw new AppError('Unauthorized', 403);
+  if (req.user.role === 'client' && c.client_id !== req.user.id) throw new AppError('Unauthorized', 403);
+  if (!['active', 'pending'].includes(c.status)) throw new AppError('Case cannot be closed from current status', 400);
+  if (c.status === 'closed') throw new AppError('Case already closed', 400);
+  const field = req.user.role === 'lawyer' ? 'close_requested_by_lawyer' : 'close_requested_by_client';
+  await run(`UPDATE cases SET ${field}=1,updated_at=? WHERE id=?`, [new Date().toISOString(), req.params.id]);
+  const updated = await queryOne('SELECT * FROM cases WHERE id = ?', [req.params.id]);
+  res.json(parseCase(updated));
+}));
+
+casesRouter.patch('/:id/confirm-close', asyncHandler(async (req, res) => {
+  const c = await queryOne('SELECT * FROM cases WHERE id = ?', [req.params.id]);
+  if (!c) throw new AppError('Case not found', 404);
+  if (req.user.role === 'lawyer' && c.lawyer_id !== req.user.id) throw new AppError('Unauthorized', 403);
+  if (req.user.role === 'client' && c.client_id !== req.user.id) throw new AppError('Unauthorized', 403);
+  if (!c.close_requested_by_lawyer && !c.close_requested_by_client) throw new AppError('No close request pending', 400);
+  const field = req.user.role === 'lawyer' ? 'close_requested_by_lawyer' : 'close_requested_by_client';
+  await run(`UPDATE cases SET ${field}=1,status='closed',updated_at=? WHERE id=?`, [new Date().toISOString(), req.params.id]);
+  const updated = await queryOne('SELECT * FROM cases WHERE id = ?', [req.params.id]);
+  res.json(parseCase(updated));
+}));
+
+// ── REVIEWS ─────────────────────────────────────────────────
+casesRouter.post('/:id/review', asyncHandler(async (req, res) => {
+  const { rating, comment } = req.body;
+  if (!rating || rating < 1 || rating > 5) throw new AppError('Rating must be 1-5', 400);
+  const c = await queryOne('SELECT * FROM cases WHERE id = ?', [req.params.id]);
+  if (!c) throw new AppError('Case not found', 404);
+  if (c.client_id !== req.user.id) throw new AppError('Only the client can leave a review', 403);
+  if (c.status !== 'closed') throw new AppError('Case must be closed before reviewing', 400);
+  const existing = await queryOne('SELECT id FROM reviews WHERE case_id=? AND client_id=?', [req.params.id, req.user.id]);
+  if (existing) throw new AppError('Review already exists for this case', 409);
+  const id = uuid();
+  await run('INSERT INTO reviews (id,case_id,client_id,lawyer_id,rating,comment) VALUES (?,?,?,?,?,?)',
+    [id, req.params.id, req.user.id, c.lawyer_id, rating, comment || '']);
+  res.status(201).json(await queryOne('SELECT * FROM reviews WHERE id = ?', [id]));
+}));
+
+casesRouter.get('/:id/reviews', asyncHandler(async (req, res) => {
+  const rows = await query('SELECT * FROM reviews WHERE case_id=? ORDER BY created_at DESC', [req.params.id]);
+  res.json(rows);
+}));
+
+casesRouter.get('/reviews/lawyer/:lawyerId', asyncHandler(async (req, res) => {
+  const rows = await query('SELECT * FROM reviews WHERE lawyer_id=? ORDER BY created_at DESC', [req.params.lawyerId]);
+  const stats = await queryOne('SELECT COUNT(*) as count, ROUND(AVG(rating),1) as avg FROM reviews WHERE lawyer_id=?', [req.params.lawyerId]);
+  res.json({ reviews: rows, stats: { count: stats?.count || 0, avg: Number(stats?.avg) || 0 } });
+}));
+
 casesRouter.delete('/:id', asyncHandler(async (req, res) => {
   const existing = await queryOne('SELECT * FROM cases WHERE id = ?', [req.params.id]);
   if (!existing) throw new AppError('Case not found', 404);
@@ -106,9 +161,9 @@ casesRouter.delete('/:id', asyncHandler(async (req, res) => {
 casesRouter.patch('/:id', validate(caseUpdateSchema), asyncHandler(async (req, res) => {
   const existing = await queryOne('SELECT * FROM cases WHERE id = ?', [req.params.id]);
   if (!existing) throw new AppError('Case not found', 404);
-  const { title, description, status, type, timeline, documents, courtDates, lawyerId } = req.body;
+  const { title, description, status, type, timeline, documents, courtDates, lawyerId, closeRequestedByLawyer, closeRequestedByClient } = req.body;
   await run(
-    `UPDATE cases SET title=?,description=?,status=?,type=?,timeline=?,documents=?,court_dates=?,lawyer_id=?,updated_at=? WHERE id=?`,
+    `UPDATE cases SET title=?,description=?,status=?,type=?,timeline=?,documents=?,court_dates=?,lawyer_id=?,close_requested_by_lawyer=?,close_requested_by_client=?,updated_at=? WHERE id=?`,
     [
       title ?? existing.title, description ?? existing.description,
       status ?? existing.status, type ?? existing.type,
@@ -116,6 +171,8 @@ casesRouter.patch('/:id', validate(caseUpdateSchema), asyncHandler(async (req, r
       documents ? JSON.stringify(documents) : existing.documents,
       courtDates ? JSON.stringify(courtDates) : existing.court_dates,
       lawyerId ?? existing.lawyer_id,
+      closeRequestedByLawyer != null ? (closeRequestedByLawyer ? 1 : 0) : existing.close_requested_by_lawyer,
+      closeRequestedByClient != null ? (closeRequestedByClient ? 1 : 0) : existing.close_requested_by_client,
       new Date().toISOString(), req.params.id,
     ]
   );

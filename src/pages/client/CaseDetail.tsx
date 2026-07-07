@@ -1,8 +1,8 @@
 import { useParams, Link } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useStore } from '../../store/useStore';
-import { motion } from 'framer-motion';
-import { ArrowLeft, Briefcase, User, Calendar, FileText, MessageSquare, Clock, Download, CheckCircle, XCircle, Share2, DollarSign } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowLeft, Briefcase, User, Calendar, FileText, MessageSquare, Clock, Download, CheckCircle, XCircle, Share2, DollarSign, Star, X } from 'lucide-react';
 import { format } from 'date-fns';
 import ShareDialog, { useShareDialog } from '../../components/ShareDialog';
 
@@ -11,6 +11,13 @@ export default function ClientCaseDetail() {
   const { cases, users, invoices, respondToCase, loadCases, loadInvoices, loadPaymentMethods, paymentMethods, payInvoice } = useStore();
 
   useEffect(() => { loadCases(); loadInvoices(); loadPaymentMethods(); }, []);
+
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewSubmitted, setReviewSubmitted] = useState(false);
+  const { requestClose, confirmClose, submitReview } = useStore();
 
   const caseInvoices = invoices.filter(i => i.caseId === id);
   
@@ -180,6 +187,24 @@ export default function ClientCaseDetail() {
             )}
           </div>
 
+          {/* Close Case */}
+          {caseData.status === 'active' && (
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+              <h2 className="text-lg font-bold text-slate-900 mb-2">Close Case</h2>
+              <p className="text-sm text-slate-500 mb-4">
+                {caseData.closeRequestedByLawyer
+                  ? 'Your lawyer has requested to close this case.'
+                  : 'Request to close this case when you are done.'}
+              </p>
+              <button onClick={() => setShowCloseConfirm(true)}
+                className="flex items-center justify-center gap-2 w-full bg-emerald-600 text-white py-2.5 rounded-xl font-medium hover:bg-emerald-700 transition"
+              >
+                <CheckCircle size={18} />
+                {caseData.closeRequestedByLawyer ? 'Confirm Close' : 'Request Close'}
+              </button>
+            </div>
+          )}
+
           {/* Client Approval */}
           {caseData.clientStatus === 'pending' && (
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-amber-200">
@@ -283,6 +308,102 @@ export default function ClientCaseDetail() {
           </div>
         </div>
       </div>
+      {/* Close Confirm Modal */}
+      <AnimatePresence>
+        {showCloseConfirm && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+            onClick={() => setShowCloseConfirm(false)}
+          >
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
+              className="bg-white rounded-2xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-slate-900">Close Case</h2>
+                <button onClick={() => setShowCloseConfirm(false)}><X size={20} /></button>
+              </div>
+              <p className="text-slate-500 text-sm mb-6">
+                {caseData.closeRequestedByLawyer
+                  ? 'Your lawyer has already requested closure. Confirm to close this case. You will be able to leave a review afterward.'
+                  : 'Request to close this case. Your lawyer will need to confirm.'}
+              </p>
+              <div className="flex gap-3">
+                <button onClick={() => setShowCloseConfirm(false)}
+                  className="flex-1 px-4 py-2.5 border border-slate-200 text-slate-700 rounded-xl font-medium hover:bg-slate-50 transition"
+                >Cancel</button>
+                <button onClick={async () => {
+                  if (caseData.closeRequestedByLawyer) {
+                    await confirmClose(caseData.id);
+                    setShowCloseConfirm(false);
+                    setShowReviewModal(true);
+                  } else {
+                    await requestClose(caseData.id);
+                    setShowCloseConfirm(false);
+                  }
+                }}
+                  className="flex-1 px-4 py-2.5 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition"
+                >
+                  {caseData.closeRequestedByLawyer ? 'Confirm & Close' : 'Request Close'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Review Modal */}
+      <AnimatePresence>
+        {showReviewModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+            onClick={() => setShowReviewModal(false)}
+          >
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
+              className="bg-white rounded-2xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-slate-900">Rate {lawyer?.name || 'Your Lawyer'}</h2>
+                <button onClick={() => setShowReviewModal(false)}><X size={20} /></button>
+              </div>
+              <p className="text-slate-500 text-sm mb-6">
+                {reviewSubmitted ? 'Thank you for your feedback!' : 'How was your experience working with this lawyer?'}
+              </p>
+              {!reviewSubmitted && (
+                <>
+                  <div className="flex items-center justify-center gap-2 mb-6">
+                    {[1,2,3,4,5].map(n => (
+                      <button key={n} onClick={() => setReviewRating(n)}
+                        className="p-1 transition hover:scale-110"
+                      >
+                        <Star size={36} className={n <= reviewRating ? 'text-amber-400 fill-amber-400' : 'text-slate-200'} />
+                      </button>
+                    ))}
+                  </div>
+                  <textarea value={reviewComment} onChange={e => setReviewComment(e.target.value)}
+                    placeholder="Share your feedback (optional)..."
+                    rows={3}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500 resize-none mb-4"
+                  />
+                  <button onClick={async () => {
+                    if (reviewRating > 0) {
+                      await submitReview(caseData.id, reviewRating, reviewComment);
+                      setReviewSubmitted(true);
+                    }
+                  }} disabled={reviewRating === 0}
+                    className="w-full py-3 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition disabled:opacity-50"
+                  >Submit Review</button>
+                </>
+              )}
+              {reviewSubmitted && (
+                <button onClick={() => setShowReviewModal(false)}
+                  className="w-full py-3 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition"
+                >Close</button>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <ShareDialog
         open={shareState.open}
         payload={shareState.payload}

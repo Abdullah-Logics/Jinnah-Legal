@@ -60,6 +60,8 @@ export interface Case {
   createdAt: string;
   updatedAt: string;
   courtDates: { date: string; court: string; notes: string }[];
+  closeRequestedByLawyer?: boolean;
+  closeRequestedByClient?: boolean;
 }
 
 export interface Message {
@@ -145,6 +147,25 @@ export interface Payment {
   case_id?: string;
   invoice_description?: string;
   invoice_amount?: number;
+}
+
+export interface Review {
+  id: string;
+  case_id: string;
+  client_id: string;
+  lawyer_id: string;
+  rating: number;
+  comment: string;
+  created_at: string;
+}
+
+export interface BlockedUser {
+  id: string;
+  user_id: string;
+  blocked_user_id: string;
+  reason: string;
+  blocked_at: string;
+  unblocked_at: string | null;
 }
 
 export interface TimeEntry {
@@ -348,6 +369,20 @@ interface AppState {
   loadTimeEntries: () => Promise<void>;
   addTimeEntry: (entry: Omit<TimeEntry, 'id'>) => Promise<void>;
 
+  // Block/Unblock
+  blockedUsers: BlockedUser[];
+  loadBlockedUsers: () => Promise<void>;
+  blockUser: (blockedUserId: string, reason?: string) => Promise<void>;
+  unblockUser: (blockedUserId: string) => Promise<void>;
+  checkBlocked: (userId: string) => Promise<{ blocked: boolean; blockedBy: boolean }>;
+
+  // Close case flow
+  requestClose: (caseId: string) => Promise<void>;
+  confirmClose: (caseId: string) => Promise<void>;
+
+  // Reviews
+  submitReview: (caseId: string, rating: number, comment?: string) => Promise<void>;
+
   // Admin actions
   verifyLawyer: (lawyerId: string, status: VerificationStatus) => Promise<void>;
   loadUsers: () => Promise<void>;
@@ -379,6 +414,7 @@ export const useStore = create<AppState>()(
       paymentMethods: [],
       payments: [],
       timeEntries: [],
+      blockedUsers: [],
 
       login: async (email, _password, _role) => {
         const data = await apiFetch('/api/auth/login', {
@@ -426,7 +462,7 @@ export const useStore = create<AppState>()(
         return true;
       },
 
-      logout: () => set({ currentUser: null, isAuthenticated: false, token: null, cases: [], messages: [], journals: [], invoices: [], paymentMethods: [], payments: [], timeEntries: [] }),
+      logout: () => set({ currentUser: null, isAuthenticated: false, token: null, cases: [], messages: [], journals: [], invoices: [], paymentMethods: [], payments: [], timeEntries: [], blockedUsers: [] }),
 
       updateUser: async (userId, updates) => {
         const { token } = get();
@@ -670,6 +706,45 @@ export const useStore = create<AppState>()(
           const newEntry = await apiFetch('/api/time-entries', { method: 'POST', body: JSON.stringify(entry) }, token);
           set(state => ({ timeEntries: [normalizeTimeEntry(newEntry as Record<string, unknown>), ...state.timeEntries] }));
         } catch {}
+      },
+
+      loadBlockedUsers: async () => {
+        const { token } = get();
+        try { const data = await apiFetch('/api/blocks', {}, token); set({ blockedUsers: data }); } catch {}
+      },
+
+      blockUser: async (blockedUserId, reason) => {
+        const { token } = get();
+        await apiFetch('/api/blocks', { method: 'POST', body: JSON.stringify({ blockedUserId, reason: reason || '' }) }, token);
+        get().loadBlockedUsers();
+      },
+
+      unblockUser: async (blockedUserId) => {
+        const { token } = get();
+        await apiFetch(`/api/blocks/${blockedUserId}`, { method: 'DELETE' }, token);
+        set(state => ({ blockedUsers: state.blockedUsers.filter(b => b.blocked_user_id !== blockedUserId) }));
+      },
+
+      checkBlocked: async (userId) => {
+        const { token } = get();
+        try { return await apiFetch(`/api/blocks/check/${userId}`, {}, token); } catch { return { blocked: false, blockedBy: false }; }
+      },
+
+      requestClose: async (caseId) => {
+        const { token } = get();
+        const updated = await apiFetch(`/api/cases/${caseId}/request-close`, { method: 'PATCH' }, token);
+        set(state => ({ cases: state.cases.map(c => c.id === caseId ? updated : c) }));
+      },
+
+      confirmClose: async (caseId) => {
+        const { token } = get();
+        const updated = await apiFetch(`/api/cases/${caseId}/confirm-close`, { method: 'PATCH' }, token);
+        set(state => ({ cases: state.cases.map(c => c.id === caseId ? updated : c) }));
+      },
+
+      submitReview: async (caseId, rating, comment) => {
+        const { token } = get();
+        await apiFetch(`/api/cases/${caseId}/review`, { method: 'POST', body: JSON.stringify({ rating, comment: comment || '' }) }, token);
       },
 
       verifyLawyer: async (lawyerId, status) => {

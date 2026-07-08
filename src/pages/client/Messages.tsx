@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '../../store/useStore';
 import {
@@ -14,6 +14,8 @@ import { format, isToday, isYesterday } from 'date-fns';
 import { useCall } from '../../context/CallContext';
 import ShareCard, { parseShareData } from '../../components/ShareCard';
 import { resolveUrl, avatarUrl, downloadFile } from '../../utils/resolveUrl';
+import ErrorBoundary from '../../components/ErrorBoundary';
+import PdfViewer from '../../components/PdfViewer';
 
 const API = import.meta.env.DEV ? 'http://localhost:3001' : import.meta.env.VITE_API_URL || '';
 
@@ -75,6 +77,7 @@ export default function ClientMessages() {
   const [chatWallpaper] = useState(() => localStorage.getItem('chatWallpaper') || '');
   const [showBlockConfirm, setShowBlockConfirm] = useState(false);
   const { blockedUsers, blockUser, unblockUser, loadBlockedUsers } = useStore();
+  const [pdfViewer, setPdfViewer] = useState<{ url: string; name: string } | null>(null);
 
   const isBlocked = selectedUser ? blockedUsers.some(b => b.user_id === selectedUser) : false;
 
@@ -135,10 +138,10 @@ export default function ClientMessages() {
   const filteredContacts = myContacts.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()));
   const selectedContact = users.find(u => u.id === selectedUser);
 
-  const conversation = messages.filter(m =>
+  const conversation = useMemo(() => messages.filter(m =>
     (m.senderId === currentUser?.id && m.receiverId === selectedUser) ||
     (m.senderId === selectedUser && m.receiverId === currentUser?.id)
-  ).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  ).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()), [messages, selectedUser, currentUser?.id]);
 
   useEffect(() => {
     if (selectedUser) {
@@ -146,14 +149,14 @@ export default function ClientMessages() {
     }
   }, [selectedUser, conversation, currentUser?.id, markAsRead]);
 
-  const getLastMessage = (userId: string) =>
+  const getLastMessage = useCallback((userId: string) =>
     messages.filter(m =>
       (m.senderId === currentUser?.id && m.receiverId === userId) ||
       (m.senderId === userId && m.receiverId === currentUser?.id)
-    ).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+    ).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0], [messages, currentUser?.id]);
 
-  const getUnreadCount = (userId: string) =>
-    messages.filter(m => m.senderId === userId && m.receiverId === currentUser?.id && !m.read).length;
+  const getUnreadCount = useCallback((userId: string) =>
+    messages.filter(m => m.senderId === userId && m.receiverId === currentUser?.id && !m.read).length, [messages, currentUser?.id]);
 
   const isContactOnline = (contactId: string) => onlineUsers.has(contactId);
 
@@ -161,11 +164,11 @@ export default function ClientMessages() {
     try { return raw ? JSON.parse(raw) : []; } catch { return []; }
   };
 
-  const filteredConversation = searchInChat
+  const filteredConversation = useMemo(() => searchInChat
     ? conversation.filter(m => m.content?.toLowerCase().includes(searchInChat.toLowerCase()))
-    : conversation;
+    : conversation, [conversation, searchInChat]);
 
-  const groupedMessages = (() => {
+  const groupedMessages = useMemo(() => {
     const groups: { date: string; msgs: typeof filteredConversation }[] = [];
     filteredConversation.forEach(msg => {
       const dateStr = formatDateSep(msg.timestamp);
@@ -174,7 +177,7 @@ export default function ClientMessages() {
       else groups.push({ date: dateStr, msgs: [msg] });
     });
     return groups;
-  })();
+  }, [filteredConversation]);
 
   const handleReact = (msgId: string, emoji: string) => {
     setMessageReactions(prev => {
@@ -220,6 +223,22 @@ export default function ClientMessages() {
     }
     if (att.type.startsWith('audio/')) {
       return <audio src={src} controls className="max-w-[220px]" />;
+    }
+    if (att.type === 'application/pdf') {
+      return (
+        <div className="relative group inline-block">
+          <button onClick={() => setPdfViewer({ url: src, name: att.name })}
+            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium ${isMine ? 'bg-emerald-700 text-white hover:bg-emerald-600' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}>
+            <FileText size={14} />
+            <span className="truncate max-w-[140px]">{att.name}</span>
+          </button>
+          <button onClick={() => downloadFile(src, att.name)}
+            className="absolute -top-1.5 -right-1.5 p-1 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 hover:bg-black/70 transition shadow"
+            title="Download">
+            <Download size={12} />
+          </button>
+        </div>
+      );
     }
     return (
       <div className="relative group inline-block">
@@ -353,6 +372,7 @@ export default function ClientMessages() {
   const totalUnread = myContacts.reduce((sum, c) => sum + getUnreadCount(c.id), 0);
 
   return (
+    <ErrorBoundary>
     <div className="flex-1 flex overflow-hidden bg-slate-100">
 
       {/* ─── CONTACTS SIDEBAR ─────────────────────────────────────────────── */}
@@ -430,7 +450,7 @@ export default function ClientMessages() {
                       </span>
                       {lastMsg?.timestamp ? (
                         <span className="text-[11px] text-slate-400 flex-shrink-0">
-                          {format(new Date(lastMsg.timestamp), 'hh:mm a')}
+                          {formatMsgTime(lastMsg.timestamp)}
                         </span>
                       ) : null}
                     </div>
@@ -614,12 +634,7 @@ export default function ClientMessages() {
                     const showTail = mi === group.msgs.length - 1 || group.msgs[mi + 1]?.senderId !== msg.senderId;
                     return (
                       <div key={msg.id} className={`relative group px-1 ${mi === group.msgs.length - 1 ? 'mb-0.5' : ''}`}>
-                        <motion.div
-                          initial={{ opacity: 0, y: 6 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.15 }}
-                          className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}
-                        >
+                        <div className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
                           <div
                             className={`max-w-[85%] sm:max-w-[70%] md:max-w-[60%] lg:max-w-[55%] cursor-pointer relative ${showTail ? '' : 'mb-0'}`}
                             onClick={() => setReactingTo(reactingTo === msg.id ? null : msg.id)}
@@ -647,7 +662,7 @@ export default function ClientMessages() {
                             )}
                             {msg.shareData && <ShareCard data={parseShareData(msg.shareData)!} />}
                             <div className={`flex items-center gap-1 mt-0.5 px-1 ${isMine ? 'justify-end' : 'justify-start'}`}>
-                              <span className="text-[10px] text-slate-400">{msg.timestamp ? format(new Date(msg.timestamp), 'hh:mm a') : ''}</span>
+                              <span className="text-[10px] text-slate-400">{msg.timestamp ? formatMsgTime(msg.timestamp) : ''}</span>
                               {isMine && (
                                 msg.read
                                   ? <CheckCheck size={11} className="text-emerald-500" />
@@ -655,7 +670,7 @@ export default function ClientMessages() {
                               )}
                             </div>
                           </div>
-                        </motion.div>
+                        </div>
 
                         {reactions.length > 0 && (
                           <div className={`flex gap-0.5 -mt-1 mb-1 ${isMine ? 'justify-end mr-2' : 'justify-start ml-2'}`}>
@@ -1008,6 +1023,8 @@ export default function ClientMessages() {
           </div>
         )}
       </motion.aside>
+      {pdfViewer && <PdfViewer url={pdfViewer.url} name={pdfViewer.name} onClose={() => setPdfViewer(null)} />}
     </div>
+    </ErrorBoundary>
   );
 }

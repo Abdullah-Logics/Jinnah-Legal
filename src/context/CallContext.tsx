@@ -93,6 +93,8 @@ export function CallProvider({ children, userId }: { children: React.ReactNode; 
   const ringtoneRef = useRef<HTMLAudioElement | null>(null);
   const callStatusRef = useRef<CallStatus>('idle');
   const callTypeRef = useRef<CallType>('audio');
+  const callStartRef = useRef<string | null>(null);
+  const callLogIdRef = useRef<string | null>(null);
 
   const [call, setCall] = useState<CallState>({
     status: 'idle', type: 'audio', peerId: null, peerName: '',
@@ -103,6 +105,8 @@ export function CallProvider({ children, userId }: { children: React.ReactNode; 
   // Keep refs in sync for socket event handlers
   useEffect(() => { callStatusRef.current = call.status; }, [call.status]);
   useEffect(() => { callTypeRef.current = call.type; }, [call.type]);
+  const callPeerRef = useRef<string | null>(null);
+  useEffect(() => { callPeerRef.current = call.peerId; }, [call.peerId]);
   const [isSpeakerOn, setIsSpeakerOn] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const [socketConnected, setSocketConnected] = useState(false);
@@ -173,12 +177,17 @@ export function CallProvider({ children, userId }: { children: React.ReactNode; 
       }
     });
 
-    socket.on('call:answer', async ({ sdp }) => {
+    socket.on('call:answer', async ({ sdp, from }) => {
       try {
         if (pcRef.current) {
           await pcRef.current.setRemoteDescription(new RTCSessionDescription(sdp));
         }
         stopRingtone();
+        const peerId = from || callPeerRef.current;
+        if (peerId) {
+          callStartRef.current = new Date().toISOString();
+          logCall('ongoing', peerId, callTypeRef.current);
+        }
         setCall(prev => ({ ...prev, status: 'connected' }));
       } catch (err) {
         console.error('call:answer handler error:', err);
@@ -192,6 +201,9 @@ export function CallProvider({ children, userId }: { children: React.ReactNode; 
     });
 
     socket.on('call:end', () => {
+      if (callStartRef.current) {
+        logCall('completed', callPeerRef.current || '', callTypeRef.current);
+      }
       cleanupCallRef();
       stopRingtone();
       setCall(prev => ({ ...prev, status: 'ended', peerName: prev.peerName }));
@@ -199,6 +211,9 @@ export function CallProvider({ children, userId }: { children: React.ReactNode; 
     });
 
     socket.on('call:missed', () => {
+      if (callPeerRef.current) {
+        logCall('missed', callPeerRef.current, callTypeRef.current);
+      }
       stopRingtone();
       setCall(prev => ({ ...prev, status: 'idle', peerId: null, peerName: '' }));
     });
@@ -214,6 +229,38 @@ export function CallProvider({ children, userId }: { children: React.ReactNode; 
     if (ringtoneOsc) { try { ringtoneOsc.stop(); } catch {} ringtoneOsc = null; }
     if (ringtoneInterval) { clearInterval(ringtoneInterval); ringtoneInterval = null; }
     if (ringtoneCtx) { ringtoneCtx.close().catch(() => {}); ringtoneCtx = null; }
+  };
+
+  const logCall = async (status: 'ongoing' | 'completed' | 'missed', peerId: string, type: CallType) => {
+    try {
+      const token = getToken();
+      const now = new Date().toISOString();
+      const body: any = { receiverId: peerId, type, status };
+      if (status === 'ongoing') {
+        body.startedAt = now;
+        const res = await fetch(`${REST_API}/api/call-logs`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify(body),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          callLogIdRef.current = data.id;
+        }
+      } else {
+        const started = callStartRef.current || now;
+        body.duration = Math.round((Date.now() - new Date(started).getTime()) / 1000);
+        body.startedAt = started;
+        body.endedAt = now;
+        await fetch(`${REST_API}/api/call-logs`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify(body),
+        });
+        callLogIdRef.current = null;
+        callStartRef.current = null;
+      }
+    } catch {}
   };
 
   const cleanupCallRef = () => {
@@ -360,6 +407,8 @@ export function CallProvider({ children, userId }: { children: React.ReactNode; 
       });
       localStreamRef.current = stream;
       stopRingtone();
+      callStartRef.current = new Date().toISOString();
+      logCall('ongoing', offer.from, offer.type as CallType);
       setCall(prev => ({ ...prev, localStream: stream, status: 'connected' }));
 
       const pc = await createPeerConnection(stream, offer.from);
@@ -382,7 +431,11 @@ export function CallProvider({ children, userId }: { children: React.ReactNode; 
   }, [createPeerConnection]);
 
   const rejectCall = useCallback(() => {
-    socketRef.current?.emit('call:end', { to: pendingOfferRef.current?.from });
+    const from = pendingOfferRef.current?.from;
+    if (from) {
+      logCall('missed', from, (pendingOfferRef.current?.type || 'audio') as CallType);
+    }
+    socketRef.current?.emit('call:end', { to: from });
     pendingOfferRef.current = null;
     stopRingtone();
     setCall(prev => ({ ...prev, status: 'idle', peerId: null, peerName: '' }));
@@ -390,6 +443,9 @@ export function CallProvider({ children, userId }: { children: React.ReactNode; 
 
   const endCall = useCallback(() => {
     const pid = call.peerId;
+    if (pid && callStartRef.current) {
+      logCall('completed', pid, callTypeRef.current);
+    }
     cleanupCallRef();
     setCall(prev => ({ ...prev, status: 'ended' }));
     socketRef.current?.emit('call:end', { to: pid });

@@ -125,7 +125,7 @@ export default function LawyerResearch() {
 
   useEffect(() => { if (activeTab === 'citations') { loadCitCart(); setCitPage(0); } }, [activeTab]);
 
-  useEffect(() => { if (activeTab === 'citations') searchCitations(); }, [citPage, activeTab, searchCitations]);
+  useEffect(() => { if (activeTab === 'citations') searchCitations(); }, [citPage, activeTab]); // eslint-disable-line
 
   useEffect(() => {
     try {

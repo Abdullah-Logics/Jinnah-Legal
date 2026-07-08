@@ -52,7 +52,7 @@ export default function AdminLayout() {
   };
 
   return (
-    <div className="h-dvh flex flex-col bg-slate-100">
+    <div className="h-dvh grid grid-rows-[1fr] bg-slate-100">
       {/* Mobile Header */}
       <header className={`lg:hidden fixed top-0 left-0 right-0 h-14 text-white z-40 flex items-center justify-between px-4 shadow-lg ${isFirmAdmin ? 'bg-gradient-to-r from-emerald-900 to-emerald-800' : 'bg-gradient-to-r from-emerald-950 to-emerald-900'}`}>
         <button onClick={() => setSidebarOpen(true)} className="p-2 hover:bg-white/10 rounded-lg transition">
@@ -160,8 +160,8 @@ export default function AdminLayout() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 lg:ml-72 pt-14 lg:pt-0 flex flex-col">
-        <div className="flex-1 p-3 lg:p-6 flex flex-col min-h-0 overflow-hidden">
+      <main className="lg:ml-72 pt-14 lg:pt-0 overflow-y-auto min-h-0 scroll-main">
+        <div className="p-3 lg:p-6" style={{ minHeight: 'calc(100vh + 2px)' }}>
           <Outlet />
         </div>
       </main>

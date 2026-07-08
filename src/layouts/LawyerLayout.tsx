@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { avatarUrl } from '../utils/resolveUrl';
 import {
   LayoutDashboard, Briefcase, BookOpen, Search, FileText, Clock, Users,
-  Calendar, MessageSquare, User, UserPlus, Brain, Menu, X, LogOut, Bell, Scale, BarChart3, UsersRound, BookMarked,
+  Calendar, MessageSquare, User, UserPlus, Brain, Menu, X, LogOut, Bell, Scale, BarChart3, UsersRound, BookMarked, Phone,
 } from 'lucide-react';
 
 const sidebarItems = [
@@ -21,6 +21,7 @@ const sidebarItems = [
   { path: '/lawyer/ai-brain', icon: Brain, label: 'AI Brain' },
   { path: '/lawyer/constitution', icon: BookMarked, label: 'Constitution' },
 
+  { path: '/lawyer/call-logs', icon: Phone, label: 'Call Logs' },
   { path: '/lawyer/research', icon: Search, label: 'AI Research' },
   { path: '/lawyer/citations', icon: Scale, label: 'Citations' },
   { path: '/lawyer/time-tracking', icon: Clock, label: 'Time & Billing' },
@@ -49,7 +50,7 @@ export default function LawyerLayout() {
   };
 
   return (
-    <div className="h-dvh flex flex-col bg-slate-50">
+    <div className="h-dvh grid grid-rows-[1fr] bg-slate-50">
       {/* Mobile Header */}
       <header className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-gradient-to-r from-emerald-700 to-emerald-800 text-white z-40 flex items-center justify-between px-4 shadow-lg">
         <button onClick={() => setSidebarOpen(true)} className="p-2 hover:bg-white/10 rounded-lg transition">
@@ -154,11 +155,17 @@ export default function LawyerLayout() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 lg:ml-72 pt-14 lg:pt-0 flex flex-col min-h-0">
-        <div className={`flex-1 flex flex-col min-h-0 overflow-hidden ${location.pathname.startsWith('/lawyer/messages') ? '' : 'p-3 lg:p-6'}`}>
+      {location.pathname.startsWith('/lawyer/messages') ? (
+        <main className="lg:ml-72 pt-14 lg:pt-0 flex flex-col min-h-0">
           <Outlet />
-        </div>
-      </main>
+        </main>
+      ) : (
+        <main className="lg:ml-72 pt-14 lg:pt-0 overflow-y-auto min-h-0 scroll-main">
+          <div className="p-3 lg:p-6" style={{ minHeight: 'calc(100vh + 2px)' }}>
+            <Outlet />
+          </div>
+        </main>
+      )}
     </div>
   );
 }

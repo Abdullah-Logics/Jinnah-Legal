@@ -54,4 +54,9 @@ html {
   height: 100dvh;
 }
 
+.scroll-main {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
 

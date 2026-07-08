@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { avatarUrl } from '../utils/resolveUrl';
 import {
   LayoutDashboard, Briefcase, Search, CreditCard, Calendar, MessageSquare,
-  User, UserPlus, Menu, X, LogOut, Bell, Scale, Bot, FileText, BarChart3, UsersRound,
+  User, UserPlus, Menu, X, LogOut, Bell, Scale, Bot, FileText, BarChart3, UsersRound, Phone,
 } from 'lucide-react';
 
 const sidebarItems = [
@@ -19,6 +19,7 @@ const sidebarItems = [
   { path: '/client/find-lawyer', icon: Search, label: 'Find Lawyer' },
   { path: '/client/requests', icon: UserPlus, label: 'Network' },
   { path: '/client/billing', icon: CreditCard, label: 'Billing' },
+  { path: '/client/call-logs', icon: Phone, label: 'Call Logs' },
   { path: '/client/ai-assistant', icon: Bot, label: 'AI Assistant' },
   { path: '/client/profile', icon: User, label: 'Profile' },
 ];
@@ -44,7 +45,7 @@ export default function ClientLayout() {
   };
 
   return (
-    <div className="h-dvh flex flex-col bg-slate-50">
+    <div className="h-dvh grid grid-rows-[1fr] bg-slate-50">
       {/* Mobile Header */}
       <header className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white z-40 flex items-center justify-between px-4 shadow-lg">
         <button onClick={() => setSidebarOpen(true)} className="p-2 hover:bg-white/10 rounded-lg transition">
@@ -152,11 +153,17 @@ export default function ClientLayout() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 lg:ml-72 pt-14 lg:pt-0 flex flex-col min-h-0">
-        <div className={`flex-1 flex flex-col min-h-0 overflow-hidden ${location.pathname.startsWith('/client/messages') ? '' : 'p-3 lg:p-6'}`}>
+      {location.pathname.startsWith('/client/messages') ? (
+        <main className="lg:ml-72 pt-14 lg:pt-0 flex flex-col min-h-0">
           <Outlet />
-        </div>
-      </main>
+        </main>
+      ) : (
+        <main className="lg:ml-72 pt-14 lg:pt-0 overflow-y-auto min-h-0 scroll-main">
+          <div className="p-3 lg:p-6" style={{ minHeight: 'calc(100vh + 2px)' }}>
+            <Outlet />
+          </div>
+        </main>
+      )}
     </div>
   );
 }

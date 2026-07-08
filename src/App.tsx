@@ -32,6 +32,8 @@ import LawyerCitations from './pages/lawyer/Citations';
 import ConstitutionReader from './pages/lawyer/Constitution';
 import LawyerGroups from './pages/lawyer/Groups';
 
+import CallLogs from './pages/CallLogs';
+
 // Client Portal
 import ClientDashboard from './pages/client/Dashboard';
 import ClientCases from './pages/client/Cases';
@@ -114,6 +116,7 @@ function App() {
             <Route path="profile" element={<LawyerProfile />} />
             <Route path="ai-brain" element={<LawyerAIBrain />} />
             <Route path="citations" element={<LawyerCitations />} />
+            <Route path="call-logs" element={<CallLogs />} />
 
 
             <Route path="constitution" element={<ConstitutionReader />} />
@@ -138,6 +141,7 @@ function App() {
             <Route path="weekly-report" element={<WeeklyReport />} />
             <Route path="profile" element={<ClientProfile />} />
             <Route path="ai-assistant" element={<ClientAIAssistant />} />
+            <Route path="call-logs" element={<CallLogs />} />
             <Route path="documents" element={<ClientDocuments />} />
             <Route path="groups" element={<ClientGroups />} />
           </Route>

@@ -559,7 +559,9 @@ export const useStore = create<AppState>()(
             shareData: message.shareData,
           }),
         }, token);
-        const ts = (msg.created_at || '').includes('Z') ? msg.created_at : msg.created_at + 'Z';
+        let ts;
+        try { ts = msg.created_at ? new Date(msg.created_at).toISOString() : new Date().toISOString(); }
+        catch { ts = new Date().toISOString(); }
         const norm = {
           id: msg.id,
           senderId: msg.sender_id,

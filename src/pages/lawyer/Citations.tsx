@@ -18,7 +18,7 @@ interface Citation {
   category: string;
   description: string;
   full_text?: string;
-  relevant_statutes: string;
+  relevant_statutes: string | string[];
   keywords: string;
   created_at: string;
 }
@@ -273,6 +273,7 @@ export default function CaseLibrary() {
 
   const shareCitation = async (c: Citation, contactId: string) => {
     const { sendMessage } = (await import('../../store/useStore')).useStore.getState();
+    const statutes = Array.isArray(c.relevant_statutes) ? c.relevant_statutes.join(', ') : c.relevant_statutes || '';
     await sendMessage({
       receiverId: contactId,
       content: '',
@@ -280,7 +281,7 @@ export default function CaseLibrary() {
         type: 'citation',
         title: `${c.citation} - ${c.title}`,
         description: c.description,
-        details: { citation: c.citation, court: c.court, year: c.year, category: c.category, parties: c.parties, statutes: c.relevant_statutes },
+        details: { citation: c.citation, court: c.court, year: c.year, category: c.category, parties: c.parties, statutes },
       }),
     });
     setShareTarget(null);
@@ -307,13 +308,14 @@ export default function CaseLibrary() {
   const saveToJournal = async (c: Citation) => {
     const today = new Date().toISOString().slice(0, 10);
     const { addJournalEntry } = useStore.getState();
+    const statutes = Array.isArray(c.relevant_statutes) ? c.relevant_statutes.join(', ') : c.relevant_statutes || '';
     await addJournalEntry({
       userId: currentUser?.id || '',
       date: today,
       notes: `Cited case: ${c.citation} - ${c.title}`,
       todos: [],
       plans: '',
-      content: `<h3>Case Reference: ${c.citation}</h3><p><strong>${c.title}</strong></p><p>Court: ${c.court} (${c.year})</p><p>Category: ${c.category}</p>${c.description ? `<p>${c.description}</p>` : ''}${c.relevant_statutes ? `<p>Statutes: ${c.relevant_statutes}</p>` : ''}`,
+      content: `<h3>Case Reference: ${c.citation}</h3><p><strong>${c.title}</strong></p><p>Court: ${c.court} (${c.year})</p><p>Category: ${c.category}</p>${c.description ? `<p>${c.description}</p>` : ''}${statutes ? `<p>Statutes: ${statutes}</p>` : ''}`,
     });
   };
 

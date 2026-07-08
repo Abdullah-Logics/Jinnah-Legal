@@ -66,10 +66,12 @@ export default function LawyerJournal() {
     if (!q.trim()) return;
     setCitLoading(true);
     try {
+      const t = token || localStorage.getItem('token') || '';
       const API_BASE = import.meta.env.DEV ? 'http://localhost:3001' : import.meta.env.VITE_API_URL || '';
-      const res = await fetch(`${API_BASE}/api/citations?search=${encodeURIComponent(q)}&limit=10`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`${API_BASE}/api/citations?search=${encodeURIComponent(q)}&limit=10`, { headers: { Authorization: `Bearer ${t}` } });
       if (res.ok) { const d = await res.json(); setCitResults(d.rows || []); }
-    } catch {}
+      else setCitResults([]);
+    } catch { setCitResults([]); }
     setCitLoading(false);
   };
 

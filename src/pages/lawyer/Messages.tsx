@@ -310,7 +310,7 @@ export default function LawyerMessages() {
           type: 'citation',
           title: `${c.citation} - ${c.title}`,
           description: c.description,
-          details: { citation: c.citation, court: c.court, year: c.year, category: c.category, parties: c.parties, statutes: c.relevant_statutes },
+          details: { citation: c.citation, court: c.court, year: c.year, category: c.category, parties: c.parties, statutes: Array.isArray(c.relevant_statutes) ? c.relevant_statutes.join(', ') : c.relevant_statutes || '' },
         }),
       });
       setShowCitationPicker(false);
@@ -662,7 +662,7 @@ export default function LawyerMessages() {
                                 <p className="whitespace-pre-wrap break-words text-[13.5px] sm:text-sm leading-relaxed">{msg.content}</p>
                               </div>
                             )}
-                            {msg.shareData && <ShareCard data={parseShareData(msg.shareData)!} />}
+                                                        {(() => { try { const sd = msg.shareData ? parseShareData(msg.shareData) : null; return sd ? <ShareCard data={sd} /> : null; } catch { return null; }})()}
                             <div className={`flex items-center gap-1 mt-0.5 px-1 ${isMine ? 'justify-end' : 'justify-start'}`}>
                               <span className="text-[10px] text-slate-400">{msg.timestamp ? formatMsgTime(msg.timestamp) : ''}</span>
                               {isMine && (

@@ -50,6 +50,7 @@ function formatDateSep(t: string) {
 }
 
 function resolveUrl(url: string) {
+  if (!url) return '';
   return url.startsWith('http') || url.startsWith('data:') ? url : `${API}${url}`;
 }
 
@@ -137,7 +138,7 @@ export default function LawyerMessages() {
   const connectedUserIds = new Set(connections.map(c => c.user1_id === currentUser?.id ? c.user2_id : c.user1_id));
   const allContactIds = new Set([...myClientIds, ...connectedUserIds]);
   const myContacts = users.filter(u => allContactIds.has(u.id));
-  const filteredContacts = myContacts.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredContacts = myContacts.filter(c => (c.name || '').toLowerCase().includes(searchQuery.toLowerCase()));
   const selectedContact = users.find(u => u.id === selectedUser);
 
   const conversation = useMemo(() => messages.filter(m =>
@@ -211,7 +212,7 @@ export default function LawyerMessages() {
 
   const renderAttachment = (att: { name: string; url: string; type: string; size: number }, isMine: boolean) => {
     const src = resolveUrl(att.url);
-    if (att.type.startsWith('image/')) {
+    if (att.type?.startsWith('image/')) {
       return (
         <div className="relative group">
           <img src={src} alt={att.name} className="max-w-[200px] rounded-xl object-cover cursor-pointer" onClick={() => window.open(src)} />
@@ -223,7 +224,7 @@ export default function LawyerMessages() {
         </div>
       );
     }
-    if (att.type.startsWith('audio/')) {
+    if (att.type?.startsWith('audio/')) {
       return <audio src={src} controls className="max-w-[220px]" />;
     }
     if (att.type === 'application/pdf') {
@@ -719,7 +720,7 @@ export default function LawyerMessages() {
               <div className="px-3 sm:px-4 pt-2 pb-1 flex flex-wrap gap-2 border-t border-slate-100 bg-white">
                 {attachments.map((att, i) => (
                   <div key={i} className="flex items-center gap-1.5 bg-slate-100 rounded-lg px-2.5 py-1.5 text-xs text-slate-600">
-                    {att.type.startsWith('image/') ? <ImageIcon size={13} /> : <FileText size={13} />}
+                    {att.type?.startsWith('image/') ? <ImageIcon size={13} /> : <FileText size={13} />}
                     <span className="truncate max-w-[90px] sm:max-w-[120px]">{att.name}</span>
                     <button
                       onClick={() => setAttachments(prev => prev.filter((_, j) => j !== i))}

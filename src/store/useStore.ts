@@ -200,7 +200,7 @@ function normalizeJournalEntry(e: Record<string, unknown>): JournalEntry {
     id: e.id as string,
     userId: (e.user_id || e.userId) as string,
     date: e.date as string,
-    notes: e.notes as string,
+    notes: (e.notes as string) || '',
     todos: Array.isArray(e.todos) ? e.todos as { id: string; text: string; completed: boolean }[] : [],
     plans: e.plans as string || '',
     content: (e.content as string) || '',

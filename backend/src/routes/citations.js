@@ -3,6 +3,12 @@ import { v4 as uuid } from 'uuid';
 import { run, query, queryOne } from '../db/adapter.js';
 import { auth } from '../middleware/auth.js';
 import { AppError, asyncHandler } from '../middleware/errorHandler.js';
+import { z } from 'zod';
+
+function sanitize(v) {
+  if (typeof v !== 'string') return v;
+  return v.replace(/[<>"'&]/g, '').trim();
+}
 
 export const citationsRouter = Router();
 citationsRouter.use(auth);
@@ -79,43 +85,76 @@ citationsRouter.post('/bulk', asyncHandler(async (req, res) => {
   res.status(201).json({ message: `${imported} cases imported`, count: imported });
 }));
 
-/* ─── Search / List (FTS + ILIKE + pg_trgm) ─────────────────── */
+/* ─── Search / List (cross-DB compatible) ─────────────────── */
+
+function isPostgres() {
+  return !!(process.env.SUPABASE_URL || process.env.DATABASE_URL);
+}
+
+function likeQuery(cols) {
+  return cols.map(c => `LOWER(${c}) LIKE LOWER(?)`).join(' OR ');
+}
+
+const searchQuerySchema = z.object({
+  search: z.string().max(200).optional(),
+  category: z.string().max(50).optional(),
+  year_from: z.coerce.number().int().min(1900).max(2100).optional(),
+  year_to: z.coerce.number().int().min(1900).max(2100).optional(),
+  court: z.string().max(100).optional(),
+  limit: z.coerce.number().int().min(0).max(1000).optional().default(50),
+  offset: z.coerce.number().int().min(0).max(10000).optional().default(0),
+  mode: z.enum(['fts', 'fuzzy', 'basic']).optional().default('fts'),
+});
 
 citationsRouter.get('/', asyncHandler(async (req, res) => {
-  let { search, category, year_from, year_to, court, limit, offset, mode } = req.query;
-  limit = limit ? Number(limit) : 50;
-  offset = offset ? Number(offset) : 0;
-  mode = mode || 'fts';
+  let parsed;
+  try {
+    parsed = searchQuerySchema.parse(req.query);
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      const details = err.issues.map(e => ({ field: e.path.join('.'), message: e.message }));
+      throw new AppError('Invalid search parameters', 400, details);
+    }
+    throw err;
+  }
+  let { search, category, year_from, year_to, court, limit, offset, mode } = parsed;
+  search = search ? sanitize(search) : search;
+  category = category ? sanitize(category) : category;
+  court = court ? sanitize(court) : court;
+  const pg = isPostgres();
 
   let sql, countSql;
   const params = [];
   const countParams = [];
 
-  if (search && mode === 'fts') {
-    sql = `SELECT id, title, citation, court, year, parties, category, description, relevant_statutes, keywords, created_at,
-           ts_rank(to_tsvector('english', coalesce(title,'') || ' ' || coalesce(description,'') || ' ' || coalesce(keywords,'') || ' ' || coalesce(full_text,'') || ' ' || coalesce(parties,'') || ' ' || coalesce(relevant_statutes,'') || ' ' || coalesce(citation,'')), plainto_tsquery('english',?)) as rank
-           FROM citations
-           WHERE to_tsvector('english', coalesce(title,'') || ' ' || coalesce(description,'') || ' ' || coalesce(keywords,'') || ' ' || coalesce(full_text,'') || ' ' || coalesce(parties,'') || ' ' || coalesce(relevant_statutes,'') || ' ' || coalesce(citation,'')) @@ plainto_tsquery('english',?)`;
-    params.push(search, search);
-    countSql = `SELECT COUNT(*) as c FROM citations WHERE to_tsvector('english', coalesce(title,'') || ' ' || coalesce(description,'') || ' ' || coalesce(keywords,'') || ' ' || coalesce(full_text,'') || ' ' || coalesce(parties,'') || ' ' || coalesce(relevant_statutes,'') || ' ' || coalesce(citation,'')) @@ plainto_tsquery('english',?)`;
-    countParams.push(search);
-  } else if (search && mode === 'fuzzy') {
-    sql = `SELECT id, title, citation, court, year, parties, category, description, relevant_statutes, keywords, created_at,
-           similarity(title, ?) as sim
-           FROM citations
-           WHERE title % ? OR description % ? OR keywords % ? OR parties % ? OR citation % ?
-           ORDER BY similarity(title, ?) DESC, year DESC, citation ASC`;
-    const s = search;
-    params.push(s, s, s, s, s, s, s);
-    countSql = `SELECT COUNT(*) as c FROM citations WHERE title % ? OR description % ? OR keywords % ? OR parties % ? OR citation % ?`;
-    countParams.push(s, s, s, s, s);
-  } else if (search) {
-    sql = `SELECT id, title, citation, court, year, parties, category, description, relevant_statutes, keywords, created_at FROM citations
-           WHERE title ILIKE ? OR citation ILIKE ? OR parties ILIKE ? OR keywords ILIKE ? OR description ILIKE ? OR full_text ILIKE ?`;
+  if (search) {
+    const searchCols = ['title','citation','parties','keywords','description','full_text','relevant_statutes'];
     const p = `%${search}%`;
-    params.push(p, p, p, p, p, p);
-    countSql = `SELECT COUNT(*) as c FROM citations WHERE title ILIKE ? OR citation ILIKE ? OR parties ILIKE ? OR keywords ILIKE ? OR description ILIKE ? OR full_text ILIKE ?`;
-    countParams.push(p, p, p, p, p, p);
+    if (pg && mode === 'fts') {
+      sql = `SELECT id, title, citation, court, year, parties, category, description, relevant_statutes, keywords, created_at,
+             ts_rank(to_tsvector('english', coalesce(title,'') || ' ' || coalesce(description,'') || ' ' || coalesce(keywords,'') || ' ' || coalesce(full_text,'') || ' ' || coalesce(parties,'') || ' ' || coalesce(relevant_statutes,'') || ' ' || coalesce(citation,'')), plainto_tsquery('english',?)) as rank
+             FROM citations
+             WHERE to_tsvector('english', coalesce(title,'') || ' ' || coalesce(description,'') || ' ' || coalesce(keywords,'') || ' ' || coalesce(full_text,'') || ' ' || coalesce(parties,'') || ' ' || coalesce(relevant_statutes,'') || ' ' || coalesce(citation,'')) @@ plainto_tsquery('english',?)`;
+      params.push(search, search);
+      countSql = `SELECT COUNT(*) as c FROM citations WHERE to_tsvector('english', coalesce(title,'') || ' ' || coalesce(description,'') || ' ' || coalesce(keywords,'') || ' ' || coalesce(full_text,'') || ' ' || coalesce(parties,'') || ' ' || coalesce(relevant_statutes,'') || ' ' || coalesce(citation,'')) @@ plainto_tsquery('english',?)`;
+      countParams.push(search);
+    } else if (pg && mode === 'fuzzy') {
+      sql = `SELECT id, title, citation, court, year, parties, category, description, relevant_statutes, keywords, created_at,
+             similarity(title, ?) as sim
+             FROM citations
+             WHERE title % ? OR description % ? OR keywords % ? OR parties % ? OR citation % ?
+             ORDER BY similarity(title, ?) DESC, year DESC, citation ASC`;
+      const s = search;
+      params.push(s, s, s, s, s, s, s);
+      countSql = `SELECT COUNT(*) as c FROM citations WHERE title % ? OR description % ? OR keywords % ? OR parties % ? OR citation % ?`;
+      countParams.push(s, s, s, s, s);
+    } else {
+      sql = `SELECT id, title, citation, court, year, parties, category, description, relevant_statutes, keywords, created_at FROM citations
+             WHERE ${likeQuery(searchCols)}`;
+      params.push(p, p, p, p, p, p, p);
+      countSql = `SELECT COUNT(*) as c FROM citations WHERE ${likeQuery(searchCols)}`;
+      countParams.push(p, p, p, p, p, p, p);
+    }
   } else {
     sql = 'SELECT id, title, citation, court, year, parties, category, description, relevant_statutes, keywords, created_at FROM citations WHERE 1=1';
     countSql = 'SELECT COUNT(*) as c FROM citations WHERE 1=1';
@@ -124,10 +163,10 @@ citationsRouter.get('/', asyncHandler(async (req, res) => {
   if (category) { sql += ' AND category=?'; params.push(category); countSql += ' AND category=?'; countParams.push(category); }
   if (year_from) { sql += ' AND year>=?'; params.push(Number(year_from)); countSql += ' AND year>=?'; countParams.push(Number(year_from)); }
   if (year_to) { sql += ' AND year<=?'; params.push(Number(year_to)); countSql += ' AND year<=?'; countParams.push(Number(year_to)); }
-  if (court) { sql += ' AND court ILIKE ?'; params.push(`%${court}%`); countSql += ' AND court ILIKE ?'; countParams.push(`%${court}%`); }
+  if (court) { sql += ` AND LOWER(court) LIKE LOWER(?)`; params.push(`%${court}%`); countSql += ` AND LOWER(court) LIKE LOWER(?)`; countParams.push(`%${court}%`); }
 
-  if (mode === 'fts' && search) sql += ' ORDER BY rank DESC';
-  else if (mode !== 'fuzzy') sql += ' ORDER BY year DESC, citation ASC';
+  if (pg && mode === 'fts' && search) sql += ' ORDER BY rank DESC';
+  else if (!(pg && mode === 'fuzzy')) sql += ' ORDER BY year DESC, citation ASC';
 
   if (limit > 0) { sql += ' LIMIT ?'; params.push(limit); }
   if (offset > 0) { sql += ' OFFSET ?'; params.push(offset); }
@@ -203,7 +242,7 @@ citationsRouter.get('/suggest/top', asyncHandler(async (req, res) => {
   if (!q) throw new AppError('query required', 400);
   const p = `%${q}%`;
   const rows = await query(
-    `SELECT * FROM citations WHERE title ILIKE ? OR parties ILIKE ? OR keywords ILIKE ? OR category ILIKE ?
+    `SELECT * FROM citations WHERE LOWER(title) LIKE LOWER(?) OR LOWER(parties) LIKE LOWER(?) OR LOWER(keywords) LIKE LOWER(?) OR LOWER(category) LIKE LOWER(?)
      ORDER BY year DESC LIMIT 10`,
     [p, p, p, p]
   );

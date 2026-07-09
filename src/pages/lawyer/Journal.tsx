@@ -77,7 +77,7 @@ export default function LawyerJournal() {
 
   const insertCit = (citation: string, title: string, court: string, year: number) => {
     if (!editor) return;
-    const c = `"${title}", ${citation} (${court.replace(' of Pakistan', '')}, ${year})`;
+    const c = `"${title}", ${citation} (${(court || '').replace(' of Pakistan', '')}, ${year})`;
     editor.chain().focus().setParagraph().insertContent(`[${c}]`).run();
     saveEntryRef.current(editor.getHTML());
     setShowCitPanel(false);
@@ -98,8 +98,8 @@ export default function LawyerJournal() {
 
   const myCases = cases.filter(c => c.lawyerId === currentUser?.id);
   const dayEvents = myCases.flatMap(c => [
-    ...c.courtDates.filter(d => isSameDay(new Date(d.date), selectedDate)).map(d => ({ type: 'court' as const, title: c.title, court: d.court, notes: d.notes })),
-    ...c.timeline.filter(t => isSameDay(new Date(t.date), selectedDate)).map(t => ({ type: 'event' as const, title: t.event, description: t.description })),
+    ...(c.courtDates || []).filter(d => isSameDay(new Date(d.date), selectedDate)).map(d => ({ type: 'court' as const, title: c.title, court: d.court, notes: d.notes })),
+    ...(c.timeline || []).filter(t => isSameDay(new Date(t.date), selectedDate)).map(t => ({ type: 'event' as const, title: t.event, description: t.description })),
   ]);
 
   const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
@@ -250,8 +250,8 @@ export default function LawyerJournal() {
   };
 
   const allUpcoming = myCases.flatMap(c => [
-    ...c.courtDates.map(d => ({ type: 'hearing' as const, caseTitle: c.title, caseId: c.id, date: d.date, court: d.court, notes: d.notes })),
-    ...c.timeline.filter(t => new Date(t.date) >= new Date()).map(t => ({ type: 'event' as const, caseTitle: c.title, caseId: c.id, date: t.date, event: t.event, description: t.description })),
+    ...(c.courtDates || []).map(d => ({ type: 'hearing' as const, caseTitle: c.title, caseId: c.id, date: d.date, court: d.court, notes: d.notes })),
+    ...(c.timeline || []).filter(t => new Date(t.date) >= new Date()).map(t => ({ type: 'event' as const, caseTitle: c.title, caseId: c.id, date: t.date, event: t.event, description: t.description })),
   ]).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(0, 10);
 
   const handleSchedule = async () => {
@@ -284,7 +284,7 @@ export default function LawyerJournal() {
     if (!editor) return;
     const ts = format(new Date(), 'h:mm a — MMMM d, yyyy');
     editor.chain().focus().setParagraph().insertContent(`🕐 ${ts}`).run();
-    saveEntryRef.current(html);
+    saveEntryRef.current(editor.getHTML());
   };
 
   if (!editor) return null;
@@ -658,14 +658,14 @@ export default function LawyerJournal() {
                       <p className="text-sm font-medium text-slate-900">{format(new Date(j.date), 'EEEE, MMMM d, yyyy')}</p>
                       <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-400">
                         {j.createdAt && <span className="flex items-center gap-1"><Clock size={11} />{formatDistanceToNow(new Date(j.createdAt), { addSuffix: true })}</span>}
-                        {j.content && <span className="truncate">{j.content.replace(/<[^>]*>/g, '').slice(0, 80)}</span>}
-                        {!j.content && j.notes && <span className="truncate">{j.notes.slice(0, 80)}</span>}
-                        {!j.content && !j.notes && j.todos.length > 0 && <span>{j.todos.length} tasks</span>}
+                        {j.content && <span className="truncate">{(j.content || '').replace(/<[^>]*>/g, '').slice(0, 80)}</span>}
+                        {!j.content && j.notes && <span className="truncate">{(j.notes || '').slice(0, 80)}</span>}
+                        {!j.content && !j.notes && (j.todos || []).length > 0 && <span>{j.todos.length} tasks</span>}
                       </div>
                     </div>
                     <div className="flex gap-1 flex-shrink-0">
-                      {j.todos.filter(t => t.completed).length > 0 && (
-                        <span className="text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">{j.todos.filter(t => t.completed).length}/{j.todos.length}</span>
+                      {(j.todos || []).filter(t => t.completed).length > 0 && (
+                        <span className="text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">{(j.todos || []).filter(t => t.completed).length}/{j.todos.length}</span>
                       )}
                     </div>
                   </button>

@@ -23,16 +23,16 @@ services:
       - key: NODE_ENV
         value: production
       - key: JWT_SECRET
-        generateValue: true
+        sync: false
       - key: FRONTEND_URL
         value: https://ai-lawyer-blush.vercel.app
       - key: DATABASE_URL
-        value: postgresql://postgres:%21%40%23abcABC123%21%40%23@db.vqvygljfroqzkxyzpvlo.supabase.co:5432/postgres
+        sync: false
       - key: GEMINI_API_KEY
-        value: AIzaSyBlRW6D8l4E5qacyvidzDX6b1VIS_yK2AY
+        sync: false
       - key: GEMINI_MODEL
         value: gemini-2.5-flash
       - key: SUPABASE_PROJECT_REF
-        value: vqvygljfroqzkxyzpvlo
+        sync: false
       - key: SUPABASE_ANON_KEY
-        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZxdnlnbGpmcm9xemt4eXpwdmxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4Nzc4MTMsImV4cCI6MjA5NzQ1MzgxM30.Bve-HhJu-DQvkh2P56CrVQVNZRu7RQ0v3Vs8hQL9hFY
+        sync: false

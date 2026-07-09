@@ -64,6 +64,22 @@ export async function createApp() {
     message: { error: 'Too many login attempts, please try again later.' },
   });
   app.use('/api/auth/login', authLimiter);
+  const registerLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many registration attempts, please try again later.' },
+  });
+  app.use('/api/auth/register', registerLimiter);
+  const aiLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many AI requests. Please slow down.' },
+  });
+  app.use('/api/ai/', aiLimiter);
 
   const corsOrigins = getCorsOrigin();
   app.use(cors({

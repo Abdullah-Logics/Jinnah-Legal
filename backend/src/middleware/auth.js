@@ -1,7 +1,10 @@
 import jwt from 'jsonwebtoken';
 import { AppError } from './errorHandler.js';
 
-const SECRET = process.env.JWT_SECRET || 'jinnah-legal-dev-secret';
+const DEV_FALLBACK = 'jinnah-legal-dev-secret';
+const SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'production'
+  ? (() => { throw new Error('FATAL: JWT_SECRET environment variable is not set'); })()
+  : DEV_FALLBACK);
 
 export function signToken(user) {
   return jwt.sign(

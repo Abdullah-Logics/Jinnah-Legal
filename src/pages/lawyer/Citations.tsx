@@ -70,7 +70,7 @@ const CitationCard = memo(({ c, selected, onSelect, onAddToCart, onRemoveFromCar
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 mb-1 flex-wrap">
           <span className="text-[10px] sm:text-xs font-bold text-indigo-700 bg-indigo-50 px-1.5 sm:px-2 py-0.5 rounded">{c.citation || `${c.year} Reference`}</span>
-          <span className="text-[10px] text-slate-400">{c.court?.includes('High Court') ? '⚖' : '🏛'} {c.court.replace(' of Pakistan', '')}</span>
+          <span className="text-[10px] text-slate-400">{c.court?.includes('High Court') ? '⚖' : '🏛'} {(c.court || '').replace(' of Pakistan', '')}</span>
           <span className="text-[9px] sm:text-[10px] px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded">{c.category}</span>
           <span className="text-[9px] sm:text-[10px] text-slate-400 flex items-center gap-0.5"><Calendar size={9} />{c.year}</span>
         </div>
@@ -529,7 +529,7 @@ export default function CaseLibrary() {
                                       <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-1.5 flex-wrap">
                                           <span className="text-[10px] sm:text-[11px] font-bold text-indigo-700">{c.citation}</span>
-                                          <span className="text-[9px] text-slate-400">{c.court.replace(' of Pakistan', '')}</span>
+                                          <span className="text-[9px] text-slate-400">{(c.court || '').replace(' of Pakistan', '')}</span>
                                           <span className="text-[9px] text-slate-400">{c.year}</span>
                                           {c.year >= 2025 && <span className="text-[8px] px-1 py-0.5 bg-amber-100 text-amber-700 rounded font-medium">NEW</span>}
                                         </div>

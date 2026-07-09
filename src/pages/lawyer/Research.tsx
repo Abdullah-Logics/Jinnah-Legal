@@ -181,7 +181,7 @@ export default function LawyerResearch() {
   };
 
   const groupedResults = citViewMode === 'groups' ? citResults.reduce((acc, c) => {
-    const key = citGroupBy === 'category' ? c.category : citGroupBy === 'court' ? c.court.replace(' of Pakistan', '') : String(c.year);
+    const key = citGroupBy === 'category' ? c.category : citGroupBy === 'court' ? (c.court || '').replace(' of Pakistan', '') : String(c.year);
     if (!acc[key]) acc[key] = [];
     acc[key].push(c);
     return acc;
@@ -380,7 +380,7 @@ export default function LawyerResearch() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
                           <span className="text-[11px] font-bold text-indigo-700">{c.citation}</span>
-                          <span className="text-[10px] text-slate-400">{c.court.replace(' of Pakistan', '')}</span>
+                          <span className="text-[10px] text-slate-400">{(c.court || '').replace(' of Pakistan', '')}</span>
                           <span className="text-[10px] text-slate-400"><Calendar size={10} className="inline" />{c.year}</span>
                           <span className="text-[9px] px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded">{c.category}</span>
                         </div>
@@ -390,7 +390,7 @@ export default function LawyerResearch() {
                       <div className="flex flex-col gap-1 flex-shrink-0">
                         <button onClick={() => addToCitCart(c.id)} className="p-1 hover:bg-emerald-50 rounded text-slate-400 hover:text-emerald-600" title="Add to Cart"><Plus size={13} /></button>
                         <button onClick={() => {
-                          const full = `"${c.title}", ${c.citation} (${c.court.replace(' of Pakistan', '')}, ${c.year})`;
+                          const full = `"${c.title}", ${c.citation} (${(c.court || '').replace(' of Pakistan', '')}, ${c.year})`;
                           localStorage.setItem('opencode_insert_citation', full);
                         }} className="p-1 hover:bg-indigo-50 rounded text-slate-400 hover:text-indigo-600" title="Use in Doc"><Clipboard size={13} /></button>
                       </div>
@@ -423,13 +423,13 @@ export default function LawyerResearch() {
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-1 flex-wrap">
                                     <span className="text-[11px] font-bold text-indigo-700">{c.citation}</span>
-                                    <span className="text-[9px] text-slate-400">{c.court.replace(' of Pakistan', '')}</span>
+                                    <span className="text-[9px] text-slate-400">{(c.court || '').replace(' of Pakistan', '')}</span>
                                     <span className="text-[9px] text-slate-400">{c.year}</span>
                                   </div>
                                   <p className="text-xs font-medium text-slate-900 leading-tight mt-0.5">{c.title}</p>
                                 </div>
                                 <button onClick={() => {
-                                  const full = `"${c.title}", ${c.citation} (${c.court.replace(' of Pakistan', '')}, ${c.year})`;
+                                  const full = `"${c.title}", ${c.citation} (${(c.court || '').replace(' of Pakistan', '')}, ${c.year})`;
                                   localStorage.setItem('opencode_insert_citation', full);
                                 }} className="p-1 hover:bg-indigo-50 rounded text-slate-400 hover:text-indigo-600" title="Use in Doc"><Clipboard size={12} /></button>
                                 <button onClick={() => addToCitCart(c.id)} className="p-1 hover:bg-emerald-50 rounded text-slate-400 hover:text-emerald-600 flex-shrink-0"><Plus size={12} /></button>
@@ -502,7 +502,7 @@ export default function LawyerResearch() {
                       </div>
                       <button onClick={() => deleteMemo(memo.id)} className="p-1 text-slate-400 hover:text-red-500 transition flex-shrink-0"><Trash2 size={14} /></button>
                     </div>
-                    <p className="text-xs text-slate-600 mt-2 line-clamp-2 whitespace-pre-wrap">{memo.content.slice(0, 150)}</p>
+                    <p className="text-xs text-slate-600 mt-2 line-clamp-2 whitespace-pre-wrap">{(memo.content || '').slice(0, 150)}</p>
                   </div>
                 ))}
               </div>

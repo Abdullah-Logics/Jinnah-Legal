@@ -28,13 +28,13 @@ export default function LawyerDashboard() {
   const myClients = users.filter(u => u.role === 'client' && myCases.some(c => c.clientId === u.id));
   const unreadMessages = messages.filter(m => m.receiverId === currentUser?.id && !m.read);
 
-  const upcomingHearings = myCases.flatMap(c => {
-    const dt = (d: any) => { const x = new Date(d); return isNaN(x.getTime()) ? null : x; };
-    return (c.courtDates || [])
-      .filter((d: any) => d && dt(d.date))
-      .map((d: any) => ({ ...d, caseTitle: c.title, caseId: c.id }));
-  }).sort((a, b) => {
-    const da = dt(a.date), db = dt(b.date);
+  const dt2 = (d: any) => { const x = new Date(d); return isNaN(x.getTime()) ? null : x; };
+  const upcomingHearings = myCases.flatMap(c =>
+    (c.courtDates || [])
+      .filter((d: any) => d && dt2(d.date))
+      .map((d: any) => ({ ...d, caseTitle: c.title, caseId: c.id }))
+  ).sort((a, b) => {
+    const da = dt2(a.date), db = dt2(b.date);
     if (!da && !db) return 0; if (!da) return 1; if (!db) return -1;
     return da.getTime() - db.getTime();
   }).slice(0, 3);

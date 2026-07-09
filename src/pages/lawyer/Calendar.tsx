@@ -30,7 +30,7 @@ export default function LawyerCalendar() {
   
   const allEvents = myCases.flatMap(c => [
     ...c.courtDates.map(d => ({
-      date: new Date(d.date),
+      date: (() => { const x = new Date(d.date); return isNaN(x.getTime()) ? new Date() : x; })(),
       title: `Court: ${c.title}`,
       type: 'court' as const,
       location: d.court,
@@ -39,7 +39,7 @@ export default function LawyerCalendar() {
       caseId: c.id,
     })),
     ...c.timeline.map(t => ({
-      date: new Date(t.date),
+      date: (() => { const x = new Date(t.date); return isNaN(x.getTime()) ? new Date() : x; })(),
       title: t.event,
       type: 'event' as const,
       notes: t.description,

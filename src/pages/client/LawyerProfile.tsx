@@ -166,7 +166,7 @@ export default function ClientLawyerProfile() {
                       ))}
                     </div>
                     {r.comment && <p className="text-sm text-slate-600">{r.comment}</p>}
-                    <p className="text-xs text-slate-400 mt-1">{new Date(r.created_at).toLocaleDateString()}</p>
+                    <p className="text-xs text-slate-400 mt-1">{(() => { const d = new Date(r.created_at); return isNaN(d.getTime()) ? '' : d.toLocaleDateString(); })()}</p>
                   </div>
                 ))}
               </div>

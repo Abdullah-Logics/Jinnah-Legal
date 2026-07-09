@@ -68,7 +68,7 @@ export default function WeeklyReport() {
         reportDate: new Date().toISOString(),
         weekStart: report.weekStart,
         weekEnd: report.weekEnd,
-        content: reportCase.courtDates.map(cd => `🗓 Court: ${cd.court} — ${format(new Date(cd.date), 'MMM d, yyyy')}${cd.time ? ` at ${cd.time}` : ''}${cd.notes ? ` (${cd.notes})` : ''}`).join('\n'),
+        content: reportCase.courtDates.map(cd => `🗓 Court: ${cd.court} — ${(() => { const d = new Date(cd.date); return isNaN(d.getTime()) ? '' : format(d, 'MMM d, yyyy'); })()}${cd.time ? ` at ${cd.time}` : ''}${cd.notes ? ` (${cd.notes})` : ''}`).join('\n'),
         courtDates: reportCase.courtDates.map(cd => ({ date: cd.date, court: cd.court, time: cd.time, notes: cd.notes })),
         timeline: reportCase.timeline.map(t => ({ date: t.date, event: t.event, description: t.description })),
       },
@@ -121,7 +121,11 @@ export default function WeeklyReport() {
             const allEvents = [
               ...reportCase.courtDates.map(cd => ({ date: cd.date, time: cd.time, title: `Court: ${cd.court}`, notes: cd.notes, type: 'court' as const })),
               ...reportCase.timeline.map(t => ({ date: t.date, time: undefined, title: t.event, notes: t.description, type: 'event' as const })),
-            ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+            ].sort((a, b) => {
+              const da = a.date ? new Date(a.date).getTime() : 0;
+              const db = b.date ? new Date(b.date).getTime() : 0;
+              return da - db;
+            });
 
             const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
@@ -178,7 +182,7 @@ export default function WeeklyReport() {
                           <div key={i} className="flex items-start gap-3 p-3 bg-red-50 rounded-xl text-sm">
                             <Calendar size={16} className="text-red-500 mt-0.5" />
                             <div>
-                              <p className="font-medium text-slate-900">{format(new Date(cd.date), 'MMM d, yyyy')}{cd.time ? ` at ${cd.time}` : ''}</p>
+                              <p className="font-medium text-slate-900">{(() => { const d = new Date(cd.date); return isNaN(d.getTime()) ? '' : format(d, 'MMM d, yyyy'); })()}{cd.time ? ` at ${cd.time}` : ''}</p>
                               <p className="text-slate-500 flex items-center gap-1"><MapPin size={12} />{cd.court}</p>
                               {cd.notes && <p className="text-slate-400 text-xs">{cd.notes}</p>}
                             </div>
@@ -198,7 +202,7 @@ export default function WeeklyReport() {
                             <Clock size={16} className="text-emerald-500 mt-0.5" />
                             <div>
                               <p className="font-medium text-slate-900">{t.event}</p>
-                              <p className="text-slate-500">{format(new Date(t.date), 'MMM d, yyyy')}</p>
+                              <p className="text-slate-500">{(() => { const d = new Date(t.date); return isNaN(d.getTime()) ? '' : format(d, 'MMM d, yyyy'); })()}</p>
                               {t.description && <p className="text-slate-400 text-xs">{t.description}</p>}
                             </div>
                           </div>
@@ -214,7 +218,7 @@ export default function WeeklyReport() {
                       <div className="space-y-2">
                         {reportCase.journalEntries.filter(j => j.content || j.notes || j.plans).map((j, i) => (
                           <div key={i} className="p-3 bg-amber-50 rounded-xl text-sm">
-                            <p className="text-xs text-slate-400 mb-1">{format(new Date(j.date), 'MMM d, yyyy')}</p>
+                            <p className="text-xs text-slate-400 mb-1">{(() => { const d = new Date(j.date); return isNaN(d.getTime()) ? '' : format(d, 'MMM d, yyyy'); })()}</p>
                             {j.plans && <p className="text-slate-700 mb-1"><span className="font-medium">Plans:</span> {j.plans}</p>}
                             {j.notes && <p className="text-slate-600">{j.notes}</p>}
                           </div>

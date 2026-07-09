@@ -99,7 +99,7 @@ export default function AdminCallLogs() {
                         </div>
                         <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
                           <span className="flex items-center gap-1"><Clock size={12} /> {formatDuration(log.duration)}</span>
-                          <span>{new Date(log.created_at).toLocaleString()}</span>
+                          <span>{(() => { const d = new Date(log.created_at); return isNaN(d.getTime()) ? '' : d.toLocaleString(); })()}</span>
                         </div>
                       </div>
                       <span className={`text-xs font-medium px-2.5 py-1 rounded-full capitalize ${

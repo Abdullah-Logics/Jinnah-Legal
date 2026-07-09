@@ -7,6 +7,7 @@ import {
   Share2, CheckCircle, DollarSign,
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { toDate } from '../../utils/dates';
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Star } from 'lucide-react';
@@ -172,11 +173,11 @@ export default function LawyerCaseDetail() {
                     {i < caseData.timeline.length - 1 && <div className="w-0.5 flex-1 bg-emerald-200" />}
                   </div>
                   <div className="pb-4 flex-1">
-                    <p className="text-xs text-slate-400 mb-1">{format(new Date(event.date), 'MMM d, yyyy')}</p>
+                    <p className="text-xs text-slate-400 mb-1">{(() => { const d = toDate(event.date); return d ? format(d, 'MMM d, yyyy') : ''; })()}</p>
                     <h3 className="font-medium text-slate-900">{event.event}</h3>
                     <p className="text-sm text-slate-500">{event.description}</p>
                   </div>
-                  <button onClick={() => share('calendar', event.event, { date: format(new Date(event.date), 'MMM d, yyyy'), description: event.description })}
+                  <button onClick={() => share('calendar', event.event, { date: (() => { const d = toDate(event.date); return d ? format(d, 'MMM d, yyyy') : ''; })(), description: event.description })}
                     className="p-1.5 self-start mt-1 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 transition"
                     title="Share with client">
                     <Share2 size={14} />
@@ -228,7 +229,7 @@ export default function LawyerCaseDetail() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-medium text-slate-900 truncate">{doc.name}</h3>
-                    <p className="text-xs text-slate-400">Uploaded {format(new Date(doc.created_at || doc.uploadedAt), 'MMM d, yyyy')}</p>
+                    <p className="text-xs text-slate-400">Uploaded {(() => { const d = toDate(doc.created_at || doc.uploadedAt); return d ? format(d, 'MMM d, yyyy') : ''; })()}</p>
                   </div>
                   <button onClick={() => share('document', doc.name, { url: doc.url })}
                     className="p-2 hover:bg-emerald-100 rounded-lg transition text-slate-400 hover:text-emerald-600 opacity-0 group-hover:opacity-100"
@@ -314,11 +315,11 @@ export default function LawyerCaseDetail() {
                 <div key={i} className="p-3 bg-slate-50 rounded-xl relative group">
                   <div className="flex items-center gap-2 mb-1">
                     <Calendar size={16} className="text-emerald-600" />
-                    <span className="font-medium text-slate-900">{format(new Date(d.date), 'MMM d, yyyy')}{d.time ? ` at ${d.time}` : ''}</span>
+                    <span className="font-medium text-slate-900">{(() => { const d2 = toDate(d.date); return d2 ? format(d2, 'MMM d, yyyy') : ''; })()}{d.time ? ` at ${d.time}` : ''}</span>
                   </div>
                   <p className="text-sm text-slate-600">{d.court}</p>
                   <p className="text-xs text-slate-400">{d.notes}</p>
-                  <button onClick={() => share('hearing', `Hearing at ${d.court}`, { date: format(new Date(d.date), 'MMM d, yyyy'), time: d.time, court: d.court, notes: d.notes })}
+                  <button onClick={() => share('hearing', `Hearing at ${d.court}`, { date: (() => { const dd = toDate(d.date); return dd ? format(dd, 'MMM d, yyyy') : ''; })(), time: d.time, court: d.court, notes: d.notes })}
                     className="absolute top-2 right-2 p-1.5 bg-white rounded-lg opacity-0 group-hover:opacity-100 hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 transition shadow-sm border border-slate-200"
                     title="Share with client">
                     <Share2 size={14} />

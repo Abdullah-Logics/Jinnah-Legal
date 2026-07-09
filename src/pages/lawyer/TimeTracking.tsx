@@ -196,7 +196,7 @@ export default function LawyerTimeTracking() {
                       <div><span className="text-slate-400">Amount:</span> <span className="font-medium">Rs {invoice.amount.toLocaleString()}</span></div>
                       {invoice.hours && <div><span className="text-slate-400">Hours:</span> <span className="font-medium">{invoice.hours}h</span></div>}
                       {invoice.dueDate && <div><span className="text-slate-400">Due:</span> <span className="font-medium">{format(new Date(invoice.dueDate), 'PP')}</span></div>}
-                      <div><span className="text-slate-400">Created:</span> <span className="font-medium">{format(new Date(invoice.createdAt), 'PP')}</span></div>
+                      <div><span className="text-slate-400">Created:</span> <span className="font-medium">{(() => { const d = new Date(invoice.createdAt); return isNaN(d.getTime()) ? '' : format(d, 'PP'); })()}</span></div>
                     </div>
                     {paid.length > 0 && (
                       <div className="mt-3 pt-3 border-t border-slate-100">
@@ -207,7 +207,7 @@ export default function LawyerTimeTracking() {
                             <span className="text-slate-300">|</span>
                             <span>{p.transaction_id}</span>
                             <span className="text-slate-300">|</span>
-                            <span>{format(new Date(p.paid_at), 'PP')}</span>
+                            <span>{(() => { const d = new Date(p.paid_at); return isNaN(d.getTime()) ? '' : format(d, 'PP'); })()}</span>
                           </div>
                         ))}
                       </div>
@@ -272,7 +272,7 @@ export default function LawyerTimeTracking() {
                     <p className="text-sm font-medium text-slate-900">Rs {p.amount.toLocaleString()}</p>
                     <p className="text-xs text-slate-500">{p.transaction_id}</p>
                   </div>
-                  <p className="text-xs text-slate-400">{format(new Date(p.paid_at), 'MMM d, yyyy')}</p>
+                  <p className="text-xs text-slate-400">{(() => { const d = new Date(p.paid_at); return isNaN(d.getTime()) ? '' : format(d, 'MMM d, yyyy'); })()}</p>
                 </div>
               );
             })}

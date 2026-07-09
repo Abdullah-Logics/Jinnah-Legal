@@ -4,6 +4,7 @@ import { useStore } from '../../store/useStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Briefcase, User, Calendar, FileText, MessageSquare, Clock, Download, CheckCircle, XCircle, Share2, DollarSign, Star, X } from 'lucide-react';
 import { format } from 'date-fns';
+import { toDate } from '../../utils/dates';
 import ShareDialog, { useShareDialog } from '../../components/ShareDialog';
 
 export default function ClientCaseDetail() {
@@ -75,7 +76,7 @@ export default function ClientCaseDetail() {
           { label: 'Timeline Events', value: caseData.timeline.length, icon: Clock },
           { label: 'Documents', value: caseData.documents.length, icon: FileText },
           { label: 'Court Dates', value: caseData.courtDates.length, icon: Calendar },
-          { label: 'Started', value: format(new Date(caseData.createdAt), 'MMM d'), icon: Calendar },
+          { label: 'Started', value: (() => { const d = toDate(caseData.createdAt); return d ? format(d, 'MMM d') : ''; })(), icon: Calendar },
         ].map((stat, i) => (
           <motion.div
             key={stat.label}
@@ -111,11 +112,11 @@ export default function ClientCaseDetail() {
                     {i < caseData.timeline.length - 1 && <div className="w-0.5 flex-1 bg-emerald-200" />}
                   </div>
                   <div className="pb-4 flex-1">
-                    <p className="text-xs text-slate-400 mb-1">{format(new Date(event.date), 'MMM d, yyyy')}</p>
+                    <p className="text-xs text-slate-400 mb-1">{(() => { const d = toDate(event.date); return d ? format(d, 'MMM d, yyyy') : ''; })()}</p>
                     <h3 className="font-medium text-slate-900">{event.event}</h3>
                     <p className="text-sm text-slate-500">{event.description}</p>
                   </div>
-                  <button onClick={() => share('calendar', event.event, { date: format(new Date(event.date), 'MMM d, yyyy'), description: event.description })}
+                  <button onClick={() => share('calendar', event.event, { date: (() => { const d = toDate(event.date); return d ? format(d, 'MMM d, yyyy') : ''; })(), description: event.description })}
                     className="p-1.5 self-start mt-1 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 transition"
                     title="Share with lawyer">
                     <Share2 size={14} />
@@ -138,7 +139,7 @@ export default function ClientCaseDetail() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-medium text-slate-900 truncate">{doc.name}</h3>
-                    <p className="text-xs text-slate-400">{format(new Date(doc.uploadedAt), 'MMM d, yyyy')}</p>
+                    <p className="text-xs text-slate-400">{(() => { const d = toDate(doc.uploadedAt); return d ? format(d, 'MMM d, yyyy') : ''; })()}</p>
                   </div>
                   <button onClick={() => share('document', doc.name, { url: doc.url })}
                     className="p-2 hover:bg-emerald-100 rounded-lg transition text-slate-400 hover:text-emerald-600 opacity-0 group-hover:opacity-100"
@@ -291,11 +292,11 @@ export default function ClientCaseDetail() {
                 <div key={i} className="p-3 bg-slate-50 rounded-xl relative group">
                   <div className="flex items-center gap-2 mb-1">
                     <Calendar size={16} className="text-emerald-600" />
-                    <span className="font-medium text-slate-900">{format(new Date(date.date), 'MMM d, yyyy')}{date.time ? ` at ${date.time}` : ''}</span>
+                    <span className="font-medium text-slate-900">{(() => { const d = toDate(date.date); return d ? format(d, 'MMM d, yyyy') : ''; })()}{date.time ? ` at ${date.time}` : ''}</span>
                   </div>
                   <p className="text-sm text-slate-600">{date.court}</p>
                   <p className="text-xs text-slate-400">{date.notes}</p>
-                  <button onClick={() => share('hearing', `Hearing at ${date.court}`, { date: format(new Date(date.date), 'MMM d, yyyy'), time: date.time, court: date.court, notes: date.notes })}
+                  <button onClick={() => share('hearing', `Hearing at ${date.court}`, { date: (() => { const d = toDate(date.date); return d ? format(d, 'MMM d, yyyy') : ''; })(), time: date.time, court: date.court, notes: date.notes })}
                     className="absolute top-2 right-2 p-1.5 bg-white rounded-lg opacity-0 group-hover:opacity-100 hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 transition shadow-sm border border-slate-200"
                     title="Share with lawyer">
                     <Share2 size={14} />

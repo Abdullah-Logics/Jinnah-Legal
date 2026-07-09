@@ -354,7 +354,7 @@ export default function LawyerJournal() {
             <div className="flex gap-2 overflow-x-auto pb-1">
               {allUpcoming.map((ev, i) => (
                 <div key={i} className="flex-shrink-0 p-2.5 rounded-xl text-xs border-l-4 min-w-[160px] border-slate-200 bg-slate-50">
-                  <span className="text-emerald-700 font-semibold">{format(new Date(ev.date), 'MMM d')}</span>
+                  <span className="text-emerald-700 font-semibold">{ev.date ? format(new Date(ev.date), 'MMM d') : ''}</span>
                   <p className="font-medium text-slate-900 truncate">{ev.type === 'hearing' ? `Court: ${ev.caseTitle}` : ev.event}</p>
                   <p className="text-slate-400 truncate">{ev.caseTitle}</p>
                 </div>

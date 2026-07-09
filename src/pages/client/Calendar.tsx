@@ -10,12 +10,15 @@ export default function ClientCalendar() {
   
   const allDates = myCases.flatMap(c => c.courtDates.map(d => ({
     ...d, caseTitle: c.title, lawyerId: c.lawyerId
-  }))).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }))).sort((a, b) => {
+    const da = new Date(a.date), db = new Date(b.date);
+    return (isNaN(da.getTime()) ? 0 : da.getTime()) - (isNaN(db.getTime()) ? 0 : db.getTime());
+  });
 
   const shareDate = (item: typeof allDates[0]) => {
     const lawyer = users.find(u => u.id === item.lawyerId);
     const contacts = lawyer ? [{ id: lawyer.id, name: lawyer.name, avatar: lawyer.avatar }] : [];
-    openShare({ type: 'hearing', title: `Hearing: ${item.caseTitle}`, details: { date: format(new Date(item.date), 'MMM d, yyyy'), court: item.court, notes: item.notes } }, contacts);
+    openShare({ type: 'hearing', title: `Hearing: ${item.caseTitle}`, details: { date: (() => { const d = new Date(item.date); return isNaN(d.getTime()) ? '' : format(d, 'MMM d, yyyy'); })(), court: item.court, notes: item.notes } }, contacts);
   };
 
   return (
@@ -32,8 +35,8 @@ export default function ClientCalendar() {
             return (
               <div key={i} className="flex items-start gap-4 p-4 bg-slate-50 rounded-xl group">
                 <div className="w-14 h-14 bg-emerald-100 rounded-xl flex flex-col items-center justify-center">
-                  <span className="text-xs text-emerald-600">{format(new Date(date.date), 'MMM')}</span>
-                  <span className="text-xl font-bold text-emerald-700">{format(new Date(date.date), 'd')}</span>
+                  <span className="text-xs text-emerald-600">{(() => { const d = new Date(date.date); return isNaN(d.getTime()) ? '' : format(d, 'MMM'); })()}</span>
+                  <span className="text-xl font-bold text-emerald-700">{(() => { const d = new Date(date.date); return isNaN(d.getTime()) ? '' : format(d, 'd'); })()}</span>
                 </div>
                 <div className="flex-1">
                   <h3 className="font-medium text-slate-900">{date.caseTitle}</h3>

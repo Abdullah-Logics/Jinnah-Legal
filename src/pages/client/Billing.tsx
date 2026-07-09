@@ -172,7 +172,7 @@ export default function ClientBilling() {
                         <div><span className="text-slate-400">Amount:</span> <span className="font-medium ml-1">Rs {invoice.amount.toLocaleString()}</span></div>
                         {invoice.hours && <div><span className="text-slate-400">Hours:</span> <span className="font-medium ml-1">{invoice.hours}h</span></div>}
                         {invoice.dueDate && <div><span className="text-slate-400">Due Date:</span> <span className="font-medium ml-1">{format(new Date(invoice.dueDate), 'PP')}</span></div>}
-                        <div><span className="text-slate-400">Created:</span> <span className="font-medium ml-1">{format(new Date(invoice.createdAt), 'PP')}</span></div>
+                        <div><span className="text-slate-400">Created:</span> <span className="font-medium ml-1">{(() => { const d = new Date(invoice.createdAt); return isNaN(d.getTime()) ? '' : format(d, 'PP'); })()}</span></div>
                         <div><span className="text-slate-400">Status:</span> <span className={`font-medium ml-1 ${invoice.status === 'paid' ? 'text-emerald-600' : invoice.status === 'pending' ? 'text-amber-600' : 'text-red-600'}`}>{invoice.status}</span></div>
                       </div>
                       {paid.length > 0 && (
@@ -185,7 +185,7 @@ export default function ClientBilling() {
                               <span className="text-slate-300">•</span>
                               <span className="font-mono">{p.transaction_id}</span>
                               <span className="text-slate-300">•</span>
-                              <span>{format(new Date(p.paid_at), 'PP')}</span>
+                              <span>{(() => { const d = new Date(p.paid_at); return isNaN(d.getTime()) ? '' : format(d, 'PP'); })()}</span>
                             </div>
                           ))}
                         </div>

@@ -89,7 +89,7 @@ export default function AdminMessages() {
                         <span className="text-xs font-medium text-slate-500">
                           {m.sender_name} → {m.receiver_name}
                         </span>
-                        <span className="text-[10px] text-slate-400">{new Date(m.created_at).toLocaleString()}</span>
+                        <span className="text-[10px] text-slate-400">{(() => { const d = new Date(m.created_at); return isNaN(d.getTime()) ? '' : d.toLocaleString(); })()}</span>
                       </div>
                       <p className="text-sm text-slate-800 whitespace-pre-wrap">{m.content}</p>
                       {m.attachments && m.attachments !== '[]' && (

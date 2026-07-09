@@ -144,7 +144,11 @@ export default function LawyerMessages() {
   const conversation = useMemo(() => messages.filter(m =>
     (m.senderId === currentUser?.id && m.receiverId === selectedUser) ||
     (m.senderId === selectedUser && m.receiverId === currentUser?.id)
-  ).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()), [messages, selectedUser, currentUser?.id]);
+  ).sort((a, b) => {
+    const da = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+    const db = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+    return da - db;
+  }), [messages, selectedUser, currentUser?.id]);
 
   useEffect(() => {
     if (selectedUser) {
@@ -156,7 +160,11 @@ export default function LawyerMessages() {
     messages.filter(m =>
       (m.senderId === currentUser?.id && m.receiverId === userId) ||
       (m.senderId === userId && m.receiverId === currentUser?.id)
-    ).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0], [messages, currentUser?.id]);
+    ).sort((a, b) => {
+      const da = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+      const db = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+      return db - da;
+    })[0], [messages, currentUser?.id]);
 
   const getUnreadCount = useCallback((userId: string) =>
     messages.filter(m => m.senderId === userId && m.receiverId === currentUser?.id && !m.read).length, [messages, currentUser?.id]);

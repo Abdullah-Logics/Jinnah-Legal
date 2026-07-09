@@ -143,7 +143,7 @@ export default function AdminBlocks() {
                   </td>
                   <td className="py-3 px-4 text-slate-600">{b.blocked_by_name}</td>
                   <td className="py-3 px-4 text-slate-600 max-w-[200px] truncate">{b.reason}</td>
-                  <td className="py-3 px-4 text-slate-500">{new Date(b.created_at).toLocaleDateString()}</td>
+                  <td className="py-3 px-4 text-slate-500">{(() => { const d = new Date(b.created_at); return isNaN(d.getTime()) ? '' : d.toLocaleDateString(); })()}</td>
                   <td className="py-3 px-4">
                     {b.unblocked_at ? (
                       <span className="text-xs font-medium px-2 py-1 rounded-full bg-green-100 text-green-700">Unblocked</span>

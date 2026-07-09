@@ -12,9 +12,14 @@ export default function ClientDashboard() {
   const unreadMessages = messages.filter(m => m.receiverId === currentUser?.id && !m.read);
   const pendingBills = invoices.filter(i => i.clientId === currentUser?.id && i.status === 'pending').length;
 
+  const sd = (v: any) => { const x = new Date(v); return isNaN(x.getTime()) ? null : x; };
   const upcomingDates = myCases.flatMap(c =>
-    c.courtDates.map(d => ({ ...d, caseTitle: c.title, lawyerId: c.lawyerId }))
-  ).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(0, 3);
+    (c.courtDates || []).filter((d: any) => d && sd(d.date)).map((d: any) => ({ ...d, caseTitle: c.title, lawyerId: c.lawyerId }))
+  ).sort((a, b) => {
+    const da = sd(a.date), db = sd(b.date);
+    if (!da && !db) return 0; if (!da) return 1; if (!db) return -1;
+    return da.getTime() - db.getTime();
+  }).slice(0, 3);
 
   return (
     <div className="space-y-6">

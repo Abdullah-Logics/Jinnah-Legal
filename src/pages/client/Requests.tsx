@@ -116,7 +116,7 @@ export default function ClientRequests() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-medium text-slate-900">{t === 'received' ? req.sender_name : req.receiver_name}</p>
-                      <p className="text-xs text-slate-400 flex items-center gap-1"><Clock size={12} /> {formatDistanceToNow(new Date(req.created_at), { addSuffix: true })}</p>
+                      <p className="text-xs text-slate-400 flex items-center gap-1"><Clock size={12} /> {(() => { const d = new Date(req.created_at); return isNaN(d.getTime()) ? '' : formatDistanceToNow(d, { addSuffix: true }); })()}</p>
                     </div>
                     {t === 'received' && req.status === 'pending' && (
                       <div className="flex gap-2">

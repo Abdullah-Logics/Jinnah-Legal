@@ -77,7 +77,7 @@ export default function AdminReports() {
 
   const sorted = [...filtered].sort((a, b) => {
     if (sortBy === 'severity') return (b.severity || 0) - (a.severity || 0);
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    return (() => { const da = new Date(a.created_at); const db = new Date(b.created_at); const ta = isNaN(da.getTime()) ? 0 : da.getTime(); const tb = isNaN(db.getTime()) ? 0 : db.getTime(); return tb - ta; })();
   });
 
   return (
@@ -169,7 +169,7 @@ export default function AdminReports() {
                       </div>
                       <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
                         <span>Reported by {r.reporter_name}</span>
-                        <span className="flex items-center gap-1"><Clock size={10} /> {new Date(r.created_at).toLocaleDateString()}</span>
+                        <span className="flex items-center gap-1"><Clock size={10} /> {(() => { const d = new Date(r.created_at); return isNaN(d.getTime()) ? '' : d.toLocaleDateString(); })()}</span>
                         <span>Role: {r.reported_role || 'N/A'}</span>
                       </div>
                     </div>

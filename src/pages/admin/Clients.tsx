@@ -46,7 +46,7 @@ export default function AdminClients() {
                   <td className="p-4 text-slate-600">{client.city || 'N/A'}</td>
                   <td className="p-4 text-slate-600">{cases.filter(c => c.clientId === client.id).length}</td>
                   <td className="p-4"><span className="px-2 py-1 bg-emerald-100 text-emerald-600 rounded-lg text-sm capitalize">{client.subscriptionPlan}</span></td>
-                  <td className="p-4 text-slate-600">{new Date(client.createdAt).toLocaleDateString()}</td>
+                  <td className="p-4 text-slate-600">{(() => { const d = new Date(client.createdAt); return isNaN(d.getTime()) ? '' : d.toLocaleDateString(); })()}</td>
                   <td className="p-4"><button className="p-2 hover:bg-slate-100 rounded-lg"><MoreVertical size={18} /></button></td>
                 </tr>
               ))}

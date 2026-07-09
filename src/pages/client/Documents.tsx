@@ -140,10 +140,10 @@ export default function ClientDocuments() {
                   <span className="text-sm font-medium text-slate-700 truncate">{doc.name}</span>
                 </div>
                 <div className="hidden md:block md:col-span-2 text-sm text-slate-500">{doc.name.split('.').pop()?.toUpperCase()}</div>
-                <div className="hidden md:block md:col-span-2 text-sm text-slate-500">{new Date(doc.created_at).toLocaleDateString()}</div>
+                <div className="hidden md:block md:col-span-2 text-sm text-slate-500">{(() => { const d = new Date(doc.created_at); return isNaN(d.getTime()) ? '' : d.toLocaleDateString(); })()}</div>
                 <div className="hidden md:block md:col-span-1 text-sm text-slate-500">{formatSize(doc.size)}</div>
                 <div className="flex items-center gap-1 md:col-span-2 mt-2 md:mt-0">
-                  <span className="md:hidden text-xs text-slate-400 mr-auto">{formatSize(doc.size)} &middot; {new Date(doc.created_at).toLocaleDateString()}</span>
+                  <span className="md:hidden text-xs text-slate-400 mr-auto">{formatSize(doc.size)} &middot; {(() => { const d = new Date(doc.created_at); return isNaN(d.getTime()) ? '' : d.toLocaleDateString(); })()}</span>
                   <button onClick={() => shareDoc(doc)} className="p-2 hover:bg-emerald-100 rounded-lg text-slate-500 hover:text-emerald-600 transition" title="Share with lawyer">
                     <Share2 size={16} />
                   </button>

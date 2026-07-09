@@ -498,7 +498,7 @@ export default function LawyerResearch() {
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <h4 className="text-sm font-semibold text-slate-900 truncate">{memo.title}</h4>
-                        <p className="text-[11px] text-slate-400 mt-0.5">{new Date(memo.createdAt).toLocaleDateString()}</p>
+                        <p className="text-[11px] text-slate-400 mt-0.5">{memo.createdAt ? new Date(memo.createdAt).toLocaleDateString() : ''}</p>
                       </div>
                       <button onClick={() => deleteMemo(memo.id)} className="p-1 text-slate-400 hover:text-red-500 transition flex-shrink-0"><Trash2 size={14} /></button>
                     </div>

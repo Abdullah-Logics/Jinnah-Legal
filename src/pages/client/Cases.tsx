@@ -80,7 +80,7 @@ export default function ClientCases() {
                       </span>
                       <span className="flex items-center gap-1">
                         <Calendar size={16} />
-                        {format(new Date(c.createdAt), 'MMM d, yyyy')}
+                        {c.createdAt ? format(new Date(c.createdAt), 'MMM d, yyyy') : ''}
                       </span>
                     </div>
                   </div>

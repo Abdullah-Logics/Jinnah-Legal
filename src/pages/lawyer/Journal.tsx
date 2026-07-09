@@ -97,9 +97,10 @@ export default function LawyerJournal() {
   const todayEntry = useMemo(() => journals.find(j => j.userId === currentUser?.id && j.date === dateKey), [journals, currentUser?.id, dateKey]);
 
   const myCases = cases.filter(c => c.lawyerId === currentUser?.id);
+  const toDate = (v: any) => { const d = new Date(v); return isNaN(d.getTime()) ? null : d; };
   const dayEvents = myCases.flatMap(c => [
-    ...(c.courtDates || []).filter(d => isSameDay(new Date(d.date), selectedDate)).map(d => ({ type: 'court' as const, title: c.title, court: d.court, notes: d.notes })),
-    ...(c.timeline || []).filter(t => isSameDay(new Date(t.date), selectedDate)).map(t => ({ type: 'event' as const, title: t.event, description: t.description })),
+    ...(c.courtDates || []).filter(d => { const dt = toDate(d.date); return dt && isSameDay(dt, selectedDate); }).map(d => ({ type: 'court' as const, title: c.title, court: d.court, notes: d.notes })),
+    ...(c.timeline || []).filter(t => { const dt = toDate(t.date); return dt && isSameDay(dt, selectedDate); }).map(t => ({ type: 'event' as const, title: t.event, description: t.description })),
   ]);
 
   const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
@@ -250,9 +251,13 @@ export default function LawyerJournal() {
   };
 
   const allUpcoming = myCases.flatMap(c => [
-    ...(c.courtDates || []).map(d => ({ type: 'hearing' as const, caseTitle: c.title, caseId: c.id, date: d.date, court: d.court, notes: d.notes })),
-    ...(c.timeline || []).filter(t => new Date(t.date) >= new Date()).map(t => ({ type: 'event' as const, caseTitle: c.title, caseId: c.id, date: t.date, event: t.event, description: t.description })),
-  ]).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).slice(0, 10);
+    ...(c.courtDates || []).filter(d => { const dt = toDate(d.date); return dt && dt >= new Date(); }).map(d => ({ type: 'hearing' as const, caseTitle: c.title, caseId: c.id, date: d.date, court: d.court, notes: d.notes })),
+    ...(c.timeline || []).filter(t => { const dt = toDate(t.date); return dt && dt >= new Date(); }).map(t => ({ type: 'event' as const, caseTitle: c.title, caseId: c.id, date: t.date, event: t.event, description: t.description })),
+  ]).sort((a, b) => {
+    const da = toDate(a.date); const db = toDate(b.date);
+    if (!da && !db) return 0; if (!da) return 1; if (!db) return -1;
+    return da.getTime() - db.getTime();
+  }).slice(0, 10);
 
   const handleSchedule = async () => {
     if (!scheduleCase || !scheduleDate) return;
@@ -644,20 +649,23 @@ export default function LawyerJournal() {
               {journals
                 .filter(j => j.userId === currentUser?.id)
                 .sort((a, b) => b.date.localeCompare(a.date))
-                .map(j => (
+                .map(j => {
+                  const jd = toDate(j.date);
+                  const jc = j.createdAt ? toDate(j.createdAt) : null;
+                  return (
                   <button
                     key={j.id}
-                    onClick={() => setSelectedDate(new Date(j.date))}
+                    onClick={() => { if (jd) setSelectedDate(jd); }}
                     className={`w-full text-left p-3 rounded-xl transition flex items-start gap-3 ${j.date === dateKey ? 'bg-emerald-50 border border-emerald-200' : 'hover:bg-slate-50 border border-transparent'}`}
                   >
                     <div className="w-12 h-12 bg-emerald-100 rounded-xl flex flex-col items-center justify-center flex-shrink-0">
-                      <span className="text-xs text-emerald-600 font-medium">{format(new Date(j.date), 'MMM')}</span>
-                      <span className="text-base font-bold text-emerald-800 leading-none">{format(new Date(j.date), 'd')}</span>
+                      {jd ? <><span className="text-xs text-emerald-600 font-medium">{format(jd, 'MMM')}</span>
+                      <span className="text-base font-bold text-emerald-800 leading-none">{format(jd, 'd')}</span></> : <span className="text-xs text-slate-400">No date</span>}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-900">{format(new Date(j.date), 'EEEE, MMMM d, yyyy')}</p>
+                      <p className="text-sm font-medium text-slate-900">{jd ? format(jd, 'EEEE, MMMM d, yyyy') : 'Unknown date'}</p>
                       <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-400">
-                        {j.createdAt && <span className="flex items-center gap-1"><Clock size={11} />{formatDistanceToNow(new Date(j.createdAt), { addSuffix: true })}</span>}
+                        {jc && <span className="flex items-center gap-1"><Clock size={11} />{formatDistanceToNow(jc, { addSuffix: true })}</span>}
                         {j.content && <span className="truncate">{(j.content || '').replace(/<[^>]*>/g, '').slice(0, 80)}</span>}
                         {!j.content && j.notes && <span className="truncate">{(j.notes || '').slice(0, 80)}</span>}
                         {!j.content && !j.notes && (j.todos || []).length > 0 && <span>{j.todos.length} tasks</span>}
@@ -669,7 +677,8 @@ export default function LawyerJournal() {
                       )}
                     </div>
                   </button>
-                ))}
+                  );
+                })}
               {journals.filter(j => j.userId === currentUser?.id).length === 0 && (
                 <p className="text-center text-slate-400 py-8 text-sm">No journal entries yet. Start writing above!</p>
               )}

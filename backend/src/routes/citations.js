@@ -185,6 +185,12 @@ citationsRouter.get('/', asyncHandler(async (req, res) => {
 /* ─── Single Citation ───────────────────────────────────────── */
 
 citationsRouter.get('/:id', asyncHandler(async (req, res) => {
+  const c = await queryOne('SELECT id, title, citation, court, year, parties, category, description, relevant_statutes, keywords, created_at FROM citations WHERE id=?', [req.params.id]);
+  if (!c) throw new AppError('Citation not found', 404);
+  res.json(c);
+}));
+
+citationsRouter.get('/:id/full', asyncHandler(async (req, res) => {
   const c = await queryOne('SELECT * FROM citations WHERE id=?', [req.params.id]);
   if (!c) throw new AppError('Citation not found', 404);
   res.json(c);
@@ -245,9 +251,10 @@ citationsRouter.post('/truncate', asyncHandler(async (req, res) => {
 citationsRouter.get('/suggest/top', asyncHandler(async (req, res) => {
   const { query: q } = req.query;
   if (!q) throw new AppError('query required', 400);
-  const p = `%${q}%`;
+  const p = `%${sanitize(q)}%`;
   const rows = await query(
-    `SELECT * FROM citations WHERE LOWER(title) LIKE LOWER(?) OR LOWER(parties) LIKE LOWER(?) OR LOWER(keywords) LIKE LOWER(?) OR LOWER(category) LIKE LOWER(?)
+    `SELECT id, title, citation, court, year, parties, category, description, relevant_statutes, keywords, created_at FROM citations
+     WHERE LOWER(title) LIKE LOWER(?) OR LOWER(parties) LIKE LOWER(?) OR LOWER(keywords) LIKE LOWER(?) OR LOWER(category) LIKE LOWER(?)
      ORDER BY year DESC LIMIT 10`,
     [p, p, p, p]
   );

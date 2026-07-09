@@ -88,7 +88,11 @@ citationsRouter.post('/bulk', asyncHandler(async (req, res) => {
 /* ─── Search / List (cross-DB compatible) ─────────────────── */
 
 function isPostgres() {
-  return !!(process.env.SUPABASE_URL || process.env.DATABASE_URL);
+  return !!(process.env.DATABASE_URL && !process.env.SUPABASE_URL);
+}
+
+function isSupabaseJs() {
+  return !!(process.env.SUPABASE_URL);
 }
 
 function likeQuery(cols) {
@@ -127,10 +131,11 @@ citationsRouter.get('/', asyncHandler(async (req, res) => {
   const params = [];
   const countParams = [];
 
+  const pgDirect = pg && !isSupabaseJs();
   if (search) {
     const searchCols = ['title','citation','parties','keywords','description','full_text','relevant_statutes'];
     const p = `%${search}%`;
-    if (pg && mode === 'fts') {
+    if (pgDirect && mode === 'fts') {
       sql = `SELECT id, title, citation, court, year, parties, category, description, relevant_statutes, keywords, created_at,
              ts_rank(to_tsvector('english', coalesce(title,'') || ' ' || coalesce(description,'') || ' ' || coalesce(keywords,'') || ' ' || coalesce(full_text,'') || ' ' || coalesce(parties,'') || ' ' || coalesce(relevant_statutes,'') || ' ' || coalesce(citation,'')), plainto_tsquery('english',?)) as rank
              FROM citations
@@ -138,7 +143,7 @@ citationsRouter.get('/', asyncHandler(async (req, res) => {
       params.push(search, search);
       countSql = `SELECT COUNT(*) as c FROM citations WHERE to_tsvector('english', coalesce(title,'') || ' ' || coalesce(description,'') || ' ' || coalesce(keywords,'') || ' ' || coalesce(full_text,'') || ' ' || coalesce(parties,'') || ' ' || coalesce(relevant_statutes,'') || ' ' || coalesce(citation,'')) @@ plainto_tsquery('english',?)`;
       countParams.push(search);
-    } else if (pg && mode === 'fuzzy') {
+    } else if (pgDirect && mode === 'fuzzy') {
       sql = `SELECT id, title, citation, court, year, parties, category, description, relevant_statutes, keywords, created_at,
              similarity(title, ?) as sim
              FROM citations
@@ -165,8 +170,8 @@ citationsRouter.get('/', asyncHandler(async (req, res) => {
   if (year_to) { sql += ' AND year<=?'; params.push(Number(year_to)); countSql += ' AND year<=?'; countParams.push(Number(year_to)); }
   if (court) { sql += ` AND LOWER(court) LIKE LOWER(?)`; params.push(`%${court}%`); countSql += ` AND LOWER(court) LIKE LOWER(?)`; countParams.push(`%${court}%`); }
 
-  if (pg && mode === 'fts' && search) sql += ' ORDER BY rank DESC';
-  else if (!(pg && mode === 'fuzzy')) sql += ' ORDER BY year DESC, citation ASC';
+  if (pgDirect && mode === 'fts' && search) sql += ' ORDER BY rank DESC';
+  else if (!(pgDirect && mode === 'fuzzy')) sql += ' ORDER BY year DESC, citation ASC';
 
   if (limit > 0) { sql += ' LIMIT ?'; params.push(limit); }
   if (offset > 0) { sql += ' OFFSET ?'; params.push(offset); }

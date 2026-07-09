@@ -1,53 +1,41 @@
-import { Component, ErrorInfo, ReactNode } from 'react';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { Component, type ReactNode, type ErrorInfo } from 'react';
 
-interface Props {
-  children: ReactNode;
-  fallback?: ReactNode;
-}
-
-interface State {
-  hasError: boolean;
-  error: Error | null;
-}
+interface Props { children: ReactNode; }
+interface State { error: Error | null; info: ErrorInfo | null; }
 
 export default class ErrorBoundary extends Component<Props, State> {
-  state: State = { hasError: false, error: null };
+  state: State = { error: null, info: null };
 
-  static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error };
+  static getDerivedStateFromError(error: Error) {
+    return { error, info: null };
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error('[ErrorBoundary]', error, info.componentStack);
+    this.setState({ info });
+    console.error('ErrorBoundary caught:', error, info.componentStack);
   }
 
-  handleRetry = () => {
-    this.setState({ hasError: false, error: null });
-  };
-
   render() {
-    if (this.state.hasError) {
-      if (this.props.fallback) return this.props.fallback;
-      return (
-        <div className="flex flex-col items-center justify-center h-full min-h-[300px] p-8 text-center">
-          <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mb-4">
-            <AlertTriangle size={28} className="text-red-500" />
-          </div>
-          <h3 className="text-lg font-bold text-slate-900 mb-1">Something went wrong</h3>
-          <p className="text-sm text-slate-500 mb-4 max-w-md">
-            {this.state.error?.message || 'An unexpected error occurred'}
-          </p>
+    if (!this.state.error) return this.props.children;
+    return (
+      <div className="min-h-screen flex items-center justify-center p-8 bg-slate-50">
+        <div className="max-w-xl w-full bg-white rounded-2xl p-8 shadow-lg border border-red-100">
+          <h2 className="text-xl font-bold text-red-700 mb-2">Something went wrong</h2>
+          <p className="text-slate-600 mb-4 text-sm">{this.state.error.message}</p>
+          <details className="text-xs text-slate-400">
+            <summary className="cursor-pointer font-medium text-slate-500 mb-1">Component Stack</summary>
+            <pre className="whitespace-pre-wrap bg-slate-50 p-3 rounded-lg max-h-48 overflow-auto">
+              {(this.state.info as ErrorInfo | null)?.componentStack || 'No stack available'}
+            </pre>
+          </details>
           <button
-            onClick={this.handleRetry}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl font-medium hover:bg-emerald-700 transition text-sm"
+            onClick={() => window.location.reload()}
+            className="mt-4 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 transition"
           >
-            <RefreshCw size={16} />
-            Try Again
+            Reload Page
           </button>
         </div>
-      );
-    }
-    return this.props.children;
+      </div>
+    );
   }
 }

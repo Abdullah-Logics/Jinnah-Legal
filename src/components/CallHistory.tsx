@@ -35,7 +35,7 @@ export default function CallHistory() {
             <div className="flex items-center gap-2 text-xs text-slate-400">
               <Clock size={11} /> {formatDuration(log.duration)}
               <span>•</span>
-              <span>{new Date(log.created_at).toLocaleDateString()}</span>
+              <span>{(() => { const d = new Date(log.created_at); return isNaN(d.getTime()) ? '' : d.toLocaleDateString(); })()}</span>
             </div>
           </div>
           <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full capitalize ${

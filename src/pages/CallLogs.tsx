@@ -70,7 +70,7 @@ export default function CallLogsPage() {
                   <Clock size={11} />
                   <span>{formatDuration(log.duration)}</span>
                   <span>•</span>
-                  <span>{new Date(log.started_at || log.created_at).toLocaleString()}</span>
+                  <span>{(() => { const d = new Date(log.started_at || log.created_at); return isNaN(d.getTime()) ? '' : d.toLocaleString(); })()}</span>
                 </div>
               </div>
               <span className={`text-xs font-medium px-2.5 py-1 rounded-full capitalize shrink-0 ${

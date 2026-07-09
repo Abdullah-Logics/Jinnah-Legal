@@ -92,7 +92,7 @@ function isPostgres() {
 }
 
 function isSupabaseJs() {
-  return !!(process.env.SUPABASE_URL);
+  return !!(process.env.SUPABASE_URL || (process.env.DATABASE_URL && process.env.SUPABASE_ANON_KEY));
 }
 
 function likeQuery(cols) {

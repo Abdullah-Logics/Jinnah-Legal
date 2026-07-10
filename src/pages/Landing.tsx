@@ -54,7 +54,6 @@ export default function Landing() {
 
             <nav className="hidden lg:flex items-center gap-8">
               <a href="#features" className="text-slate-600 hover:text-emerald-600 transition font-medium">Features</a>
-              <a href="#pricing" className="text-slate-600 hover:text-emerald-600 transition font-medium">Pricing</a>
               <Link to="/login" className="text-slate-600 hover:text-emerald-600 transition font-medium">Login</Link>
               <Link
                 to="/register"
@@ -80,7 +79,6 @@ export default function Landing() {
             >
               <nav className="flex flex-col gap-4">
                 <a href="#features" className="text-slate-600 hover:text-emerald-600 transition font-medium py-2">Features</a>
-                <a href="#pricing" className="text-slate-600 hover:text-emerald-600 transition font-medium py-2">Pricing</a>
                 <Link to="/login" className="text-slate-600 hover:text-emerald-600 transition font-medium py-2">Login</Link>
                 <Link
                   to="/register"
@@ -241,119 +239,7 @@ export default function Landing() {
         </div>
       </section>
 
-      <section id="pricing" className="py-16 lg:py-24 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-slate-50 to-white">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="font-serif text-3xl lg:text-4xl font-bold text-slate-900 mb-4">Simple, Transparent Pricing</h2>
-            <p className="text-slate-600 max-w-2xl mx-auto">Choose the plan that fits your practice</p>
-          </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {lawyerPlans.map((plan, i) => (
-              <motion.div
-                key={plan.name}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.1 }}
-                viewport={{ once: true }}
-                className={`relative rounded-2xl p-6 ${
-                  plan.popular 
-                    ? 'bg-gradient-to-br from-emerald-600 to-emerald-800 text-white shadow-xl shadow-emerald-200' 
-                    : 'bg-white border border-slate-200 shadow-lg'
-                }`}
-              >
-                {plan.popular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-500 text-white text-sm font-bold px-4 py-1 rounded-full">
-                    Most Popular
-                  </div>
-                )}
-                <h3 className={`text-xl font-bold mb-2 ${plan.popular ? 'text-white' : 'text-slate-900'}`}>{plan.name}</h3>
-                <div className="mb-4">
-                  <span className={`text-3xl font-bold ${plan.popular ? 'text-white' : 'text-slate-900'}`}>{plan.price}</span>
-                  {plan.price !== 'FREE' && <span className={plan.popular ? 'text-emerald-200' : 'text-slate-500'}>/month</span>}
-                </div>
-                <ul className="space-y-3 mb-6">
-                  {plan.features.map(feature => (
-                    <li key={feature} className="flex items-center gap-2">
-                      <Check size={18} className={plan.popular ? 'text-emerald-300' : 'text-emerald-500'} />
-                      <span className={plan.popular ? 'text-emerald-100' : 'text-slate-600'}>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-                <Link
-                  to="/register"
-                  className={`block text-center py-3 rounded-xl font-semibold transition ${
-                    plan.popular 
-                      ? 'bg-white text-emerald-700 hover:bg-emerald-50' 
-                      : 'bg-emerald-600 text-white hover:bg-emerald-700'
-                  }`}
-                >
-                  Get Started
-                </Link>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Feature Comparison Table */}
-      <section id="compare" className="py-16 lg:py-24 px-4 sm:px-6 lg:px-8 bg-white">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="font-serif text-3xl lg:text-4xl font-bold text-slate-900 mb-4">Compare Plans</h2>
-            <p className="text-slate-600 max-w-2xl mx-auto">See which plan has the features you need</p>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-200">
-                  <th className="text-left py-4 px-4 font-semibold text-slate-900">Feature</th>
-                  {lawyerPlans.map(plan => (
-                    <th key={plan.name} className={`py-4 px-4 text-center font-semibold ${plan.popular ? 'text-emerald-600' : 'text-slate-900'}`}>
-                      {plan.name}
-                      {plan.popular && <span className="block text-xs text-emerald-500 font-normal">Popular</span>}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {[
-                  { name: 'Case Management', plans: ['Student', 'Starter', 'Pro', 'Firm'] },
-                  { name: 'Basic Journal', plans: ['Student', 'Starter', 'Pro', 'Firm'] },
-                  { name: 'Full Journal', plans: ['Starter', 'Pro', 'Firm'] },
-                  { name: 'AI Legal Assistant', plans: ['Starter', 'Pro', 'Firm'] },
-                  { name: 'Legal Research', plans: ['Starter', 'Pro', 'Firm'] },
-                  { name: 'Document Analysis', plans: ['Starter', 'Pro', 'Firm'] },
-                  { name: 'Unlimited AI Queries', plans: ['Pro', 'Firm'] },
-                  { name: 'Client Portal', plans: ['Pro', 'Firm'] },
-                  { name: 'Time Tracking', plans: ['Starter', 'Pro', 'Firm'] },
-                  { name: 'Invoicing', plans: ['Starter', 'Pro', 'Firm'] },
-                  { name: 'Multi-Lawyer Support', plans: ['Firm'] },
-                  { name: 'Admin Panel', plans: ['Firm'] },
-                  { name: 'Custom Branding', plans: ['Firm'] },
-                ].map((row, i) => (
-                  <tr key={row.name} className={i % 2 === 0 ? 'bg-slate-50' : ''}>
-                    <td className="py-3 px-4 font-medium text-slate-900">{row.name}</td>
-                    {lawyerPlans.map(plan => (
-                      <td key={plan.name} className="py-3 px-4 text-center">
-                        {row.plans.includes(plan.name) ? (
-                          <Check size={18} className="mx-auto text-emerald-500" />
-                        ) : (
-                          <span className="text-slate-300">—</span>
-                        )}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="text-center mt-8">
-            <Link to="/register" className="inline-flex items-center gap-2 bg-emerald-600 text-white px-8 py-3 rounded-xl font-semibold hover:bg-emerald-700 transition">
-              Get Started <ArrowRight size={20} />
-            </Link>
-          </div>
-        </div>
-      </section>
+      #####
 
       <section className="py-16 lg:py-24 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-emerald-800 to-emerald-900">
         <div className="max-w-4xl mx-auto text-center">
@@ -383,7 +269,6 @@ export default function Landing() {
               <h4 className="font-bold mb-4">Product</h4>
               <ul className="space-y-2 text-slate-400">
                 <li><a href="#features" className="hover:text-white transition">Features</a></li>
-                <li><a href="#pricing" className="hover:text-white transition">Pricing</a></li>
                 <li><Link to="/register" className="hover:text-white transition">Sign Up</Link></li>
               </ul>
             </div>

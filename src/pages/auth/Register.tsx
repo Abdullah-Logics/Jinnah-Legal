@@ -527,39 +527,40 @@ export default function Register() {
             
             <div className="space-y-3">
               {(role === 'lawyer' ? [
-                { value: 'student', name: 'Student', price: 'FREE', features: ['Basic Journal', 'Limited AI'], popular: false },
-                { value: 'starter', name: 'Starter', price: 'Rs 2,500/mo', features: ['Full Journal', 'More AI', 'Case Hub'], popular: false },
-                { value: 'pro', name: 'Pro', price: 'Rs 6,000/mo', features: ['Unlimited AI', 'All Features'], popular: true },
-                { value: 'firm', name: 'Firm', price: 'Rs 18,000/mo', features: ['Multiple Lawyers', 'Admin Panel'], popular: false },
+                { value: 'student', name: 'Student', features: ['Basic Journal', 'Limited AI'], popular: false },
+                { value: 'starter', name: 'Starter', features: ['Full Journal', 'More AI', 'Case Hub'], popular: false },
+                { value: 'pro', name: 'Pro', features: ['Unlimited AI', 'All Features'], popular: true },
+                { value: 'firm', name: 'Firm', features: ['Multiple Lawyers', 'Admin Panel'], popular: false },
               ] : [
-                { value: 'free', name: 'Free Trial', price: 'FREE', features: ['Limited AI', 'Basic Features'], popular: false },
-                { value: 'pro', name: 'Pro', price: 'Rs 5,000/mo', features: ['Full AI', 'All Features'], popular: true },
+                { value: 'free', name: 'Free Trial', features: ['Limited AI', 'Basic Features'], popular: false },
+                { value: 'pro', name: 'Pro', features: ['Full AI', 'All Features'], popular: true },
               ]).map(plan => (
                 <button
                   key={plan.value}
                   type="button"
                   onClick={() => setFormData(prev => ({ ...prev, plan: plan.value as SubscriptionPlan }))}
-                  className={`w-full p-4 rounded-xl border-2 text-left flex items-center gap-4 transition ${
+                  className={`w-full p-4 rounded-xl border-2 text-left transition ${
                     formData.plan === plan.value
                       ? 'border-emerald-500 bg-emerald-50'
                       : 'border-slate-200 hover:border-slate-300'
                   }`}
                 >
-                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                    formData.plan === plan.value ? 'border-emerald-500 bg-emerald-500' : 'border-slate-300'
-                  }`}>
-                    {formData.plan === plan.value && <CheckCircle size={14} className="text-white" />}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-slate-900">{plan.name}</span>
-                      {plan.popular && (
-                        <span className="px-2 py-0.5 bg-emerald-500 text-white text-xs rounded-full">Popular</span>
-                      )}
+                  <div className="flex items-center gap-4">
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                      formData.plan === plan.value ? 'border-emerald-500 bg-emerald-500' : 'border-slate-300'
+                    }`}>
+                      {formData.plan === plan.value && <CheckCircle size={14} className="text-white" />}
                     </div>
-                    <p className="text-sm text-slate-500">{plan.features.join(' • ')}</p>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-900">{plan.name}</span>
+                        {plan.popular && (
+                          <span className="px-2 py-0.5 bg-emerald-500 text-white text-xs rounded-full">Popular</span>
+                        )}
+                      </div>
+                      <p className="text-sm text-slate-500">{plan.features.join(' • ')}</p>
+                    </div>
                   </div>
-                  <span className="font-bold text-emerald-600">{plan.price}</span>
                 </button>
               ))}
             </div>

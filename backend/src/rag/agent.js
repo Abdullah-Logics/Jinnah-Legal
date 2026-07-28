@@ -224,7 +224,7 @@ async function executeAgentTool(name, args, userId) {
       if (q) { const p = `%${q}%`; sql += ' AND (title ILIKE ? OR content ILIKE ?)'; params.push(p, p); }
       if (cat) { sql += ' AND category=?'; params.push(cat); }
       if (art) { sql += ' AND article=?'; params.push(art); }
-      sql += ' ORDER BY CAST(article AS INTEGER) ASC LIMIT 15';
+      sql += " ORDER BY CAST(regexp_replace(article, '[^0-9]', '', 'g') AS INTEGER) ASC, article ASC LIMIT 15";
       const results = await runQuery(sql, params);
       if (!results || results.length === 0) return { message: 'No constitutional provisions found.', articles: [] };
       return {

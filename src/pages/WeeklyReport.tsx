@@ -50,8 +50,8 @@ export default function WeeklyReport() {
 
   const { shareState, openShare, closeShare } = useShareDialog();
   const myCases = currentUser?.role === 'lawyer'
-    ? cases.filter(c => c.lawyerId === currentUser.id)
-    : cases.filter(c => c.clientId === currentUser?.id);
+    ? cases.filter(c => c.lawyerId === currentUser.id && c.status !== 'pending')
+    : cases.filter(c => c.clientId === currentUser?.id && c.status !== 'pending');
 
   const shareReport = (reportCase: ReportCase) => {
     const myCase = myCases.find(c => c.id === reportCase.id);

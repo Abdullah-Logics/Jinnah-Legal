@@ -17,7 +17,7 @@ export default function LawyerTimeTracking() {
 
   useEffect(() => { loadInvoices(); loadPayments(); }, []);
 
-  const myCases = cases.filter(c => c.lawyerId === currentUser?.id);
+  const myCases = cases.filter(c => c.lawyerId === currentUser?.id && c.status !== 'pending');
   const myTimeEntries = timeEntries.filter(t => t.lawyerId === currentUser?.id);
   const myInvoices = invoices.filter(i => i.lawyerId === currentUser?.id);
 

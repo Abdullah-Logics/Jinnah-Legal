@@ -6,7 +6,7 @@ import ShareDialog, { useShareDialog } from '../../components/ShareDialog';
 export default function ClientCalendar() {
   const { currentUser, cases, users } = useStore();
   const { shareState, openShare, closeShare } = useShareDialog();
-  const myCases = cases.filter(c => c.clientId === currentUser?.id);
+  const myCases = cases.filter(c => c.clientId === currentUser?.id && c.status !== 'pending');
   
   const allDates = myCases.flatMap(c => c.courtDates.map(d => ({
     ...d, caseTitle: c.title, lawyerId: c.lawyerId

@@ -95,7 +95,7 @@ export default function LawyerJournal() {
   const dateKey = format(selectedDate, 'yyyy-MM-dd');
   const todayEntry = useMemo(() => journals.find(j => j.userId === currentUser?.id && j.date === dateKey), [journals, currentUser?.id, dateKey]);
 
-  const myCases = cases.filter(c => c.lawyerId === currentUser?.id);
+  const myCases = cases.filter(c => c.lawyerId === currentUser?.id && c.status !== 'pending');
   const toDate = (v: any) => { const d = new Date(v); return isNaN(d.getTime()) ? null : d; };
   const dayEvents = myCases.flatMap(c => [
     ...(c.courtDates || []).filter(d => { const dt = toDate(d.date); return dt && isSameDay(dt, selectedDate); }).map(d => ({ type: 'court' as const, title: c.title, court: d.court, notes: d.notes })),

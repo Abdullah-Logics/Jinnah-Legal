@@ -26,7 +26,7 @@ export default function LawyerCalendar() {
 
   useEffect(() => { loadJournals(); loadCases(); }, [loadJournals, loadCases]);
 
-  const myCases = cases.filter(c => c.lawyerId === currentUser?.id);
+  const myCases = cases.filter(c => c.lawyerId === currentUser?.id && c.status !== 'pending');
   
   const allEvents = myCases.flatMap(c => [
     ...c.courtDates.map(d => ({
@@ -82,7 +82,7 @@ export default function LawyerCalendar() {
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 flex flex-wrap items-end gap-3">
           <select value={eventCase} onChange={e => setEventCase(e.target.value)} className="text-sm px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500">
             <option value="">Select case...</option>
-            {cases.filter(c => c.lawyerId === currentUser?.id).map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+            {cases.filter(c => c.lawyerId === currentUser?.id && c.status !== 'pending').map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
           </select>
           <div className="flex gap-1">
             {(['hearing', 'meeting', 'deadline'] as const).map(t => (

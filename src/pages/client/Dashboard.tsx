@@ -7,7 +7,7 @@ import { format } from 'date-fns';
 export default function ClientDashboard() {
   const { currentUser, cases, messages, users, invoices } = useStore();
 
-  const myCases = cases.filter(c => c.clientId === currentUser?.id);
+  const myCases = cases.filter(c => c.clientId === currentUser?.id && c.status !== 'pending');
   const activeCases = myCases.filter(c => c.status === 'active');
   const unreadMessages = messages.filter(m => m.receiverId === currentUser?.id && !m.read);
   const pendingBills = invoices.filter(i => i.clientId === currentUser?.id && i.status === 'pending').length;

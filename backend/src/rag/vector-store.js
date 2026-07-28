@@ -99,7 +99,7 @@ class PgVectorStore {
       const embStr = `[${c.embedding.slice(0, DIMENSION).join(',')}]`;
       await this.runFn(
         `INSERT INTO rag_chunks (id, source_type, source_id, title, chunk_text, citation, court, year, category, keywords, article, metadata, embedding)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?::vector)
          ON CONFLICT (id) DO UPDATE SET chunk_text=EXCLUDED.chunk_text, embedding=EXCLUDED.embedding, title=EXCLUDED.title`,
         [c.id, c.sourceType, c.sourceId || '', c.title || '', c.chunkText, c.citation || '', c.court || '', c.year || 0, c.category || '', c.keywords || '', c.article || '', JSON.stringify(c.metadata || {}), embStr]
       );

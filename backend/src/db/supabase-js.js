@@ -194,9 +194,20 @@ export class SupabaseJsAdapter {
           keywords TEXT DEFAULT '',
           article TEXT DEFAULT '',
           metadata TEXT DEFAULT '{}',
+          embedding vector(768),
           created_at TIMESTAMPTZ DEFAULT NOW()
         )`
       );
+      try {
+        await this._execRpc(`ALTER TABLE rag_chunks ADD COLUMN IF NOT EXISTS embedding vector(768)`);
+      } catch (e) {
+        console.warn('Add embedding column:', e.message);
+      }
+      try {
+        await this._execRpc(`CREATE INDEX IF NOT EXISTS idx_rag_chunks_embedding ON rag_chunks USING hnsw (embedding vector_cosine_ops)`);
+      } catch (e) {
+        console.warn('hnsw index:', e.message);
+      }
       await this._execRpc(`CREATE INDEX IF NOT EXISTS idx_rag_chunks_type ON rag_chunks(source_type)`);
       await this._execRpc(`CREATE INDEX IF NOT EXISTS idx_rag_chunks_court ON rag_chunks(court)`);
       await this._execRpc(`CREATE INDEX IF NOT EXISTS idx_rag_chunks_year ON rag_chunks(year)`);

@@ -1,7 +1,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const MODEL = 'text-embedding-004';
-const DIMENSION = 768;
+const MODEL = 'gemini-embedding-2';
+const DIMENSION = 3072;
 const BATCH_SIZE = 20;
 const MAX_RETRIES = 3;
 

@@ -194,16 +194,22 @@ export class SupabaseJsAdapter {
           keywords TEXT DEFAULT '',
           article TEXT DEFAULT '',
           metadata TEXT DEFAULT '{}',
-          embedding vector(768),
+          embedding vector(3072),
           created_at TIMESTAMPTZ DEFAULT NOW()
         )`
       );
       try {
-        await this._execRpc(`ALTER TABLE rag_chunks ADD COLUMN IF NOT EXISTS embedding vector(768)`);
+        await this._execRpc(`ALTER TABLE rag_chunks ADD COLUMN IF NOT EXISTS embedding vector(3072)`);
       } catch (e) {
         console.warn('Add embedding column:', e.message);
       }
       try {
+        await this._execRpc(`ALTER TABLE rag_chunks ALTER COLUMN embedding TYPE vector(3072)`);
+      } catch (e) {
+        console.warn('Alter embedding type:', e.message);
+      }
+      try {
+        await this._execRpc(`DROP INDEX IF EXISTS idx_rag_chunks_embedding`);
         await this._execRpc(`CREATE INDEX IF NOT EXISTS idx_rag_chunks_embedding ON rag_chunks USING hnsw (embedding vector_cosine_ops)`);
       } catch (e) {
         console.warn('hnsw index:', e.message);

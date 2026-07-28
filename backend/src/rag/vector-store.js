@@ -1,4 +1,4 @@
-const DIMENSION = 768;
+import { DIMENSION } from './embedder.js';
 
 class InMemoryVectorStore {
   constructor() {

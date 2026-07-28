@@ -24,6 +24,9 @@ ragRouter.post('/index', asyncHandler(async (req, res) => {
   try {
     const result = await indexAll(query);
     res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('Full index error:', err);
+    res.status(500).json({ error: 'Index failed', message: err.message });
   } finally {
     indexing = false;
   }
@@ -35,6 +38,9 @@ ragRouter.post('/index/constitution', asyncHandler(async (req, res) => {
   try {
     const result = await indexConstitution(query);
     res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('Constitution index error:', err);
+    res.status(500).json({ error: 'Index failed', message: err.message });
   } finally {
     indexing = false;
   }
@@ -46,6 +52,9 @@ ragRouter.post('/index/cases', asyncHandler(async (req, res) => {
   try {
     const result = await indexAllCases(query);
     res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('Cases index error:', err);
+    res.status(500).json({ error: 'Index failed', message: err.message });
   } finally {
     indexing = false;
   }

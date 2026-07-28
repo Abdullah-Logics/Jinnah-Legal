@@ -25,6 +25,8 @@ import { evidenceRouter } from './routes/evidence.js';
 import { constitutionRouter } from './routes/constitution.js';
 import { ragRouter } from './routes/rag.js';
 import { initVectorStore } from './rag/vector-store.js';
+import { sanitizeInput, sqlInjectionGuard } from './middleware/sanitize.js';
+import { securityHeaders } from './middleware/security.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -49,9 +51,24 @@ export async function createApp() {
 
   app.use(helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' },
-    contentSecurityPolicy: process.env.NODE_ENV === 'production' ? undefined : false,
+    contentSecurityPolicy: process.env.NODE_ENV === 'production' ? {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com"],
+        imgSrc: ["'self'", "data:", "blob:"],
+        connectSrc: ["'self'", "https://*.supabase.co", "wss:"],
+        frameSrc: ["'none'"],
+        objectSrc: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+        upgradeInsecureRequests: [],
+      },
+    } : false,
   }));
 
+  app.use(securityHeaders);
   app.use(compression());
 
   if (process.env.NODE_ENV === 'production') {
@@ -91,8 +108,16 @@ export async function createApp() {
     legacyHeaders: false,
     message: { error: 'Too many AI requests. Please slow down.' },
   });
+  const ragIndexLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many indexing requests. Please try again later.' },
+  });
   app.use('/api/ai/', aiLimiter);
   app.use('/api/rag/', aiLimiter);
+  app.use('/api/rag/index', ragIndexLimiter);
 
   const corsOrigins = getCorsOrigin();
   app.use(cors({
@@ -105,6 +130,8 @@ export async function createApp() {
 
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+  app.use(sanitizeInput);
+  app.use(sqlInjectionGuard);
 
   app.use((_req, res, next) => {
     res.setTimeout(120000, () => {
@@ -112,10 +139,6 @@ export async function createApp() {
     });
     next();
   });
-
-  if (process.env.NODE_ENV === 'production') {
-    app.set('trust proxy', 1);
-  }
 
   app.get('/api/health', async (_req, res) => {
     let ipv6 = 'unknown';

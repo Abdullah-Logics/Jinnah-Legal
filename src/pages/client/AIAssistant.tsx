@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bot, Send, Loader, Plus, MessageSquare, Trash2, Menu, ArrowLeft, Share2, Printer } from 'lucide-react';
+import { Bot, Send, Loader, Plus, MessageSquare, Trash2, Menu, ArrowLeft, Share2, Printer, Zap } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import ShareDialog, { useShareDialog } from '../../components/ShareDialog';
 
-interface Message { id: string; role: 'user' | 'ai'; content: string; }
+interface Message { id: string; role: 'user' | 'ai'; content: string; sources?: any[]; }
 interface Session { id: string; title: string; created_at: string; }
 
 const GREETING: Message = {
@@ -206,7 +206,7 @@ export default function ClientAIAssistant() {
           </div>
           <div className="flex-1 min-w-0">
             <h1 className="text-base font-semibold text-slate-900">AI Legal Assistant</h1>
-            <p className="text-xs text-slate-400">Your legal queries answered</p>
+            <p className="text-xs text-slate-400 flex items-center gap-1"><Zap size={10} className="text-emerald-500" /> RAG-powered with 16,000+ cases & Constitution</p>
           </div>
           {messages.length > 1 && (
             <>
@@ -241,6 +241,18 @@ export default function ClientAIAssistant() {
                 </div>
                 <div className={`rounded-2xl px-4 py-3 ${msg.role === 'user' ? 'bg-emerald-600 text-white rounded-tr-sm' : 'bg-slate-100 text-slate-900 rounded-tl-sm'}`}>
                   <p className="whitespace-pre-wrap text-sm leading-relaxed">{msg.content}</p>
+                  {msg.sources && msg.sources.length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-slate-200">
+                      <p className="text-[10px] text-slate-400 mb-1 flex items-center gap-1"><Zap size={8} /> Sources</p>
+                      <div className="flex flex-wrap gap-1">
+                        {msg.sources.slice(0, 4).map((s: any, i: number) => (
+                          <span key={i} className="text-[9px] px-1.5 py-0.5 bg-white/80 text-slate-600 rounded border border-slate-200">
+                            {s.citation || s.title || 'Source'}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>

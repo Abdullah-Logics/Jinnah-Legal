@@ -46,18 +46,6 @@ function dataUri(file) {
   return `data:${file.mimetype || 'application/octet-stream'};base64,${b64}`;
 }
 
-uploadRouter.post('/public', upload.single('file'), asyncHandler(async (req, res) => {
-  if (!req.file) throw new AppError('No file uploaded', 400);
-  const id = uuid();
-  const fileUrl = dataUri(req.file);
-  await run(
-    'INSERT INTO documents (id,user_id,name,url,size) VALUES (?,?,?,?,?)',
-    [id, null, req.file.originalname, fileUrl, req.file.size]
-  );
-  const doc = await queryOne('SELECT * FROM documents WHERE id = ?', [id]);
-  res.json(doc);
-}));
-
 uploadRouter.post('/', requireAuth, upload.single('file'), asyncHandler(async (req, res) => {
   if (!req.file) throw new Error('No file uploaded');
   const id = uuid();

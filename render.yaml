@@ -26,13 +26,15 @@ services:
         sync: false
       - key: FRONTEND_URL
         value: https://ai-lawyer-blush.vercel.app
-      - key: DATABASE_URL
-        sync: false
       - key: GEMINI_API_KEY
         sync: false
       - key: GEMINI_MODEL
         value: gemini-2.5-flash
-      - key: SUPABASE_PROJECT_REF
+      - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_PROJECT_REF
         sync: false

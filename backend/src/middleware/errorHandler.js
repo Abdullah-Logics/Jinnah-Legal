@@ -10,16 +10,17 @@ export class AppError extends Error {
 
 export function errorHandler(err, _req, res, _next) {
   const statusCode = err.statusCode || 500;
+  const isProd = process.env.NODE_ENV === 'production';
   const message = err.isOperational ? err.message : 'Internal server error';
 
   if (!err.isOperational) {
-    console.error('\n🔥 Unexpected Error:');
-    console.error(err.stack || err.message);
+    console.error('\nUnexpected Error:', err.message);
+    if (!isProd) console.error(err.stack);
   }
 
   const body = { error: message };
-  if (err.details) body.details = err.details;
-  if (process.env.NODE_ENV !== 'production') body.stack = err.stack;
+  if (err.details && !isProd) body.details = err.details;
+  if (!isProd && err.stack) body.stack = err.stack;
 
   res.status(statusCode).json(body);
 }

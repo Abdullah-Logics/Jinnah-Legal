@@ -69,6 +69,7 @@ export class SupabaseJsAdapter {
     await this._ensureFtsIndexes();
     await this._ensureNewTables();
     await this._ensureConstitutionTable();
+    await this._ensureRagTable();
     await this._seedConstitution();
     await this._autoLinkReferences();
   }
@@ -169,6 +170,38 @@ export class SupabaseJsAdapter {
       await this._execRpc(`CREATE INDEX IF NOT EXISTS idx_constitution_category ON constitution(category)`);
     } catch (e) {
       console.warn('Constitution indexes:', e.message);
+    }
+  }
+
+  async _ensureRagTable() {
+    try {
+      await this._execRpc(`CREATE EXTENSION IF NOT EXISTS vector`);
+    } catch (e) {
+      console.warn('pgvector extension:', e.message);
+    }
+    try {
+      await this._ensureTable(
+        `CREATE TABLE IF NOT EXISTS rag_chunks (
+          id TEXT PRIMARY KEY,
+          source_type TEXT NOT NULL,
+          source_id TEXT DEFAULT '',
+          title TEXT DEFAULT '',
+          chunk_text TEXT NOT NULL,
+          citation TEXT DEFAULT '',
+          court TEXT DEFAULT '',
+          year INTEGER DEFAULT 0,
+          category TEXT DEFAULT '',
+          keywords TEXT DEFAULT '',
+          article TEXT DEFAULT '',
+          metadata TEXT DEFAULT '{}',
+          created_at TIMESTAMPTZ DEFAULT NOW()
+        )`
+      );
+      await this._execRpc(`CREATE INDEX IF NOT EXISTS idx_rag_chunks_type ON rag_chunks(source_type)`);
+      await this._execRpc(`CREATE INDEX IF NOT EXISTS idx_rag_chunks_court ON rag_chunks(court)`);
+      await this._execRpc(`CREATE INDEX IF NOT EXISTS idx_rag_chunks_year ON rag_chunks(year)`);
+    } catch (e) {
+      console.warn('RAG table creation:', e.message);
     }
   }
 

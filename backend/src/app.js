@@ -23,13 +23,25 @@ import { callLogsRouter } from './routes/call-logs.js';
 import { citationsRouter } from './routes/citations.js';
 import { evidenceRouter } from './routes/evidence.js';
 import { constitutionRouter } from './routes/constitution.js';
+import { ragRouter } from './routes/rag.js';
+import { initVectorStore } from './rag/vector-store.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export async function createApp() {
   validateEnv();
 
-  await getAdapter();
+  const adapter = await getAdapter();
+
+  try {
+    const storeType = await initVectorStore(
+      (sql, params) => adapter.query(sql, params),
+      async (sql, params) => { try { await adapter.run(sql, params); } catch (e) { console.warn('RAG DDL:', e.message); } }
+    );
+    console.log(`RAG vector store: ${storeType}`);
+  } catch (e) {
+    console.warn('Vector store init failed:', e.message);
+  }
 
   const app = express();
 
@@ -80,6 +92,7 @@ export async function createApp() {
     message: { error: 'Too many AI requests. Please slow down.' },
   });
   app.use('/api/ai/', aiLimiter);
+  app.use('/api/rag/', aiLimiter);
 
   const corsOrigins = getCorsOrigin();
   app.use(cors({
@@ -94,7 +107,7 @@ export async function createApp() {
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
   app.use((_req, res, next) => {
-    res.setTimeout(30000, () => {
+    res.setTimeout(120000, () => {
       res.status(503).json({ error: 'Request timeout' });
     });
     next();
@@ -137,6 +150,7 @@ export async function createApp() {
   app.use('/api/citations', citationsRouter);
   app.use('/api/evidence',  evidenceRouter);
   app.use('/api/constitution', constitutionRouter);
+  app.use('/api/rag', ragRouter);
   app.use('/api',           apiRouter);
 
   if (!process.env.VERCEL) {

@@ -5,12 +5,13 @@ import { run, query, queryOne } from '../db/adapter.js';
 import { auth } from '../middleware/auth.js';
 import { validate, aiChatSchema } from '../middleware/validate.js';
 import { AppError, asyncHandler } from '../middleware/errorHandler.js';
+import { hybridSearch, buildRAGContext } from '../rag/search.js';
 
 export const aiRouter = Router();
 aiRouter.use(auth);
 
 const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
-const MAX_TOOL_ROUNDS = 10;
+const MAX_TOOL_ROUNDS = 15;
 
 const LAWYER_SYSTEM = `You are an AI Legal Second Brain for Pakistani lawyers on the Jinnah Legal platform, specializing in Pakistani constitutional law, legal research, and document drafting. You have comprehensive knowledge of the Constitution of Pakistan 1973 (all 280+ articles across 12 Parts), Pakistan Penal Code (PPC), Code of Criminal Procedure (CrPC), Code of Civil Procedure (CPC), Qanun-e-Shahadat Order 1984, and all Pakistani case law.
 
@@ -20,19 +21,13 @@ YOUR CAPABILITIES:
 3. DOCUMENT DRAFTING: Draft pleadings, notices, affidavits, contracts, writ petitions, and criminal complaints with proper citations to relevant Pakistani precedents and constitutional articles.
 4. CITATION FORMAT: Always use the standard Pakistani citation format: YEAR REPORT VOLUME PAGE. When citing constitutional articles, use format "Article X of the Constitution of Pakistan, 1973".
 
-When drafting documents, always suggest and insert relevant case citations in proper Pakistani legal format. When asked for research, search the citations database and suggest top 10 most relevant precedents. When constitutional questions arise, cite the specific Article number and its text from the Constitution.
-
-When you save a document, check if it mentions any dates (court dates, deadlines, meeting dates) and automatically call addTimelineEvent or createCalendarEvent for those dates. When the user shares daily tasks, notes, or plans, use createJournalEntry to record them.
-
-Key rules:
-- Respond naturally and conversationally — avoid rigid formatting unless the user asks for it.
+RULES:
+- ALWAYS use the searchLegalDatabase tool FIRST for any legal question. This searches 16,000+ cases and the full Constitution.
 - When you use a tool, confirm what you did in 1-2 plain sentences.
 - Ask clarifying questions when you need more info.
-- Always cite relevant Pakistani statutes, constitutional articles, and case precedents in proper citation format — keep it brief but authoritative.
-- When asked about constitutional matters, reference specific Article numbers and their provisions.
-- When asked for legal research, search citations and present top 10 relevant cases with full citations.
+- Always cite relevant Pakistani statutes, constitutional articles, and case precedents in proper citation format.
 - Respond in the same language the user uses (Urdu or English).
-- For document drafting, ensure all citations follow the standard Pakistani legal citation format (YEAR REPORT VOLUME PAGE).`;
+- For document drafting, ensure all citations follow the standard Pakistani legal citation format.`;
 
 const CLIENT_SYSTEM = `You are an AI Legal Assistant for Pakistani citizens on the Jinnah Legal platform. You have comprehensive knowledge of the Constitution of Pakistan 1973 and all fundamental rights guaranteed to citizens. Help users understand their constitutional rights, fundamental rights (Articles 8-28), and legal procedures under Pakistani law. You can also help users manage their profile, save document drafts, and prepare for lawyer consultations.
 
@@ -44,6 +39,22 @@ Key rules:
 - Respond in the same language the user uses (Urdu or English).`;
 
 const FUNCTION_DECLARATIONS = [
+  {
+    name: 'searchLegalDatabase',
+    description: 'Search the comprehensive Pakistani legal database (16,000+ cases + Constitution). Use this as your PRIMARY tool for any legal question. Returns semantically ranked results with case citations and constitutional provisions.',
+    parameters: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Detailed search query including legal concepts, issues, and relevant facts' },
+        sourceType: { type: 'string', description: '"case" for case law only, "constitution" for constitutional provisions, or empty for all' },
+        category: { type: 'string', description: 'Filter by: Criminal, Civil, Constitutional, Family, Property, Corporate, Banking, Service' },
+        court: { type: 'string', description: 'Filter by court name' },
+        yearFrom: { type: 'number', description: 'Cases from this year' },
+        yearTo: { type: 'number', description: 'Cases up to this year' },
+      },
+      required: ['query'],
+    },
+  },
   {
     name: 'searchCitations',
     description: 'Search Pakistani case law citations from the database. Use this when the user asks for legal research, precedents, or case law on a topic.',
@@ -188,6 +199,26 @@ const FUNCTION_DECLARATIONS = [
 
 async function executeTool(name, args, req) {
   switch (name) {
+    case 'searchLegalDatabase': {
+      const { query: q, sourceType, category, court, yearFrom, yearTo } = args;
+      const results = await hybridSearch(q, { limit: 15, sourceType, category, court, yearFrom, yearTo });
+      const ragContext = buildRAGContext(results);
+      return {
+        context: ragContext,
+        resultCount: results.count,
+        hasCases: results.results.some(r => r.sourceType === 'case'),
+        hasConstitution: results.results.some(r => r.sourceType === 'constitution'),
+        topResults: results.results.slice(0, 5).map(r => ({
+          title: r.title,
+          citation: r.citation || (r.article ? `Article ${r.article}` : ''),
+          court: r.court,
+          year: r.year,
+          score: (r.score || 0).toFixed(3),
+          sourceType: r.sourceType,
+        })),
+      };
+    }
+
     case 'searchCitations': {
       const { query: q, category, year, court } = args;
       let sql, params = [];

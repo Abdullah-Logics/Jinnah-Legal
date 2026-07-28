@@ -1,24 +1,38 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, Brain, FileText, Clock, BookOpen, Sparkles, Send, Lightbulb, Save, Loader, Trash2,
   Scale, Gavel, Plus, Clipboard, ShoppingCart, Calendar, ChevronDown, ChevronRight,
-  BadgeCheck, FolderOpen, SlidersHorizontal,
+  BadgeCheck, FolderOpen, SlidersHorizontal, Zap, ExternalLink, RefreshCw,
 } from 'lucide-react';
 import api from '../../utils/api';
 import { useStore } from '../../store/useStore';
 
-interface SearchResult {
+interface RAGResult {
   id: string;
+  sourceType: 'case' | 'constitution';
   title: string;
-  summary: string;
-  type: string;
+  citation: string;
+  court: string;
+  year: number;
+  category: string;
+  keywords: string;
+  chunkText: string;
+  score: number;
+}
+
+interface RAGResponse {
+  query: string;
+  results: RAGResult[];
+  count: number;
+  context: string;
 }
 
 interface Memo {
   id: string;
   title: string;
   content: string;
+  sources: RAGResult[];
   createdAt: string;
 }
 
@@ -47,14 +61,15 @@ const CATEGORIES = [
 ];
 
 const COURTS = ['Supreme Court of Pakistan', 'Lahore High Court', 'Sindh High Court', 'Peshawar High Court', 'Balochistan High Court', 'Islamabad High Court'];
-
 const QUICK_CHIPS = ['bail', 'murder', 'constitutional', 'divorce', 'property', 'tax', 'service', 'corporate', 'family', 'inheritance'];
 
 export default function LawyerResearch() {
   const { token } = useStore();
   const [query, setQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
-  const [results, setResults] = useState<SearchResult[]>([]);
+  const [ragResults, setRagResults] = useState<RAGResult[]>([]);
+  const [ragCount, setRagCount] = useState(0);
+  const [aiAnswer, setAiAnswer] = useState('');
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState<'search' | 'citations' | 'memos'>('search');
   const [memos, setMemos] = useState<Memo[]>([]);
@@ -74,7 +89,33 @@ export default function LawyerResearch() {
   const [citExpandedGroups, setCitExpandedGroups] = useState<Record<string, boolean>>({});
   const [citViewMode, setCitViewMode] = useState<'list' | 'groups'>('groups');
 
+  const [ragStatus, setRagStatus] = useState<any>(null);
+  const [isIndexing, setIsIndexing] = useState(false);
+
   const API = import.meta.env.DEV ? 'http://localhost:3001' : import.meta.env.VITE_API_URL || '';
+
+  const loadRagStatus = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/api/rag/status`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) setRagStatus(await res.json());
+    } catch {}
+  }, [API, token]);
+
+  const handleRagIndex = async () => {
+    setIsIndexing(true);
+    try {
+      const res = await fetch(`${API}/api/rag/index`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      });
+      if (res.ok) {
+        await loadRagStatus();
+      }
+    } catch {}
+    setIsIndexing(false);
+  };
+
+  useEffect(() => { loadRagStatus(); }, [loadRagStatus]);
 
   const searchCitations = async (q?: string, opts?: { category?: string; court?: string; yearFrom?: string; yearTo?: string; all?: boolean }) => {
     const searchTerm = q ?? citSearch;
@@ -124,8 +165,7 @@ export default function LawyerResearch() {
   };
 
   useEffect(() => { if (activeTab === 'citations') { loadCitCart(); setCitPage(0); } }, [activeTab]);
-
-  useEffect(() => { if (activeTab === 'citations') searchCitations(); }, [citPage, activeTab]); // eslint-disable-line
+  useEffect(() => { if (activeTab === 'citations') searchCitations(); }, [citPage, activeTab]);
 
   useEffect(() => {
     try {
@@ -138,37 +178,39 @@ export default function LawyerResearch() {
     if (!query.trim()) return;
     setIsSearching(true);
     setError('');
+    setRagResults([]);
+    setRagCount(0);
+    setAiAnswer('');
     try {
-      const data = await api.post('/api/ai/chat', {
-        message: `You are Jinnah Legal AI — a Pakistani legal research assistant. Research this topic and provide findings with relevant statutes, Pakistani case precedents, and analysis:\n\nTopic: ${query}`,
+      const data = await api.post<{ response?: string; results?: RAGResult[]; count?: number }>('/api/rag/ask', {
+        message: query,
         history: [],
-        noSession: true,
-        noTools: true,
       });
-      const raw = (data.response || '').replace(/\*\*/g, '').trim();
-      const sections = raw.split(/\n(?=\d+\.|\- |\* |[A-Z][A-Za-z\s]+\:)/).filter(Boolean);
-      const parsed: SearchResult[] = sections.length > 1
-        ? sections.map((s: string, i: number) => {
-            const firstLine = s.split('\n')[0].replace(/^[\d\.\-\*\s]+/, '').trim();
-            return {
-              id: String(i + 1),
-              title: firstLine || 'Finding',
-              summary: s.trim(),
-              type: s.toLowerCase().includes('case') || s.toLowerCase().includes('precedent') || s.toLowerCase().includes('scmr') || s.toLowerCase().includes('pld') ? 'Case Precedent' : 'Legal Analysis',
-            };
-          })
-        : [{ id: '1', title: 'Research Results', summary: raw, type: 'Analysis' }];
-      setResults(parsed);
-    } catch {
-      setError('Research failed. Check your connection and try again.');
+      if (data.results) {
+        setRagResults(data.results);
+        setRagCount(data.count || 0);
+      }
+      setAiAnswer(data.response || 'No response received.');
+    } catch (err: any) {
+      try {
+        const data = await api.post<{ response: string }>('/api/ai/chat', {
+          message: `You are Jinnah Legal AI — a Pakistani legal research assistant. Research this topic and provide findings with relevant statutes, Pakistani case precedents, and analysis:\n\nTopic: ${query}`,
+          history: [],
+          noSession: true,
+          noTools: true,
+        });
+        setAiAnswer(data.response || 'No response received.');
+      } catch {
+        setError('Research failed. Check your connection and try again.');
+      }
     } finally {
       setIsSearching(false);
     }
   };
 
   const saveAsMemo = () => {
-    const content = results.map(r => `${r.title}\n${r.summary}`).join('\n\n---\n\n');
-    const memo = { id: Date.now().toString(), title: query, content, createdAt: new Date().toISOString() };
+    const content = aiAnswer;
+    const memo: Memo = { id: Date.now().toString(), title: query, content, sources: ragResults, createdAt: new Date().toISOString() };
     const updated = [memo, ...memos];
     setMemos(updated);
     localStorage.setItem('legal-memos', JSON.stringify(updated));
@@ -180,7 +222,7 @@ export default function LawyerResearch() {
     localStorage.setItem('legal-memos', JSON.stringify(updated));
   };
 
-  const groupedResults = citViewMode === 'groups' ? citResults.reduce((acc, c) => {
+  const groupedResults = citViewMode === 'groups' ? (Array.isArray(citResults) ? citResults : []).reduce((acc, c) => {
     const key = citGroupBy === 'category' ? c.category : citGroupBy === 'court' ? (c.court || '').replace(' of Pakistan', '') : String(c.year);
     if (!acc[key]) acc[key] = [];
     acc[key].push(c);
@@ -197,8 +239,15 @@ export default function LawyerResearch() {
     <div className="min-h-screen bg-slate-50 pb-20">
       <div className="px-3 sm:px-4 lg:px-6 pt-4 sm:pt-6 max-w-6xl mx-auto">
         <div className="mb-4 sm:mb-6">
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">AI Legal Research</h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">Gemini-powered Pakistani law research with integrated case law library</p>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900">AI Legal Research</h1>
+            {ragStatus && (
+              <span className={`px-2 py-0.5 text-[10px] rounded-full font-medium ${ragStatus.indexed > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                {ragStatus.indexed > 0 ? `RAG: ${ragStatus.indexed} chunks` : 'RAG: Not indexed'}
+              </span>
+            )}
+          </div>
+          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">RAG-powered research across 16,000+ cases & Constitution of Pakistan</p>
         </div>
 
         <div className="flex gap-1 sm:gap-2 border-b border-slate-200 overflow-x-auto pb-px -mx-3 sm:mx-0 px-3 sm:px-0 mb-4 sm:mb-6">
@@ -219,19 +268,26 @@ export default function LawyerResearch() {
           <div className="space-y-3 sm:space-y-4">
             <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-100">
               <div className="flex items-center gap-2 mb-3 sm:mb-4">
-                <Brain className="text-emerald-600" size={20} />
-                <h2 className="text-base sm:text-lg font-bold text-slate-900">AI-Powered Research</h2>
+                <Zap className="text-emerald-600" size={20} />
+                <h2 className="text-base sm:text-lg font-bold text-slate-900">RAG-Powered Research</h2>
+                <div className="ml-auto flex items-center gap-2">
+                  {ragStatus && ragStatus.indexed === 0 && (
+                    <button onClick={handleRagIndex} disabled={isIndexing}
+                      className="flex items-center gap-1 px-2 py-1 text-[11px] bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 transition disabled:opacity-50"
+                    >{isIndexing ? <Loader className="animate-spin" size={12} /> : <RefreshCw size={12} />} Index Database</button>
+                  )}
+                </div>
               </div>
               <div className="relative">
                 <textarea value={query} onChange={e => setQuery(e.target.value)}
-                  placeholder="Describe your research topic... e.g. 'Precedents for property disputes involving government land acquisition in Punjab'"
+                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSearch(); } }}
+                  placeholder="Ask any legal question... e.g. 'What are the precedents for bail in blasphemy cases under PPC 295-C?' or 'Explain Article 25 equality provisions'"
                   className="w-full h-28 sm:h-32 p-3 sm:p-4 pr-12 bg-slate-50 border border-slate-200 rounded-xl resize-none text-sm outline-none focus:ring-2 focus:ring-emerald-500"
                 />
                 <button onClick={handleSearch} disabled={isSearching}
                   className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 p-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition"
                 >{isSearching ? <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Send size={18} />}</button>
               </div>
-              
             </div>
 
             {isSearching && (
@@ -239,45 +295,69 @@ export default function LawyerResearch() {
                 <div className="w-12 h-12 sm:w-16 sm:h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
                   <Sparkles className="text-emerald-600 animate-pulse" size={24} />
                 </div>
-                <h3 className="text-base sm:text-lg font-bold text-slate-900 mb-1 sm:mb-2">Researching...</h3>
-                <p className="text-xs sm:text-sm text-slate-500">Analyzing Pakistani case law and statutes</p>
+                <h3 className="text-base sm:text-lg font-bold text-slate-900 mb-1 sm:mb-2">Researching with RAG...</h3>
+                <p className="text-xs sm:text-sm text-slate-500">Searching 16,000+ cases & Constitution, then generating analysis</p>
               </div>
             )}
 
             {error && <div className="bg-red-50 border border-red-200 rounded-xl p-3 sm:p-4 text-xs sm:text-sm text-red-700">{error}</div>}
 
-            {results.length > 0 && !isSearching && (
-              <div className="space-y-2 sm:space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm sm:text-base font-bold text-slate-900">Found {results.length} items</h3>
-                  <button onClick={saveAsMemo} className="flex items-center gap-1 text-emerald-600 font-medium text-xs sm:text-sm hover:text-emerald-700">
-                    <Save size={14} /> Save
-                  </button>
-                </div>
-                {results.map((result, i) => (
-                  <motion.div key={result.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
-                    className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-100 hover:shadow-md transition"
-                  >
-                    <div className="flex items-start gap-3 mb-2 sm:mb-3">
-                      <div className="w-7 h-7 sm:w-8 sm:h-8 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <Lightbulb size={14} className="text-emerald-600" />
-                      </div>
-                      <div className="min-w-0">
-                        <h4 className="text-sm sm:text-base font-bold text-slate-900">{result.title}</h4>
-                        <p className="text-xs text-emerald-600">{result.type}</p>
-                      </div>
+            {!isSearching && aiAnswer && (
+              <div className="space-y-3 sm:space-y-4">
+                {ragResults.length > 0 && (
+                  <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-100">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+                        <Scale size={14} className="text-indigo-600" />
+                        Sources ({ragCount})
+                      </h3>
+                      <button onClick={saveAsMemo} className="flex items-center gap-1 text-emerald-600 font-medium text-xs hover:text-emerald-700">
+                        <Save size={14} /> Save
+                      </button>
                     </div>
-                    <p className="text-xs sm:text-sm text-slate-600 ml-9 sm:ml-11 leading-relaxed">{result.summary}</p>
-                  </motion.div>
-                ))}
+                    <div className="space-y-1.5 max-h-60 overflow-y-auto">
+                      {ragResults.slice(0, 8).map((r, i) => (
+                        <div key={r.id} className={`flex items-start gap-2 p-2 rounded-lg text-xs ${r.sourceType === 'constitution' ? 'bg-purple-50' : 'bg-slate-50'}`}>
+                          <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 ${r.sourceType === 'constitution' ? 'bg-purple-100' : 'bg-indigo-100'}`}>
+                            {r.sourceType === 'constitution' ? <BookOpen size={10} className="text-purple-600" /> : <Gavel size={10} className="text-indigo-600" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1 flex-wrap">
+                              <span className="font-bold text-indigo-700">{r.citation || `Article ${r.year}`}</span>
+                              <span className="text-slate-400">{r.court}</span>
+                              <span className="text-[9px] px-1 py-0.5 bg-white rounded text-slate-500">{r.category}</span>
+                            </div>
+                            <p className="font-medium text-slate-800 truncate">{r.title}</p>
+                          </div>
+                          <span className="text-[10px] text-slate-400 flex-shrink-0">{(r.score * 100).toFixed(0)}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-100">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Brain size={16} className="text-emerald-600" />
+                    <h3 className="text-sm font-bold text-slate-900">AI Analysis</h3>
+                  </div>
+                  <div className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{aiAnswer}</div>
+                </div>
               </div>
             )}
 
-            {results.length === 0 && !isSearching && (
+            {!isSearching && !aiAnswer && (
               <div className="bg-white rounded-xl sm:rounded-2xl p-8 sm:p-12 shadow-sm border border-slate-100 text-center">
                 <BookOpen size={36} className="mx-auto text-slate-300 mb-3" />
-                <h3 className="text-base sm:text-lg font-bold text-slate-900 mb-1">Start Your Research</h3>
-                <p className="text-xs sm:text-sm text-slate-500">Enter a topic above for AI-powered Pakistani legal research</p>
+                <h3 className="text-base sm:text-lg font-bold text-slate-900 mb-1">RAG-Powered Legal Research</h3>
+                <p className="text-xs sm:text-sm text-slate-500 mb-4">Search 16,000+ cases and the Constitution with semantic understanding</p>
+                <div className="flex flex-wrap gap-1.5 justify-center">
+                  {QUICK_CHIPS.map(s => (
+                    <button key={s} onClick={() => { setQuery(s); }}
+                      className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-full text-xs text-slate-600 hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-700 transition capitalize"
+                    >{s}</button>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -327,7 +407,6 @@ export default function LawyerResearch() {
                 )}
               </AnimatePresence>
 
-              {/* View mode toggle + Group by */}
               <div className="flex items-center gap-1.5 mb-1 sm:mb-2 overflow-x-auto">
                 {QUICK_CHIPS.map(s => (
                   <button key={s} onClick={() => { setCitSearch(s); searchCitations(s); }}
@@ -336,7 +415,6 @@ export default function LawyerResearch() {
                 ))}
               </div>
 
-              {/* Group by toggle */}
               <div className="flex items-center gap-2 text-[10px] sm:text-[11px] text-slate-400 mb-2">
                 <span>View:</span>
                 {(['groups', 'list'] as const).map(v => (
@@ -367,8 +445,8 @@ export default function LawyerResearch() {
                 <div className="flex items-center justify-between">
                   <p className="text-xs text-slate-400">{citTotal} results</p>
                   <div className="flex gap-1">
-                    {citPage > 0 && <button onClick={() => setCitPage(p => p - 1)} className="px-2 py-1 text-xs bg-white border border-slate-200 rounded-lg hover:bg-slate-50">← Prev</button>}
-                    {citTotal > (citPage + 1) * 50 && <button onClick={() => setCitPage(p => p + 1)} className="px-2 py-1 text-xs bg-white border border-slate-200 rounded-lg hover:bg-slate-50">Next →</button>}
+                    {citPage > 0 && <button onClick={() => setCitPage(p => p - 1)} className="px-2 py-1 text-xs bg-white border border-slate-200 rounded-lg hover:bg-slate-50">Prev</button>}
+                    {citTotal > (citPage + 1) * 50 && <button onClick={() => setCitPage(p => p + 1)} className="px-2 py-1 text-xs bg-white border border-slate-200 rounded-lg hover:bg-slate-50">Next</button>}
                   </div>
                 </div>
                 {citResults.map(c => (
@@ -502,7 +580,14 @@ export default function LawyerResearch() {
                       </div>
                       <button onClick={() => deleteMemo(memo.id)} className="p-1 text-slate-400 hover:text-red-500 transition flex-shrink-0"><Trash2 size={14} /></button>
                     </div>
-                    <p className="text-xs text-slate-600 mt-2 line-clamp-2 whitespace-pre-wrap">{(memo.content || '').slice(0, 150)}</p>
+                    <p className="text-xs text-slate-600 mt-2 line-clamp-3 whitespace-pre-wrap">{(memo.content || '').slice(0, 300)}</p>
+                    {memo.sources && memo.sources.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {memo.sources.slice(0, 3).map((s, i) => (
+                          <span key={i} className="text-[9px] px-1.5 py-0.5 bg-indigo-50 text-indigo-600 rounded">{s.citation || `Article ${s.year}`}</span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

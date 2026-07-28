@@ -36,7 +36,9 @@ export async function createApp() {
   const adapter = await getAdapter();
 
   try {
+    const supabaseClient = adapter.supabase || null;
     const storeType = await initVectorStore(
+      supabaseClient,
       (sql, params) => adapter.query(sql, params),
       async (sql, params) => { try { await adapter.run(sql, params); } catch (e) { console.warn('RAG DDL:', e.message); } }
     );

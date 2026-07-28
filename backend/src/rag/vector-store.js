@@ -45,103 +45,75 @@ class InMemoryVectorStore {
 
 class PgVectorStore {
   constructor() {
+    this.supabase = null;
     this.queryFn = null;
     this.runFn = null;
     this.ready = false;
   }
 
-  async init(queryFn, runFn) {
+  init(supabaseClient, queryFn, runFn) {
+    this.supabase = supabaseClient;
     this.queryFn = queryFn;
     this.runFn = runFn;
-    try {
-      await runFn(`CREATE EXTENSION IF NOT EXISTS vector`);
-      await runFn(`
-        CREATE TABLE IF NOT EXISTS rag_chunks (
-          id TEXT PRIMARY KEY,
-          source_type TEXT NOT NULL,
-          source_id TEXT,
-          title TEXT DEFAULT '',
-          chunk_text TEXT NOT NULL,
-          citation TEXT DEFAULT '',
-          court TEXT DEFAULT '',
-          year INTEGER DEFAULT 0,
-          category TEXT DEFAULT '',
-          keywords TEXT DEFAULT '',
-          article TEXT DEFAULT '',
-          metadata TEXT DEFAULT '{}',
-          embedding vector(${DIMENSION}),
-          created_at TIMESTAMPTZ DEFAULT NOW()
-        )
-      `);
-      try {
-        await runFn(`CREATE INDEX IF NOT EXISTS idx_rag_chunks_embedding ON rag_chunks USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100)`);
-      } catch {
-        try {
-          await runFn(`CREATE INDEX IF NOT EXISTS idx_rag_chunks_embedding ON rag_chunks USING hnsw (embedding vector_cosine_ops)`);
-        } catch (e) {
-          console.warn('Vector index creation warning:', e.message);
-        }
-      }
-      await runFn(`CREATE INDEX IF NOT EXISTS idx_rag_chunks_type ON rag_chunks(source_type)`);
-      await runFn(`CREATE INDEX IF NOT EXISTS idx_rag_chunks_court ON rag_chunks(court)`);
-      await runFn(`CREATE INDEX IF NOT EXISTS idx_rag_chunks_year ON rag_chunks(year)`);
+    if (supabaseClient) {
       this.ready = true;
-      console.log('pgvector store initialized');
-    } catch (err) {
-      console.warn('pgvector not available, using in-memory fallback:', err.message);
-      this.ready = false;
+      console.log('pgvector store initialized (via Supabase REST API)');
     }
+    return this.ready;
   }
 
   async addBatch(chunks) {
     if (!this.ready) return false;
     for (const c of chunks) {
-      const embStr = `[${c.embedding.slice(0, DIMENSION).join(',')}]`;
-      await this.runFn(
-        `INSERT INTO rag_chunks (id, source_type, source_id, title, chunk_text, citation, court, year, category, keywords, article, metadata, embedding)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?::vector)
-         ON CONFLICT (id) DO UPDATE SET chunk_text=EXCLUDED.chunk_text, embedding=EXCLUDED.embedding, title=EXCLUDED.title`,
-        [c.id, c.sourceType, c.sourceId || '', c.title || '', c.chunkText, c.citation || '', c.court || '', c.year || 0, c.category || '', c.keywords || '', c.article || '', JSON.stringify(c.metadata || {}), embStr]
-      );
+      const row = {
+        id: c.id,
+        source_type: c.sourceType,
+        source_id: c.sourceId || '',
+        title: c.title || '',
+        chunk_text: c.chunkText,
+        citation: c.citation || '',
+        court: c.court || '',
+        year: c.year || 0,
+        category: c.category || '',
+        keywords: c.keywords || '',
+        article: c.article || '',
+        metadata: JSON.stringify(c.metadata || {}),
+        embedding: c.embedding.slice(0, DIMENSION),
+      };
+      const { error } = await this.supabase
+        .from('rag_chunks')
+        .upsert(row, { onConflict: 'id', ignoreDuplicates: false });
+      if (error) {
+        console.error('pgvector insert error:', error.message);
+        throw error;
+      }
     }
     return true;
   }
 
   async search(queryEmbedding, { limit = 20, filters = {} } = {}) {
     if (!this.ready) return [];
-    const embStr = `[${queryEmbedding.slice(0, DIMENSION).join(',')}]`;
-    let sql = `SELECT id, source_type, source_id, title, chunk_text, citation, court, year, category, keywords, article, metadata,
-               1 - (embedding <=> ?::vector) as score
-               FROM rag_chunks WHERE 1=1`;
-    const params = [embStr];
+    const emb = queryEmbedding.slice(0, DIMENSION);
+    let query = this.supabase
+      .from('rag_chunks')
+      .select('id, source_type, source_id, title, chunk_text, citation, court, year, category, keywords, article, metadata')
+      .limit(limit);
 
-    if (filters.sourceType) {
-      sql += ` AND source_type = ?`;
-      params.push(filters.sourceType);
-    }
-    if (filters.court) {
-      sql += ` AND court ILIKE ?`;
-      params.push(`%${filters.court}%`);
-    }
-    if (filters.category) {
-      sql += ` AND category = ?`;
-      params.push(filters.category);
-    }
-    if (filters.yearFrom) {
-      sql += ` AND year >= ?`;
-      params.push(filters.yearFrom);
-    }
-    if (filters.yearTo) {
-      sql += ` AND year <= ?`;
-      params.push(filters.yearTo);
+    if (filters.sourceType) query = query.eq('source_type', filters.sourceType);
+    if (filters.court) query = query.ilike('court', `%${filters.court}%`);
+    if (filters.category) query = query.eq('category', filters.category);
+    if (filters.yearFrom) query = query.gte('year', filters.yearFrom);
+    if (filters.yearTo) query = query.lte('year', filters.yearTo);
+
+    const { data, error } = await query;
+    if (error) {
+      console.error('pgvector search fetch error:', error.message);
+      return [];
     }
 
-    sql += ` ORDER BY embedding <=> ?::vector LIMIT ?`;
-    params.push(embStr, limit);
-
-    try {
-      const rows = await this.queryFn(sql, params);
-      return (rows || []).map(r => ({
+    const scored = (data || []).map(r => {
+      const score = 0;
+      return {
         id: r.id,
         sourceType: r.source_type,
         sourceId: r.source_id,
@@ -153,26 +125,62 @@ class PgVectorStore {
         category: r.category,
         keywords: r.keywords,
         article: r.article,
-        metadata: typeof r.metadata === 'string' ? JSON.parse(r.metadata) : r.metadata,
-        score: r.score,
-      }));
-    } catch (err) {
-      console.error('pgvector search error:', err.message);
-      return [];
+        metadata: typeof r.metadata === 'string' ? JSON.parse(r.metadata) : (r.metadata || {}),
+        score,
+      };
+    });
+
+    if (scored.length === 0) return scored;
+
+    const embeddings = await this._fetchEmbeddings(scored.map(r => r.id));
+    const embMap = new Map(embeddings);
+
+    let normEmb = 0;
+    for (let i = 0; i < emb.length; i++) normEmb += emb[i] * emb[i];
+    normEmb = Math.sqrt(normEmb);
+    if (normEmb === 0) return scored;
+
+    for (const r of scored) {
+      const vec = embMap.get(r.id);
+      if (vec) {
+        let dot = 0, norm = 0;
+        for (let i = 0; i < emb.length; i++) {
+          dot += emb[i] * (vec[i] || 0);
+          norm += (vec[i] || 0) * (vec[i] || 0);
+        }
+        norm = Math.sqrt(norm);
+        r.score = norm === 0 ? 0 : dot / (normEmb * norm);
+      } else {
+        r.score = 0;
+      }
     }
+
+    return scored.sort((a, b) => b.score - a.score).slice(0, limit);
+  }
+
+  async _fetchEmbeddings(ids) {
+    try {
+      const { data, error } = await this.supabase
+        .from('rag_chunks')
+        .select('id, embedding')
+        .in('id', ids);
+      if (error) return [];
+      return (data || []).map(r => [r.id, r.embedding]);
+    } catch { return []; }
   }
 
   async count() {
     if (!this.ready) return 0;
-    try {
-      const rows = await this.queryFn('SELECT COUNT(*) as c FROM rag_chunks');
-      return Number(rows?.[0]?.c || 0);
-    } catch { return 0; }
+    const { count, error } = await this.supabase
+      .from('rag_chunks')
+      .select('id', { count: 'exact', head: true });
+    if (error) return 0;
+    return count || 0;
   }
 
   async clear() {
     if (!this.ready) return;
-    await this.runFn('DELETE FROM rag_chunks');
+    await this.supabase.from('rag_chunks').delete().neq('id', '');
   }
 }
 
@@ -180,9 +188,9 @@ const pgStore = new PgVectorStore();
 const memStore = new InMemoryVectorStore();
 let usePg = false;
 
-export async function initVectorStore(queryFn, runFn) {
-  await pgStore.init(queryFn, runFn);
-  usePg = pgStore.ready;
+export function initVectorStore(supabaseClient, queryFn, runFn) {
+  const pgReady = pgStore.init(supabaseClient, queryFn, runFn);
+  usePg = pgReady;
   return usePg ? 'pgvector' : 'in-memory';
 }
 

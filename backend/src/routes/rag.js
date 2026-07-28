@@ -21,12 +21,11 @@ ragRouter.get('/status', asyncHandler(async (req, res) => {
 ragRouter.post('/index', asyncHandler(async (req, res) => {
   if (indexing) throw new AppError('Indexing already in progress', 409);
   indexing = true;
+  res.json({ success: true, status: 'started', message: 'Indexing started in background' });
   try {
-    const result = await indexAll(query);
-    res.json({ success: true, ...result });
+    await indexAll(query);
   } catch (err) {
-    console.error('Full index error:', err);
-    res.status(500).json({ error: 'Index failed', message: err.message });
+    console.error('Full index error:', err.message);
   } finally {
     indexing = false;
   }
@@ -35,12 +34,11 @@ ragRouter.post('/index', asyncHandler(async (req, res) => {
 ragRouter.post('/index/constitution', asyncHandler(async (req, res) => {
   if (indexing) throw new AppError('Indexing already in progress', 409);
   indexing = true;
+  res.json({ success: true, status: 'started', message: 'Constitution indexing started in background' });
   try {
-    const result = await indexConstitution(query);
-    res.json({ success: true, ...result });
+    await indexConstitution(query);
   } catch (err) {
-    console.error('Constitution index error:', err);
-    res.status(500).json({ error: 'Index failed', message: err.message });
+    console.error('Constitution index error:', err.message);
   } finally {
     indexing = false;
   }
@@ -49,12 +47,11 @@ ragRouter.post('/index/constitution', asyncHandler(async (req, res) => {
 ragRouter.post('/index/cases', asyncHandler(async (req, res) => {
   if (indexing) throw new AppError('Indexing already in progress', 409);
   indexing = true;
+  res.json({ success: true, status: 'started', message: 'Cases indexing started in background' });
   try {
-    const result = await indexAllCases(query);
-    res.json({ success: true, ...result });
+    await indexAllCases(query);
   } catch (err) {
-    console.error('Cases index error:', err);
-    res.status(500).json({ error: 'Index failed', message: err.message });
+    console.error('Cases index error:', err.message);
   } finally {
     indexing = false;
   }

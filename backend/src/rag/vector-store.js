@@ -63,30 +63,28 @@ class PgVectorStore {
   }
 
   async addBatch(chunks) {
-    if (!this.ready) return false;
-    for (const c of chunks) {
-      const row = {
-        id: c.id,
-        source_type: c.sourceType,
-        source_id: c.sourceId || '',
-        title: c.title || '',
-        chunk_text: c.chunkText,
-        citation: c.citation || '',
-        court: c.court || '',
-        year: c.year || 0,
-        category: c.category || '',
-        keywords: c.keywords || '',
-        article: c.article || '',
-        metadata: JSON.stringify(c.metadata || {}),
-        embedding: c.embedding.slice(0, DIMENSION),
-      };
-      const { error } = await this.supabase
-        .from('rag_chunks')
-        .upsert(row, { onConflict: 'id', ignoreDuplicates: false });
-      if (error) {
-        console.error('pgvector insert error:', error.message);
-        throw error;
-      }
+    if (!this.ready || chunks.length === 0) return false;
+    const rows = chunks.map(c => ({
+      id: c.id,
+      source_type: c.sourceType,
+      source_id: c.sourceId || '',
+      title: c.title || '',
+      chunk_text: c.chunkText,
+      citation: c.citation || '',
+      court: c.court || '',
+      year: c.year || 0,
+      category: c.category || '',
+      keywords: c.keywords || '',
+      article: c.article || '',
+      metadata: JSON.stringify(c.metadata || {}),
+      embedding: c.embedding.slice(0, DIMENSION),
+    }));
+    const { error } = await this.supabase
+      .from('rag_chunks')
+      .upsert(rows, { onConflict: 'id', ignoreDuplicates: false });
+    if (error) {
+      console.error('pgvector batch insert error:', error.message);
+      throw error;
     }
     return true;
   }
@@ -159,14 +157,20 @@ class PgVectorStore {
   }
 
   async _fetchEmbeddings(ids) {
-    try {
-      const { data, error } = await this.supabase
-        .from('rag_chunks')
-        .select('id, embedding')
-        .in('id', ids);
-      if (error) return [];
-      return (data || []).map(r => [r.id, r.embedding]);
-    } catch { return []; }
+    if (!ids.length) return [];
+    const chunkSize = 100;
+    const results = [];
+    for (let i = 0; i < ids.length; i += chunkSize) {
+      const chunk = ids.slice(i, i + chunkSize);
+      try {
+        const { data, error } = await this.supabase
+          .from('rag_chunks')
+          .select('id, embedding')
+          .in('id', chunk);
+        if (!error && data) results.push(...data.map(r => [r.id, r.embedding]));
+      } catch {}
+    }
+    return results;
   }
 
   async count() {

@@ -469,8 +469,8 @@ export default function LawyerResearch() {
                         <button onClick={() => addToCitCart(c.id)} className="p-1 hover:bg-emerald-50 rounded text-slate-400 hover:text-emerald-600" title="Add to Cart"><Plus size={13} /></button>
                         <button onClick={() => {
                           const full = `"${c.title}", ${c.citation} (${(c.court || '').replace(' of Pakistan', '')}, ${c.year})`;
-                          localStorage.setItem('opencode_insert_citation', full);
-                        }} className="p-1 hover:bg-indigo-50 rounded text-slate-400 hover:text-indigo-600" title="Use in Doc"><Clipboard size={13} /></button>
+                          navigator.clipboard.writeText(full).catch(() => {});
+                        }} className="p-1 hover:bg-indigo-50 rounded text-slate-400 hover:text-indigo-600" title="Copy citation"><Clipboard size={13} /></button>
                       </div>
                     </div>
                   </motion.div>
@@ -508,8 +508,8 @@ export default function LawyerResearch() {
                                 </div>
                                 <button onClick={() => {
                                   const full = `"${c.title}", ${c.citation} (${(c.court || '').replace(' of Pakistan', '')}, ${c.year})`;
-                                  localStorage.setItem('opencode_insert_citation', full);
-                                }} className="p-1 hover:bg-indigo-50 rounded text-slate-400 hover:text-indigo-600" title="Use in Doc"><Clipboard size={12} /></button>
+                                  navigator.clipboard.writeText(full).catch(() => {});
+                                }} className="p-1 hover:bg-indigo-50 rounded text-slate-400 hover:text-indigo-600" title="Copy citation"><Clipboard size={12} /></button>
                                 <button onClick={() => addToCitCart(c.id)} className="p-1 hover:bg-emerald-50 rounded text-slate-400 hover:text-emerald-600 flex-shrink-0"><Plus size={12} /></button>
                               </div>
                             </div>

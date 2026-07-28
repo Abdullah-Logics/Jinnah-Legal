@@ -136,7 +136,7 @@ citationsRouter.get('/', asyncHandler(async (req, res) => {
     const searchCols = ['title','citation','parties','keywords','description','full_text','relevant_statutes'];
     const p = `%${search}%`;
     if (pgDirect && mode === 'fts') {
-      sql = `SELECT id, title, citation, court, year, parties, category, description, relevant_statutes, keywords, created_at,
+      sql = `SELECT id, title, citation, court, year, parties, category, description, full_text, relevant_statutes, keywords, created_at,
              ts_rank(to_tsvector('english', coalesce(title,'') || ' ' || coalesce(description,'') || ' ' || coalesce(keywords,'') || ' ' || coalesce(full_text,'') || ' ' || coalesce(parties,'') || ' ' || coalesce(relevant_statutes,'') || ' ' || coalesce(citation,'')), plainto_tsquery('english',?)) as rank
              FROM citations
              WHERE to_tsvector('english', coalesce(title,'') || ' ' || coalesce(description,'') || ' ' || coalesce(keywords,'') || ' ' || coalesce(full_text,'') || ' ' || coalesce(parties,'') || ' ' || coalesce(relevant_statutes,'') || ' ' || coalesce(citation,'')) @@ plainto_tsquery('english',?)`;
@@ -144,7 +144,7 @@ citationsRouter.get('/', asyncHandler(async (req, res) => {
       countSql = `SELECT COUNT(*) as c FROM citations WHERE to_tsvector('english', coalesce(title,'') || ' ' || coalesce(description,'') || ' ' || coalesce(keywords,'') || ' ' || coalesce(full_text,'') || ' ' || coalesce(parties,'') || ' ' || coalesce(relevant_statutes,'') || ' ' || coalesce(citation,'')) @@ plainto_tsquery('english',?)`;
       countParams.push(search);
     } else if (pgDirect && mode === 'fuzzy') {
-      sql = `SELECT id, title, citation, court, year, parties, category, description, relevant_statutes, keywords, created_at,
+      sql = `SELECT id, title, citation, court, year, parties, category, description, full_text, relevant_statutes, keywords, created_at,
              similarity(title, ?) as sim
              FROM citations
              WHERE title % ? OR description % ? OR keywords % ? OR parties % ? OR citation % ?
@@ -154,14 +154,14 @@ citationsRouter.get('/', asyncHandler(async (req, res) => {
       countSql = `SELECT COUNT(*) as c FROM citations WHERE title % ? OR description % ? OR keywords % ? OR parties % ? OR citation % ?`;
       countParams.push(s, s, s, s, s);
     } else {
-      sql = `SELECT id, title, citation, court, year, parties, category, description, relevant_statutes, keywords, created_at FROM citations
+      sql = `SELECT id, title, citation, court, year, parties, category, description, full_text, relevant_statutes, keywords, created_at FROM citations
              WHERE ${likeQuery(searchCols)}`;
       params.push(p, p, p, p, p, p, p);
       countSql = `SELECT COUNT(*) as c FROM citations WHERE ${likeQuery(searchCols)}`;
       countParams.push(p, p, p, p, p, p, p);
     }
   } else {
-    sql = 'SELECT id, title, citation, court, year, parties, category, description, relevant_statutes, keywords, created_at FROM citations WHERE 1=1';
+    sql = 'SELECT id, title, citation, court, year, parties, category, description, full_text, relevant_statutes, keywords, created_at FROM citations WHERE 1=1';
     countSql = 'SELECT COUNT(*) as c FROM citations WHERE 1=1';
   }
 
@@ -185,7 +185,7 @@ citationsRouter.get('/', asyncHandler(async (req, res) => {
 /* ─── Single Citation ───────────────────────────────────────── */
 
 citationsRouter.get('/:id', asyncHandler(async (req, res) => {
-  const c = await queryOne('SELECT id, title, citation, court, year, parties, category, description, relevant_statutes, keywords, created_at FROM citations WHERE id=?', [req.params.id]);
+  const c = await queryOne('SELECT id, title, citation, court, year, parties, category, description, full_text, relevant_statutes, keywords, created_at FROM citations WHERE id=?', [req.params.id]);
   if (!c) throw new AppError('Citation not found', 404);
   res.json(c);
 }));
@@ -253,7 +253,7 @@ citationsRouter.get('/suggest/top', asyncHandler(async (req, res) => {
   if (!q) throw new AppError('query required', 400);
   const p = `%${sanitize(q)}%`;
   const rows = await query(
-    `SELECT id, title, citation, court, year, parties, category, description, relevant_statutes, keywords, created_at FROM citations
+     `SELECT id, title, citation, court, year, parties, category, description, full_text, relevant_statutes, keywords, created_at FROM citations
      WHERE LOWER(title) LIKE LOWER(?) OR LOWER(parties) LIKE LOWER(?) OR LOWER(keywords) LIKE LOWER(?) OR LOWER(category) LIKE LOWER(?)
      ORDER BY year DESC LIMIT 10`,
     [p, p, p, p]

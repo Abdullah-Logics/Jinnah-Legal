@@ -5,7 +5,6 @@ import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
-import Underline from '@tiptap/extension-underline';
 import Highlight from '@tiptap/extension-highlight';
 import { useStore } from '../../store/useStore';
 import { format, addDays, startOfWeek, isSameDay, formatDistanceToNow } from 'date-fns';
@@ -138,7 +137,6 @@ export default function LawyerJournal() {
   const editor = useEditor({
     extensions: [
       StarterKit,
-      Underline,
       Highlight,
       TaskList,
       TaskItem.configure({ nested: true }),
@@ -404,7 +402,7 @@ export default function LawyerJournal() {
             <span>{format(selectedDate, 'EEEE')}</span>
             {entryCreated && (
               <span className="text-xs text-slate-300 flex items-center gap-1">
-                <Clock size={12} /> started {formatDistanceToNow(new Date(entryCreated), { addSuffix: true })}
+                <Clock size={12} /> started {(() => { try { const d = new Date(entryCreated); return !isNaN(d.getTime()) ? formatDistanceToNow(d, { addSuffix: true }) : ''; } catch { return ''; } })()}
               </span>
             )}
           </div>
@@ -623,7 +621,7 @@ export default function LawyerJournal() {
               <span className="text-emerald-600 font-medium">Auto-saved</span>
             )}
             {entryCreated && (
-              <span className="text-slate-300 flex items-center gap-1">· <Clock size={12} /> {formatDistanceToNow(new Date(entryCreated), { addSuffix: true })}</span>
+              <span className="text-slate-300 flex items-center gap-1">· <Clock size={12} /> {(() => { try { const d = new Date(entryCreated); return !isNaN(d.getTime()) ? formatDistanceToNow(d, { addSuffix: true }) : ''; } catch { return ''; } })()}</span>
             )}
           </div>
           <div className="text-xs text-slate-400 flex items-center gap-3">
@@ -665,7 +663,7 @@ export default function LawyerJournal() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-slate-900">{jd ? format(jd, 'EEEE, MMMM d, yyyy') : 'Unknown date'}</p>
                       <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-400">
-                        {jc && <span className="flex items-center gap-1"><Clock size={11} />{formatDistanceToNow(jc, { addSuffix: true })}</span>}
+                        {jc && <span className="flex items-center gap-1"><Clock size={11} />{(() => { try { return formatDistanceToNow(jc, { addSuffix: true }); } catch { return ''; } })()}</span>}
                         {j.content && <span className="truncate">{(j.content || '').replace(/<[^>]*>/g, '').slice(0, 80)}</span>}
                         {!j.content && j.notes && <span className="truncate">{(j.notes || '').slice(0, 80)}</span>}
                         {!j.content && !j.notes && (j.todos || []).length > 0 && <span>{j.todos.length} tasks</span>}

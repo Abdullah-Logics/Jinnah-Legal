@@ -21,13 +21,17 @@ YOUR CAPABILITIES:
 3. DOCUMENT DRAFTING: Draft pleadings, notices, affidavits, contracts, writ petitions, and criminal complaints with proper citations to relevant Pakistani precedents and constitutional articles.
 4. CITATION FORMAT: Always use the standard Pakistani citation format: YEAR REPORT VOLUME PAGE. When citing constitutional articles, use format "Article X of the Constitution of Pakistan, 1973".
 
-RULES:
-- ALWAYS use the searchLegalDatabase tool FIRST for any legal question. This searches 16,000+ cases and the full Constitution.
-- When you use a tool, confirm what you did in 1-2 plain sentences.
-- Ask clarifying questions when you need more info.
-- Always cite relevant Pakistani statutes, constitutional articles, and case precedents in proper citation format.
-- Respond in the same language the user uses (Urdu or English).
-- For document drafting, ensure all citations follow the standard Pakistani legal citation format.`;
+CRITICAL RULES — YOU MUST FOLLOW THESE:
+1. ONLY cite cases that were PROVIDED in the search results above. NEVER invent or hallucinate case names, citations, or legal principles.
+2. If the search results are insufficient, say "I could not find specific case law on this in our database" rather than making up cases.
+3. Every citation must EXACTLY match the format shown in search results (citation, year, court, title).
+4. Do NOT combine details from multiple cases into a single fictional case.
+5. Do NOT extrapolate beyond what the search results contain.
+6. When you use a tool, confirm what you did in 1-2 plain sentences.
+7. Ask clarifying questions when you need more info.
+8. Always cite relevant Pakistani statutes, constitutional articles, and case precedents in proper citation format.
+9. Respond in the same language the user uses (Urdu or English).
+10. For document drafting, ensure all citations follow the standard Pakistani legal citation format.`;
 
 const CLIENT_SYSTEM = `You are Jinnah Legal AI — an AI Legal Assistant for Pakistani citizens. You have comprehensive knowledge of the Constitution of Pakistan 1973 and access to 16,000+ court case records through the searchLegalDatabase tool.
 
@@ -36,13 +40,14 @@ YOUR CAPABILITIES:
 2. **Legal Research**: Search the case law database to find relevant precedents for any legal question using searchLegalDatabase.
 3. **General Legal Guidance**: Help citizens understand Pakistani legal procedures, court processes, and their rights.
 
-RULES:
-- ALWAYS use the searchLegalDatabase tool for any legal question — this searches 16,000+ cases and the full Constitution.
-- Explain legal concepts in simple, clear language — avoid legal jargon unless necessary.
-- When a user asks about their rights, reference the specific Article of the Constitution.
-- Always recommend consulting a qualified lawyer for specific legal advice.
-- Respond in the same language the user uses (Urdu or English).
-- When you use a tool, tell the user what happened in plain language.`;
+CRITICAL RULES — YOU MUST FOLLOW THESE:
+1. ONLY cite cases provided in search results. NEVER invent cases or citations.
+2. Insufficient results? Say so honestly — do not fabricate.
+3. Every citation must EXACTLY match the search result format.
+4. Explain legal concepts in simple language.
+5. When referencing rights, cite specific Constitution Articles from search results.
+6. Always recommend consulting a qualified lawyer for specific legal advice.
+7. Respond in the same language the user uses (Urdu or English).`;
 
 const FUNCTION_DECLARATIONS = [
   {
@@ -409,7 +414,7 @@ aiRouter.delete('/sessions/:id', asyncHandler(async (req, res) => {
 }));
 
 aiRouter.post('/chat', validate(aiChatSchema), asyncHandler(async (req, res) => {
-  const { message, history = [], sessionId, noTools, noSession } = req.body;
+  let { message, history = [], sessionId, noTools, noSession } = req.body;
   const isLawyer = ['lawyer', 'firm_admin'].includes(req.user.role);
   const sid = sessionId || uuid();
 
@@ -432,6 +437,19 @@ aiRouter.post('/chat', validate(aiChatSchema), asyncHandler(async (req, res) => 
       systemInstruction: isLawyer ? LAWYER_SYSTEM : CLIENT_SYSTEM,
       ...(noTools ? {} : { tools: [{ functionDeclarations: FUNCTION_DECLARATIONS }] }),
     });
+
+    if (!noTools) {
+      const initialSearch = await hybridSearch(message, { limit: 8 });
+      const hasGrounding = initialSearch.count > 0;
+      let groundedMessage;
+      if (hasGrounding) {
+        const context = buildRAGContext(initialSearch);
+        groundedMessage = `User Question: ${message}\n\nRELEVANT DATABASE RESULTS:\n${context}\n\nUsing the above database results ONLY, answer the user's question. Cite only the cases listed above. If the database results lack sufficient information, state this clearly.`;
+      } else {
+        groundedMessage = `User Question: ${message}\n\nNo relevant results found in the legal database. Search the database using searchLegalDatabase tool to find relevant cases. If no results exist, honestly tell the user.`;
+      }
+      message = groundedMessage;
+    }
 
     const geminiHistory = history.map(h => ({
       role: h.role === 'ai' || h.role === 'assistant' ? 'model' : 'user',
@@ -468,6 +486,24 @@ aiRouter.post('/chat', validate(aiChatSchema), asyncHandler(async (req, res) => 
 
     if (!responseText) {
       responseText = 'I completed the requested actions. Is there anything else I can help you with?';
+    }
+
+    if (!noTools) {
+      const CITATION_PATTERN = /(?:\d{4}\s+(?:SCMR|PLD|PCrLJ|CLC|MLD|YLR|PTD|CLD|CrPC)\s+\d+)/gi;
+      const foundCitations = responseText.match(CITATION_PATTERN) || [];
+      if (foundCitations.length > 0) {
+        const unique = [...new Set(foundCitations)];
+        const invalid = [];
+        for (const citation of unique) {
+          try {
+            const exists = await queryOne('SELECT id FROM citations WHERE citation ILIKE ?', [citation]);
+            if (!exists) invalid.push(citation);
+          } catch {}
+        }
+        if (invalid.length > 0) {
+          responseText += `\n\n─── NOTE ───\nThe following citations could not be verified: ${invalid.join(', ')}. Please verify these before use.`;
+        }
+      }
     }
 
     if (!noSession) {

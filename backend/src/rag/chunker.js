@@ -30,6 +30,7 @@ export function chunkCase(c) {
       parties: c.parties || '',
       relevantStatutes: c.relevant_statutes || '',
       description: c.description || '',
+      fullText: c.full_text || '',
     },
   };
 }

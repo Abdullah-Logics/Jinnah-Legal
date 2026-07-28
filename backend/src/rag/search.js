@@ -47,8 +47,10 @@ export function buildRAGContext(searchResults) {
     caseResults.forEach((r, i) => {
       const score = (r.score * 100).toFixed(1);
       parts.push(`[${i + 1}] ${r.citation || 'No citation'} - ${r.title} (${r.court}, ${r.year})`);
-      if (r.metadata?.description) parts.push(`    ${r.metadata.description}`);
+      if (r.metadata?.description) parts.push(`    Summary: ${r.metadata.description}`);
+      if (r.metadata?.fullText) parts.push(`    Full Text: ${r.metadata.fullText.substring(0, 500)}...`);
       if (r.keywords) parts.push(`    Keywords: ${r.keywords}`);
+      if (r.relevant_statutes) parts.push(`    Statutes: ${r.relevant_statutes}`);
       parts.push(`    Relevance: ${score}%`);
       parts.push('');
     });

@@ -6,165 +6,132 @@ import { run, query, queryOne } from '../db/adapter.js';
 const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 const MAX_ROUNDS = 15;
 
-const AGENT_SYSTEM = `You are Jinnah Legal AI — an advanced agentic RAG (Retrieval-Augmented Generation) system for Pakistani law.
+const CITATION_PATTERN = /(?:\d{4}\s+(?:SCMR|PLD|PCrLJ|CLC|MLD|YLR|PTD|CLD|CrPC)\s+\d+)/gi;
 
-You have access to a comprehensive database of 16,000+ Pakistani court cases from all major courts (Supreme Court, Lahore High Court, Sindh High Court, Peshawar High Court, Islamabad High Court, Federal Shariat Court) AND the complete Constitution of Pakistan 1973.
+const AGENT_SYSTEM = `You are Jinnah Legal AI — an advanced RAG (Retrieval-Augmented Generation) system for Pakistani law.
 
-YOUR CORE CAPABILITIES:
-1. **Legal Research with Sources**: When asked any legal question, ALWAYS use the searchLegalDatabase tool first to retrieve relevant cases and constitutional provisions from the database. Then synthesize the results with proper citations.
-2. **Constitutional Analysis**: Search constitutional provisions and analyze them in context of the user's question. Reference specific Articles with their exact text.
-3. **Case Law Analysis**: Find, analyze, and compare relevant case precedents. Use proper Pakistani citation format (e.g., "2024 SCMR 123", "2023 PLD 456").
-4. **Multi-Step Research**: For complex questions, break them down and search multiple angles. You can call multiple tools in sequence to build a comprehensive answer.
-5. **Document Drafting**: Draft legal documents with proper citations to relevant case law and constitutional provisions.
-6. **Case Management**: Create cases, add court dates, save documents, create journal entries.
+CRITICAL RULES — YOU MUST FOLLOW THESE:
+
+1. ONLY cite cases that were PROVIDED in the search results above. NEVER invent or hallucinate case names, citations, or legal principles.
+2. If the search results are insufficient, say "I could not find specific case law on this in our database" rather than making up cases.
+3. Every citation you use must be EXACTLY as it appears in the search results — citation format, year, court, title must all match.
+4. Do NOT combine details from multiple cases into a single fictional case.
+5. Do NOT extrapolate beyond what the search results tell you.
+6. If you are unsure, clearly state:"This information is based on the available case summaries. For complete judgments, please consult the full case text."
+7. Use proper Pakistani citation format exactly as shown in search results.
+8. Reference Constitution articles as "Article X of the Constitution of Pakistan, 1973" only when they appear in search results.
+
+You have access to a comprehensive database of 16,000+ Pakistani court cases and the Constitution of Pakistan 1973.
 
 RESEARCH WORKFLOW:
-1. Analyze the user's question
-2. Identify key legal concepts, issues, and areas of law
-3. Use searchLegalDatabase to find relevant cases and constitutional provisions
-4. If initial results are insufficient, try alternative search terms or focus on specific aspects
-5. Synthesize all findings into a comprehensive, well-cited response
-6. Always cite your sources with proper Pakistani legal citation format
-
-IMPORTANT RULES:
-- ALWAYS cite sources when making legal claims
-- Use proper Pakistani citation format: YEAR REPORT VOLUME PAGE (e.g., "2024 SCMR 123", "2023 PLD 456")
-- Reference Constitution articles as "Article X of the Constitution of Pakistan, 1973"
-- Respond in the same language the user uses (Urdu or English)
-- Be thorough but concise
-- When unsure, state the limitations and recommend consulting a qualified lawyer
-- For complex research, use multiple search queries to cover different aspects
+1. Review the search results already provided to you
+2. Synthesize findings into a well-cited response
+3. If search results are missing something important, use searchLegalDatabase tool to find more
+4. Always cite your sources with EXACT citations from the search results
 
 TOOL USAGE:
 - Use searchLegalDatabase as your PRIMARY research tool
 - Use searchConstitution for specific constitutional questions
-- Use other tools for case management as needed
-- You can call multiple tools in parallel or sequentially`;
+- Use other tools for case management as needed`;
 
-const CLIENT_AGENT_SYSTEM = `You are Jinnah Legal AI — an AI legal assistant for Pakistani citizens. You help people understand their legal rights and the Pakistani legal system.
+const CLIENT_AGENT_SYSTEM = `You are Jinnah Legal AI — an AI legal assistant for Pakistani citizens.
 
-You have access to the Constitution of Pakistan 1973 and 16,000+ court cases. Use searchLegalDatabase to find relevant cases and constitutional provisions for any legal question.
-
-RULES:
-- Explain legal concepts in simple, clear language
-- Always reference the specific Article of the Constitution for rights questions
-- Recommend consulting a qualified lawyer for specific legal advice
-- Respond in the same language the user uses (Urdu or English)`;
+CRITICAL RULES:
+1. ONLY cite cases that were PROVIDED in the search results. NEVER invent cases or citations.
+2. If search results don't have an answer, say so honestly.
+3. Explain legal concepts simply. Recommend consulting a qualified lawyer for specific advice.
+4. Every case citation must match EXACTLY what appears in the search results.`;
 
 const TOOL_DECLARATIONS = [
   {
     name: 'searchLegalDatabase',
-    description: 'Search the comprehensive Pakistani legal database containing 16,000+ court cases and the complete Constitution of Pakistan 1973. This is your PRIMARY research tool. Returns semantically ranked results with case citations, constitutional provisions, and relevance scores.',
+    description: 'Search the Pakistani legal database of 16,000+ cases and Constitution. Returns semantically ranked results. Use when you need additional cases beyond what was already provided.',
     parameters: {
       type: 'object',
       properties: {
-        query: { type: 'string', description: 'Detailed search query in English. Include legal concepts, relevant statutes, and factual issues for best results.' },
-        sourceType: { type: 'string', description: 'Filter by source: "case" for case law only, "constitution" for constitutional provisions only, or leave empty for all sources.' },
-        category: { type: 'string', description: 'Filter by category: Criminal, Civil, Constitutional, Family, Property, Corporate, Banking, Service' },
-        court: { type: 'string', description: 'Filter by court: Supreme Court, Lahore High Court, Sindh High Court, Peshawar High Court, Islamabad High Court, Federal Shariat Court' },
-        yearFrom: { type: 'number', description: 'Filter cases from this year onwards' },
-        yearTo: { type: 'number', description: 'Filter cases up to this year' },
+        query: { type: 'string', description: 'Detailed search query' },
+        sourceType: { type: 'string', enum: ['case', 'constitution'], description: 'Filter by source' },
+        category: { type: 'string', description: 'Filter by category' },
+        court: { type: 'string', description: 'Filter by court' },
+        yearFrom: { type: 'number', description: 'From year' },
+        yearTo: { type: 'number', description: 'To year' },
       },
       required: ['query'],
     },
   },
   {
     name: 'searchConstitution',
-    description: 'Search the Constitution of Pakistan 1973 for specific articles, provisions, or topics. Returns articles with their full text, part, and chapter information.',
+    description: 'Search the Constitution of Pakistan 1973 for specific articles.',
     parameters: {
       type: 'object',
       properties: {
-        query: { type: 'string', description: 'Search keywords for constitutional provisions' },
-        article: { type: 'string', description: 'Specific article number (e.g., "25", "184(3)")' },
-        category: { type: 'string', description: 'Filter by category: Fundamental, Constitutional, Islamic, Criminal, Property, Corporate, Family, Service' },
+        query: { type: 'string', description: 'Search keywords' },
+        article: { type: 'string', description: 'Article number (e.g., "25")' },
+        category: { type: 'string', description: 'Category filter' },
       },
       required: [],
     },
   },
   {
-    name: 'createCalendarEvent',
-    description: 'Schedule a court date or hearing for a case.',
-    parameters: {
-      type: 'object',
-      properties: {
-        caseId: { type: 'string', description: 'The ID of the case' },
-        date: { type: 'string', description: 'Date in YYYY-MM-DD format' },
-        court: { type: 'string', description: 'Court name and location' },
-        notes: { type: 'string', description: 'Optional notes about the hearing' },
-      },
-      required: ['caseId', 'date', 'court'],
-    },
+    name: 'createCalendarEvent', description: 'Schedule a court date.',
+    parameters: { type: 'object', properties: { caseId: { type: 'string' }, date: { type: 'string' }, court: { type: 'string' }, notes: { type: 'string' } }, required: ['caseId', 'date', 'court'] },
   },
   {
-    name: 'saveDocument',
-    description: 'Save a generated document or legal text as a draft.',
-    parameters: {
-      type: 'object',
-      properties: {
-        name: { type: 'string', description: 'Document name/title' },
-        content: { type: 'string', description: 'The full text content of the document' },
-        caseId: { type: 'string', description: 'Optional case ID to link to' },
-      },
-      required: ['name', 'content'],
-    },
+    name: 'saveDocument', description: 'Save a document as a draft.',
+    parameters: { type: 'object', properties: { name: { type: 'string' }, content: { type: 'string' }, caseId: { type: 'string' } }, required: ['name', 'content'] },
   },
   {
-    name: 'createCase',
-    description: 'Create a new legal case.',
-    parameters: {
-      type: 'object',
-      properties: {
-        title: { type: 'string', description: 'Case title' },
-        description: { type: 'string', description: 'Case description' },
-        clientId: { type: 'string', description: 'Client ID' },
-        type: { type: 'string', description: 'Case type', default: 'General' },
-      },
-      required: ['title', 'clientId'],
-    },
+    name: 'createCase', description: 'Create a new legal case.',
+    parameters: { type: 'object', properties: { title: { type: 'string' }, description: { type: 'string' }, clientId: { type: 'string' }, type: { type: 'string' } }, required: ['title', 'clientId'] },
   },
   {
-    name: 'createJournalEntry',
-    description: 'Add a journal entry for a specific date.',
-    parameters: {
-      type: 'object',
-      properties: {
-        date: { type: 'string', description: 'Date in YYYY-MM-DD format' },
-        notes: { type: 'string', description: 'Journal notes' },
-        todos: { type: 'string', description: 'Comma-separated todo tasks' },
-        plans: { type: 'string', description: 'Plans or goals' },
-      },
-      required: ['date'],
-    },
+    name: 'createJournalEntry', description: 'Add a journal entry.',
+    parameters: { type: 'object', properties: { date: { type: 'string' }, notes: { type: 'string' }, todos: { type: 'string' }, plans: { type: 'string' } }, required: ['date'] },
   },
   {
-    name: 'addTimelineEvent',
-    description: 'Add an event to a case timeline.',
-    parameters: {
-      type: 'object',
-      properties: {
-        caseId: { type: 'string', description: 'Case ID' },
-        date: { type: 'string', description: 'Date in YYYY-MM-DD format' },
-        event: { type: 'string', description: 'Event name/title' },
-        description: { type: 'string', description: 'Event details' },
-      },
-      required: ['caseId', 'date', 'event'],
-    },
+    name: 'addTimelineEvent', description: 'Add event to case timeline.',
+    parameters: { type: 'object', properties: { caseId: { type: 'string' }, date: { type: 'string' }, event: { type: 'string' }, description: { type: 'string' } }, required: ['caseId', 'date', 'event'] },
   },
   {
-    name: 'searchCitations',
-    description: 'Search case law citations using keyword matching (complements the semantic searchLegalDatabase tool for precise citation lookups).',
-    parameters: {
-      type: 'object',
-      properties: {
-        query: { type: 'string', description: 'Search keywords' },
-        category: { type: 'string', description: 'Category filter' },
-        year: { type: 'number', description: 'Year filter' },
-        court: { type: 'string', description: 'Court filter' },
-      },
-      required: ['query'],
-    },
+    name: 'searchCitations', description: 'Search case citations by keyword.',
+    parameters: { type: 'object', properties: { query: { type: 'string' }, category: { type: 'string' }, year: { type: 'number' }, court: { type: 'string' } }, required: ['query'] },
   },
 ];
+
+async function validateCitations(responseText) {
+  const foundCitations = responseText.match(CITATION_PATTERN) || [];
+  if (foundCitations.length === 0) return { valid: true, invalid: [], message: 'No citations to validate' };
+
+  const unique = [...new Set(foundCitations)];
+  const invalid = [];
+
+  for (const citation of unique) {
+    try {
+      const exists = await queryOne(
+        'SELECT id FROM citations WHERE citation ILIKE ?',
+        [citation]
+      );
+      if (!exists) {
+        const fuzzyExists = await queryOne(
+          "SELECT citation FROM citations WHERE citation LIKE ?",
+          [`%${citation.slice(0, 15)}%`]
+        );
+        invalid.push({
+          citation,
+          closestMatch: fuzzyExists?.citation || null,
+        });
+      }
+    } catch { invalid.push({ citation, closestMatch: null }); }
+  }
+
+  return {
+    valid: invalid.length === 0,
+    invalid,
+    message: invalid.length > 0
+      ? `Found ${invalid.length} citations not in database.`
+      : 'All citations verified in database.',
+  };
+}
 
 export async function agentChat({ message, history = [], userId, userRole, sessionId }) {
   const isLawyer = ['lawyer', 'firm_admin'].includes(userRole);
@@ -180,9 +147,17 @@ export async function agentChat({ message, history = [], userId, userRole, sessi
     parts: [{ text: h.content }],
   }));
 
+  const initialSearch = await hybridSearch(message, { limit: 10 });
+  const initialContext = buildRAGContext(initialSearch);
+  const hasGrounding = initialSearch.count > 0;
+
+  const groundedMessage = hasGrounding
+    ? `User Question: ${message}\n\nRELEVANT DATABASE RESULTS:\n${initialContext}\n\nUsing the above database results ONLY, answer the user's question. Cite only the cases listed above. If the database results lack sufficient information, state this clearly.`
+    : `User Question: ${message}\n\nNo relevant results found in the legal database. Search the database using searchLegalDatabase tool to find relevant cases. If no results exist after searching, honestly tell the user.`;
+
   const chat = model.startChat({ history: geminiHistory });
   let responseText = '';
-  let currentMessage = message;
+  let currentMessage = groundedMessage;
   const toolTrace = [];
 
   for (let round = 0; round < MAX_ROUNDS; round++) {
@@ -210,7 +185,15 @@ export async function agentChat({ message, history = [], userId, userRole, sessi
     responseText = 'I have completed the research. Please let me know if you need more details on any specific aspect.';
   }
 
-  return { responseText, toolTrace, sessionId };
+  const validation = await validateCitations(responseText);
+  let finalResponse = responseText;
+
+  if (!validation.valid) {
+    const warning = `\n\n─── NOTE ───\nThe following citations could not be verified in the case database: ${validation.invalid.map(i => i.citation).join(', ')}. ${validation.invalid.some(i => i.closestMatch) ? 'The closest matches found were: ' + validation.invalid.filter(i => i.closestMatch).map(i => `${i.citation} → did you mean ${i.closestMatch}?`).join('; ') + '.' : ''} Please verify these against official law reports before use.`;
+    finalResponse = responseText + warning;
+  }
+
+  return { responseText: finalResponse, validated: validation, toolTrace, sessionId, grounded: hasGrounding };
 }
 
 async function executeAgentTool(name, args, userId) {

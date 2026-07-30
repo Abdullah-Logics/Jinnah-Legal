@@ -148,6 +148,37 @@ const FUNCTION_DECLARATIONS = [
     },
   },
   {
+    name: 'listMyCases',
+    description: 'List all cases you are handling (for lawyer) or your cases (for client). Returns case titles, statuses, types, and last updated dates.',
+    parameters: {
+      type: 'object',
+      properties: {
+        status: { type: 'string', description: 'Filter by status: pending, active, closed, won, lost', enum: ['pending', 'active', 'closed', 'won', 'lost'] },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'getCaseDetails',
+    description: 'Get full details of a specific case including timeline, court dates, and documents.',
+    parameters: {
+      type: 'object',
+      properties: {
+        caseId: { type: 'string', description: 'The ID of the case' },
+      },
+      required: ['caseId'],
+    },
+  },
+  {
+    name: 'listMyClients',
+    description: 'List all clients you are connected to (lawyer only). Returns names, emails, and phone numbers.',
+    parameters: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+  },
+  {
     name: 'inviteClient',
     description: 'Create a new client account and immediately open a case for them. Use this when a lawyer wants to onboard a new client who is not registered yet.',
     parameters: {
@@ -385,6 +416,71 @@ async function executeTool(name, args, req) {
       return { success: true, message: `Timeline event "${event}" added for ${date}` };
     }
 
+    case 'listMyCases': {
+      const { status } = args;
+      const isLawyer = ['lawyer', 'firm_admin'].includes(req.user.role);
+      const field = isLawyer ? 'lawyer_id' : 'client_id';
+      let sql = `SELECT id, title, description, status, type, client_status, created_at, updated_at FROM cases WHERE ${field}=?`;
+      const params = [req.user.id];
+      if (status) { sql += ' AND status=?'; params.push(status); }
+      sql += ' ORDER BY updated_at DESC LIMIT 50';
+      const results = await query(sql, params);
+      if (results.length === 0) return { message: 'No cases found.', cases: [] };
+      return {
+        message: `Found ${results.length} cases`,
+        cases: results.map(c => ({
+          id: c.id, title: c.title, status: c.status, type: c.type || 'General',
+          clientStatus: c.client_status, lastUpdated: c.updated_at,
+        })),
+      };
+    }
+
+    case 'getCaseDetails': {
+      const { caseId } = args;
+      const isLawyer = ['lawyer', 'firm_admin'].includes(req.user.role);
+      const field = isLawyer ? 'lawyer_id' : 'client_id';
+      const caseRow = await queryOne(
+        `SELECT c.*, u.name as client_name, u.email as client_email, u.phone as client_phone
+         FROM cases c LEFT JOIN users u ON c.client_id=u.id
+         WHERE c.id=? AND c.${field}=?`,
+        [caseId, req.user.id]
+      );
+      if (!caseRow) return { error: 'Case not found or not accessible' };
+      const timeline = JSON.parse(caseRow.timeline || '[]');
+      const courtDates = JSON.parse(caseRow.court_dates || '[]');
+      const documents = JSON.parse(caseRow.documents || '[]');
+      return {
+        id: caseRow.id, title: caseRow.title, description: caseRow.description,
+        status: caseRow.status, type: caseRow.type || 'General',
+        clientStatus: caseRow.client_status,
+        client: { name: caseRow.client_name, email: caseRow.client_email, phone: caseRow.client_phone },
+        timeline: timeline.map(t => `${t.date}: ${t.event}${t.description ? ' - ' + t.description : ''}`),
+        courtDates: courtDates.map(d => `${d.date}: ${d.court}${d.notes ? ' - ' + d.notes : ''}`),
+        documentCount: documents.length,
+        createdAt: caseRow.created_at,
+        lastUpdated: caseRow.updated_at,
+      };
+    }
+
+    case 'listMyClients': {
+      if (!['lawyer', 'firm_admin'].includes(req.user.role)) return { error: 'Only lawyers can list clients' };
+      const clients = await query(
+        `SELECT DISTINCT u.id, u.name, u.email, u.phone, COUNT(c.id) as case_count
+         FROM users u JOIN cases c ON (c.client_id=u.id)
+         WHERE c.lawyer_id=? AND u.role='client'
+         GROUP BY u.id ORDER BY u.name`,
+        [req.user.id]
+      );
+      if (clients.length === 0) return { message: 'No clients found.', clients: [] };
+      return {
+        message: `Found ${clients.length} clients`,
+        clients: clients.map(cl => ({
+          id: cl.id, name: cl.name, email: cl.email, phone: cl.phone || '',
+          caseCount: cl.case_count,
+        })),
+      };
+    }
+
     default:
       return { error: `Unknown tool: ${name}` };
   }
@@ -444,9 +540,9 @@ aiRouter.post('/chat', validate(aiChatSchema), asyncHandler(async (req, res) => 
       let groundedMessage;
       if (hasGrounding) {
         const context = buildRAGContext(initialSearch);
-        groundedMessage = `User Question: ${message}\n\nRELEVANT DATABASE RESULTS:\n${context}\n\nUsing the above database results ONLY, answer the user's question. Cite only the cases listed above. If the database results lack sufficient information, state this clearly.`;
+        groundedMessage = `User Question: ${message}\n\nRELEVANT DATABASE RESULTS:\n${context}\n\nIf the question relates to legal research or case law, use the database results above to answer. For case management questions (listing cases, client info, documents), use your available tools instead.`;
       } else {
-        groundedMessage = `User Question: ${message}\n\nNo relevant results found in the legal database. Search the database using searchLegalDatabase tool to find relevant cases. If no results exist, honestly tell the user.`;
+        groundedMessage = `User Question: ${message}\n\nNo relevant results found in the legal database. For legal research, search the database using searchLegalDatabase tool. For case management, use your available tools.`;
       }
       message = groundedMessage;
     }

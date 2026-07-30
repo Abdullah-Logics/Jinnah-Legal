@@ -85,6 +85,18 @@ const TOOL_DECLARATIONS = [
     parameters: { type: 'object', properties: { title: { type: 'string' }, description: { type: 'string' }, clientId: { type: 'string' }, type: { type: 'string' } }, required: ['title', 'clientId'] },
   },
   {
+    name: 'listMyCases', description: 'List all cases you are handling (lawyer) or your cases (client).',
+    parameters: { type: 'object', properties: { status: { type: 'string', enum: ['pending', 'active', 'closed', 'won', 'lost'] } }, required: [] },
+  },
+  {
+    name: 'getCaseDetails', description: 'Get full details of a specific case.',
+    parameters: { type: 'object', properties: { caseId: { type: 'string' } }, required: ['caseId'] },
+  },
+  {
+    name: 'listMyClients', description: 'List all clients you are connected to (lawyer only).',
+    parameters: { type: 'object', properties: {}, required: [] },
+  },
+  {
     name: 'createJournalEntry', description: 'Add a journal entry.',
     parameters: { type: 'object', properties: { date: { type: 'string' }, notes: { type: 'string' }, todos: { type: 'string' }, plans: { type: 'string' } }, required: ['date'] },
   },
@@ -152,7 +164,7 @@ export async function agentChat({ message, history = [], userId, userRole, sessi
   const hasGrounding = initialSearch.count > 0;
 
   const groundedMessage = hasGrounding
-    ? `User Question: ${message}\n\nRELEVANT DATABASE RESULTS:\n${initialContext}\n\nUsing the above database results ONLY, answer the user's question. Cite only the cases listed above. If the database results lack sufficient information, state this clearly.`
+    ? `User Question: ${message}\n\nRELEVANT DATABASE RESULTS:\n${initialContext}\n\nIf the question relates to legal research or case law, use the database results above to answer. For case management questions (listing cases, client info, documents), use your available tools instead.`
     : `User Question: ${message}\n\nNo relevant results found in the legal database. Search the database using searchLegalDatabase tool to find relevant cases. If no results exist after searching, honestly tell the user.`;
 
   const chat = model.startChat({ history: geminiHistory });
@@ -299,6 +311,64 @@ async function executeAgentTool(name, args, userId) {
       timeline.push({ date, event, description: description || '' });
       await run('UPDATE cases SET timeline=?, updated_at=? WHERE id=?', [JSON.stringify(timeline), new Date().toISOString(), caseId]);
       return { success: true, message: `Timeline event "${event}" added` };
+    }
+
+    case 'listMyCases': {
+      const { status } = args;
+      let sql = 'SELECT id, title, description, status, type, client_status, created_at, updated_at FROM cases WHERE lawyer_id=?';
+      const params = [userId];
+      if (status) { sql += ' AND status=?'; params.push(status); }
+      sql += ' ORDER BY updated_at DESC LIMIT 50';
+      const results = await query(sql, params);
+      if (!results || results.length === 0) return { message: 'No cases found.', cases: [] };
+      return {
+        message: `Found ${results.length} cases`,
+        cases: results.map(c => ({
+          id: c.id, title: c.title, status: c.status, type: c.type || 'General',
+          clientStatus: c.client_status, lastUpdated: c.updated_at,
+        })),
+      };
+    }
+
+    case 'getCaseDetails': {
+      const { caseId } = args;
+      const caseRow = await queryOne(
+        'SELECT c.*, u.name as client_name, u.email as client_email, u.phone as client_phone FROM cases c LEFT JOIN users u ON c.client_id=u.id WHERE c.id=?',
+        [caseId]
+      );
+      if (!caseRow) return { error: 'Case not found or not accessible' };
+      const timeline = JSON.parse(caseRow.timeline || '[]');
+      const courtDates = JSON.parse(caseRow.court_dates || '[]');
+      const documents = JSON.parse(caseRow.documents || '[]');
+      return {
+        id: caseRow.id, title: caseRow.title, description: caseRow.description,
+        status: caseRow.status, type: caseRow.type || 'General',
+        clientStatus: caseRow.client_status,
+        client: { name: caseRow.client_name, email: caseRow.client_email, phone: caseRow.client_phone },
+        timeline: timeline.map(t => `${t.date}: ${t.event}${t.description ? ' - ' + t.description : ''}`),
+        courtDates: courtDates.map(d => `${d.date}: ${d.court}${d.notes ? ' - ' + d.notes : ''}`),
+        documentCount: documents.length,
+        createdAt: caseRow.created_at,
+        lastUpdated: caseRow.updated_at,
+      };
+    }
+
+    case 'listMyClients': {
+      const clients = await query(
+        `SELECT DISTINCT u.id, u.name, u.email, u.phone, COUNT(c.id) as case_count
+         FROM users u JOIN cases c ON (c.client_id=u.id)
+         WHERE c.lawyer_id=? AND u.role='client'
+         GROUP BY u.id ORDER BY u.name`,
+        [userId]
+      );
+      if (!clients || clients.length === 0) return { message: 'No clients found.', clients: [] };
+      return {
+        message: `Found ${clients.length} clients`,
+        clients: clients.map(cl => ({
+          id: cl.id, name: cl.name, email: cl.email, phone: cl.phone || '',
+          caseCount: cl.case_count,
+        })),
+      };
     }
 
     default:

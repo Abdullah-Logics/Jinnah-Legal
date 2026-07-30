@@ -281,6 +281,8 @@ CREATE TABLE IF NOT EXISTS citations (
   full_text        TEXT,
   relevant_statutes TEXT,
   keywords         TEXT,
+  pdf_url          TEXT,
+  metadata         JSONB DEFAULT '{}',
   created_at       TIMESTAMPTZ DEFAULT NOW()
 );
 

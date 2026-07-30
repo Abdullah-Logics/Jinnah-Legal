@@ -20,6 +20,8 @@ interface Citation {
   full_text?: string;
   relevant_statutes: string | string[];
   keywords: string;
+  pdf_url?: string;
+  metadata?: Record<string, string>;
   created_at: string;
 }
 
@@ -35,6 +37,8 @@ interface CartItem {
   description: string;
   relevant_statutes: string;
   keywords: string;
+  pdf_url?: string;
+  metadata?: Record<string, string>;
 }
 
 const CATEGORIES = [
@@ -96,7 +100,15 @@ const CitationCard = memo(({ c, selected, onSelect, onAddToCart, onRemoveFromCar
     </div>
     {selected && (
       <div className="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-slate-100 space-y-1.5 sm:space-y-2 text-xs text-slate-600">
-        {c.description && <p className="text-slate-700 text-[11px] sm:text-xs">{c.description}</p>}
+        {c.description && (!('full_text' in c) || !c.full_text || c.full_text === c.description) && (
+          <p className="text-slate-700 text-[11px] sm:text-xs">{c.description}</p>
+        )}
+        {c.description && 'full_text' in c && c.full_text && c.full_text !== c.description && (
+          <div>
+            <p className="text-xs font-medium text-slate-500 mb-0.5">Summary</p>
+            <p className="text-slate-700 text-[11px] sm:text-xs">{c.description}</p>
+          </div>
+        )}
         {c.relevant_statutes && (
           <div className="flex items-center gap-1 text-[11px]">
             <FileText size={11} className="text-slate-400" />
@@ -104,9 +116,38 @@ const CitationCard = memo(({ c, selected, onSelect, onAddToCart, onRemoveFromCar
           </div>
         )}
         {'full_text' in c && c.full_text && c.full_text.length > 0 && (
-          <div className="text-[10px] sm:text-[11px] text-slate-500 bg-slate-50 rounded-lg p-2 max-h-20 sm:max-h-24 overflow-y-auto leading-relaxed">
-            {(c as Citation).full_text?.slice(0, 600)}...
+          <div>
+            <details className="group">
+              <summary className="text-xs font-medium text-indigo-600 cursor-pointer hover:text-indigo-800 select-none">
+                {c.full_text !== c.description ? 'Judgment Text' : 'Full Text'}
+                <ChevronDown size={12} className="inline ml-1 group-open:rotate-180 transition-transform" />
+              </summary>
+              <div className="text-[10px] sm:text-[11px] text-slate-600 bg-slate-50 rounded-lg p-3 mt-1 max-h-60 overflow-y-auto leading-relaxed whitespace-pre-wrap font-mono">
+                {c.full_text}
+              </div>
+            </details>
           </div>
+        )}
+        {/* Structured metadata */}
+        {'metadata' in c && c.metadata && typeof c.metadata === 'object' && Object.keys(c.metadata).length > 0 && (
+          <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] sm:text-[11px] bg-slate-50 rounded-lg p-2.5">
+            {(c as Citation).metadata && Object.entries((c as Citation).metadata as Record<string, string>).map(([key, val]) => (
+              val && key !== 'headNotes' && key !== 'remarks' && key !== 'otherCitations' ? (
+                <div key={key} className="flex gap-1">
+                  <span className="font-medium text-slate-500 capitalize min-w-[4rem]">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
+                  <span className="text-slate-700 truncate">{val}</span>
+                </div>
+              ) : null
+            ))}
+          </div>
+        )}
+        {/* PDF link */}
+        {'pdf_url' in c && c.pdf_url && (
+          <a href={c.pdf_url} target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded-lg transition"
+          >
+            <FileText size={11} /> View PDF
+          </a>
         )}
         {c.keywords && (
           <div className="flex flex-wrap gap-1">

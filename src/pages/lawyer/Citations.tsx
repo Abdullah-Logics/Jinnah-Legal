@@ -272,6 +272,7 @@ export default function CaseLibrary() {
     try {
       const params = new URLSearchParams();
       params.set('limit', '0');
+      params.set('summary', '1');
       if (filters?.search) params.set('search', filters.search);
       if (filters?.category) params.set('category', filters.category);
       if (filters?.court) params.set('court', filters.court);

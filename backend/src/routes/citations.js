@@ -107,7 +107,8 @@ const searchQuerySchema = z.object({
   court: z.string().max(100).optional(),
   limit: z.coerce.number().int().min(0).max(1000).optional().default(50),
   offset: z.coerce.number().int().min(0).max(10000).optional().default(0),
-  mode: z.enum(['fts', 'fuzzy', 'basic']).optional().default('fts'),
+  mode: z.enum(['fts', 'fuzzy', 'basic', 'standard']).optional().default('fts'),
+  summary: z.enum(['1', 'true']).optional(),
 });
 
 citationsRouter.get('/', asyncHandler(async (req, res) => {
@@ -121,11 +122,14 @@ citationsRouter.get('/', asyncHandler(async (req, res) => {
     }
     throw err;
   }
-  let { search, category, year_from, year_to, court, limit, offset, mode } = parsed;
+  let { search, category, year_from, year_to, court, limit, offset, mode, summary } = parsed;
   search = search ? sanitize(search) : search;
   category = category ? sanitize(category) : category;
   court = court ? sanitize(court) : court;
   const pg = isPostgres();
+  const COLUMNS = summary === '1'
+    ? 'id, title, citation, court, year, parties, category'
+    : 'id, title, citation, court, year, parties, category, description, full_text, relevant_statutes, keywords, pdf_url, metadata, created_at';
 
   let sql, countSql;
   const params = [];
@@ -136,7 +140,7 @@ citationsRouter.get('/', asyncHandler(async (req, res) => {
     const searchCols = ['title','citation','parties','keywords','description','full_text','relevant_statutes'];
     const p = `%${search}%`;
     if (pgDirect && mode === 'fts') {
-      sql = `SELECT id, title, citation, court, year, parties, category, description, full_text, relevant_statutes, keywords, pdf_url, metadata, created_at,
+      sql = `SELECT ${COLUMNS},
              ts_rank(to_tsvector('english', coalesce(title,'') || ' ' || coalesce(description,'') || ' ' || coalesce(keywords,'') || ' ' || coalesce(full_text,'') || ' ' || coalesce(parties,'') || ' ' || coalesce(relevant_statutes,'') || ' ' || coalesce(citation,'')), plainto_tsquery('english',?)) as rank
              FROM citations
              WHERE to_tsvector('english', coalesce(title,'') || ' ' || coalesce(description,'') || ' ' || coalesce(keywords,'') || ' ' || coalesce(full_text,'') || ' ' || coalesce(parties,'') || ' ' || coalesce(relevant_statutes,'') || ' ' || coalesce(citation,'')) @@ plainto_tsquery('english',?)`;
@@ -144,7 +148,7 @@ citationsRouter.get('/', asyncHandler(async (req, res) => {
       countSql = `SELECT COUNT(*) as c FROM citations WHERE to_tsvector('english', coalesce(title,'') || ' ' || coalesce(description,'') || ' ' || coalesce(keywords,'') || ' ' || coalesce(full_text,'') || ' ' || coalesce(parties,'') || ' ' || coalesce(relevant_statutes,'') || ' ' || coalesce(citation,'')) @@ plainto_tsquery('english',?)`;
       countParams.push(search);
     } else if (pgDirect && mode === 'fuzzy') {
-      sql = `SELECT id, title, citation, court, year, parties, category, description, full_text, relevant_statutes, keywords, pdf_url, metadata, created_at,
+      sql = `SELECT ${COLUMNS},
              similarity(title, ?) as sim
              FROM citations
              WHERE title % ? OR description % ? OR keywords % ? OR parties % ? OR citation % ?
@@ -154,14 +158,14 @@ citationsRouter.get('/', asyncHandler(async (req, res) => {
       countSql = `SELECT COUNT(*) as c FROM citations WHERE title % ? OR description % ? OR keywords % ? OR parties % ? OR citation % ?`;
       countParams.push(s, s, s, s, s);
     } else {
-      sql = `SELECT id, title, citation, court, year, parties, category, description, full_text, relevant_statutes, keywords, created_at FROM citations
+      sql = `SELECT ${COLUMNS} FROM citations
              WHERE ${likeQuery(searchCols)}`;
       params.push(p, p, p, p, p, p, p);
       countSql = `SELECT COUNT(*) as c FROM citations WHERE ${likeQuery(searchCols)}`;
       countParams.push(p, p, p, p, p, p, p);
     }
   } else {
-    sql = 'SELECT id, title, citation, court, year, parties, category, description, full_text, relevant_statutes, keywords, created_at FROM citations WHERE 1=1';
+    sql = `SELECT ${COLUMNS} FROM citations WHERE 1=1`;
     countSql = 'SELECT COUNT(*) as c FROM citations WHERE 1=1';
   }
 
@@ -174,6 +178,7 @@ citationsRouter.get('/', asyncHandler(async (req, res) => {
   else if (!(pgDirect && mode === 'fuzzy')) sql += ' ORDER BY year DESC, citation ASC';
 
   if (limit > 0) { sql += ' LIMIT ?'; params.push(limit); }
+  else { sql += ' LIMIT 500'; params.push(500); }
   if (offset > 0) { sql += ' OFFSET ?'; params.push(offset); }
 
   const rows = await query(sql, params);

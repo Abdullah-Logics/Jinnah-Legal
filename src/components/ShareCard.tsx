@@ -7,6 +7,9 @@ interface ShareData {
   title: string;
   description?: string;
   details?: Record<string, any>;
+  fullText?: string;
+  contentHtml?: string;
+  references?: { citing: { citation: string; title: string; court: string; year: number }[]; citedBy: { citation: string; title: string; court: string; year: number }[] };
 }
 
 export function parseShareData(raw?: string): ShareData | null {
@@ -70,6 +73,7 @@ function renderHtmlContent(html: string): string {
 export default function ShareCard({ data }: { data: ShareData }) {
   const [showFull, setShowFull] = useState(false);
   const [showPdf, setShowPdf] = useState(false);
+  const [showCitationText, setShowCitationText] = useState(false);
   const pdfRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = () => {
@@ -93,6 +97,21 @@ export default function ShareCard({ data }: { data: ShareData }) {
     win.document.write(`<h1>${data.title}</h1>`);
     win.document.write(`<div class="meta">${data.type} · ${new Date().toLocaleDateString()}</div>`);
     if (data.description) win.document.write(`<p>${data.description}</p>`);
+    if (data.fullText) win.document.write(`<div class="entry">${data.fullText}</div>`);
+    if (data.references) {
+      const citing = data.references.citing || [];
+      const citedBy = data.references.citedBy || [];
+      if (citing.length) {
+        win.document.write(`<hr/><div class="section-title">Cited By</div><ul>`);
+        for (const c of citing) win.document.write(`<li>${c.citation} - ${c.title}${c.court ? ` (${c.court})` : ''}</li>`);
+        win.document.write(`</ul>`);
+      }
+      if (citedBy.length) {
+        win.document.write(`<hr/><div class="section-title">Cited In</div><ul>`);
+        for (const c of citedBy) win.document.write(`<li>${c.citation} - ${c.title}${c.court ? ` (${c.court})` : ''}</li>`);
+        win.document.write(`</ul>`);
+      }
+    }
     if (data.details) {
       for (const [key, val] of Object.entries(data.details)) {
         if (key === 'content' && typeof val === 'string') {
@@ -161,6 +180,45 @@ export default function ShareCard({ data }: { data: ShareData }) {
 
         {data.description && (
           <p className="text-xs text-slate-600 mb-1">{data.description}</p>
+        )}
+
+        {data.fullText && data.type === 'citation' && (
+          <div className="mt-1.5">
+            <button
+              onClick={() => setShowCitationText(!showCitationText)}
+              className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1.5 rounded-lg transition"
+            >
+              <Eye size={13} />
+              {showCitationText ? 'Hide' : 'View'} full judgment text
+            </button>
+            {showCitationText && (
+              <div className="mt-2 max-h-64 overflow-y-auto rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-700 leading-relaxed whitespace-pre-wrap" style={{ fontFamily: 'Georgia, serif' }}>
+                {data.fullText}
+              </div>
+            )}
+          </div>
+        )}
+
+        {data.references && data.type === 'citation' && (data.references.citing?.length || data.references.citedBy?.length) && (
+          <div className="mt-1.5">
+            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">References</p>
+            {data.references.citing?.length > 0 && (
+              <div className="space-y-0.5">
+                <p className="text-[10px] font-semibold text-slate-400 uppercase">Cited By</p>
+                {data.references.citing.map((c, i) => (
+                  <p key={i} className="text-xs text-slate-600 pl-2 border-l-2 border-indigo-200">{c.citation} - {c.title}{c.court ? ` (${c.court})` : ''}</p>
+                ))}
+              </div>
+            )}
+            {data.references.citedBy?.length > 0 && (
+              <div className="space-y-0.5 mt-1">
+                <p className="text-[10px] font-semibold text-slate-400 uppercase">Cited In</p>
+                {data.references.citedBy.map((c, i) => (
+                  <p key={i} className="text-xs text-slate-600 pl-2 border-l-2 border-indigo-200">{c.citation} - {c.title}{c.court ? ` (${c.court})` : ''}</p>
+                ))}
+              </div>
+            )}
+          </div>
         )}
 
         {entries.length > 0 && !hasTodos && (
@@ -343,6 +401,29 @@ export default function ShareCard({ data }: { data: ShareData }) {
                 <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4, color: '#0f172a' }}>{data.title}</h1>
                 <p style={{ color: '#64748b', fontSize: 13, marginBottom: 16, textTransform: 'capitalize' }}>{data.type} · {new Date().toLocaleDateString()}</p>
                 {data.description && <p style={{ marginBottom: 12, fontSize: 14 }}>{data.description}</p>}
+                {data.fullText && (
+                  <div style={{ marginBottom: 12, fontSize: 14, lineHeight: 1.7, whiteSpace: 'pre-wrap' }} className="prose prose-sm max-w-none">{data.fullText}</div>
+                )}
+                {data.references && (
+                  <div style={{ marginBottom: 12 }}>
+                    {data.references.citing?.length > 0 && (
+                      <>
+                        <p style={{ fontWeight: 600, fontSize: 14, color: '#475569', marginBottom: 4 }}>Cited By</p>
+                        <ul style={{ margin: 0, paddingLeft: 20 }}>
+                          {data.references.citing.map((c, i) => <li key={i} style={{ fontSize: 14 }}>{c.citation} - {c.title}{c.court ? ` (${c.court})` : ''}</li>)}
+                        </ul>
+                      </>
+                    )}
+                    {data.references.citedBy?.length > 0 && (
+                      <>
+                        <p style={{ fontWeight: 600, fontSize: 14, color: '#475569', margin: '12px 0 4px' }}>Cited In</p>
+                        <ul style={{ margin: 0, paddingLeft: 20 }}>
+                          {data.references.citedBy.map((c, i) => <li key={i} style={{ fontSize: 14 }}>{c.citation} - {c.title}{c.court ? ` (${c.court})` : ''}</li>)}
+                        </ul>
+                      </>
+                    )}
+                  </div>
+                )}
                 {data.details && Object.entries(data.details).map(([key, val]) => {
                   if (key === 'content' && typeof val === 'string') {
                     return <div key={key} style={{ marginTop: 12 }} className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: val }} />;

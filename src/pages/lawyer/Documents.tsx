@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import ShareDialog, { useShareDialog } from '../../components/ShareDialog';
+import { buildCitationHtml } from '../../utils/citation';
 
 interface Citation {
   id: string;
@@ -351,8 +352,12 @@ export default function LawyerDocuments() {
   const [citLoading, setCitLoading] = useState(false);
   const [citTab, setCitTab] = useState<'search' | 'cart'>('search');
   const [citMode, setCitMode] = useState<'fts' | 'fuzzy' | 'standard'>('fts');
-  const [pendingCitation, setPendingCitation] = useState<string | null>(() => {
-    try { return localStorage.getItem('opencode_insert_citation'); } catch { return null; }
+  const [pendingCitation, setPendingCitation] = useState<{ citation: string; title: string; full_text?: string; contentHtml?: string } | null>(() => {
+    try {
+      const raw = localStorage.getItem('opencode_insert_citation');
+      if (!raw) return null;
+      try { return JSON.parse(raw); } catch { return { citation: raw, title: '', full_text: '' }; }
+    } catch { return null; }
   });
 
   const API = import.meta.env.DEV ? 'http://localhost:3001' : import.meta.env.VITE_API_URL || '';
@@ -407,8 +412,18 @@ export default function LawyerDocuments() {
     loadCitCart();
   };
 
-  const insertCitationText = (text: string) => {
-    const html = `<p style="margin-left:1.5em;text-indent:-1.5em;padding-left:0;font-family:'Times New Roman',serif;font-size:12pt;line-height:2;"><strong>${text}</strong></p>`;
+  const insertCitationText = async (c: { id: string; citation: string; title: string; court: string; year: number; description?: string }) => {
+    let html = `<p style="margin-left:1.5em;text-indent:-1.5em;padding-left:0;font-family:'Times New Roman',serif;font-size:12pt;line-height:2;"><strong>${c.citation} - ${c.title}</strong></p>`;
+    try {
+      const res = await fetch(`${API}/api/citations/${c.id}/full`, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) {
+        const full = await res.json();
+        const refRes = await fetch(`${API}/api/citations/${c.id}/references`, { headers: { Authorization: `Bearer ${token}` } });
+        const refData = refRes.ok ? await refRes.json() : { citing: [], citedBy: [] };
+        const rich = buildCitationHtml({ ...full, references: { citing: refData.citing || [], citedBy: refData.citedBy || [] } });
+        if (full.full_text || full.description) html = rich;
+      }
+    } catch (e) { console.error('Failed to load full citation', e); }
     insertAtCursor(html);
     setShowCitationPanel(false);
   };
@@ -886,11 +901,12 @@ export default function LawyerDocuments() {
             >
               <Scale size={14} className="text-indigo-500" />
               <span className="text-indigo-700 flex-1 truncate">
-                Citation ready: <strong>{pendingCitation}</strong>
+                Citation ready: <strong>{pendingCitation.citation} - {pendingCitation.title}{pendingCitation.full_text ? ' (full text)' : ''}</strong>
               </span>
               <button onClick={() => {
-                const text = pendingCitation!;
-                const html = `<p style="margin-left:1.5em;text-indent:-1.5em;padding-left:0;font-family:'Times New Roman',serif;font-size:12pt;line-height:2;"><strong>${text}</strong></p>`;
+                const html = pendingCitation.contentHtml
+                  ? pendingCitation.contentHtml
+                  : `<p style="margin-left:1.5em;text-indent:-1.5em;padding-left:0;font-family:'Times New Roman',serif;font-size:12pt;line-height:2;"><strong>${pendingCitation.citation} - ${pendingCitation.title}</strong></p>`;
                 insertAtCursor(html);
                 setPendingCitation(null);
                 localStorage.removeItem('opencode_insert_citation');
@@ -950,8 +966,8 @@ export default function LawyerDocuments() {
                         <div key={c.id} className="flex items-center gap-2 bg-white border border-slate-100 rounded-lg px-2.5 py-1.5 text-[11px]">
                           <span className="font-bold text-indigo-600 flex-shrink-0">{c.citation}</span>
                           <span className="text-slate-700 truncate flex-1">{c.title}</span>
-                          <button onClick={() => insertCitationText(`${c.citation} - ${c.title}, ${c.court}`)}
-                            className="p-1 hover:bg-emerald-50 rounded text-slate-400 hover:text-emerald-600" title="Insert">
+                          <button onClick={() => insertCitationText(c)}
+                            className="p-1 hover:bg-emerald-50 rounded text-slate-400 hover:text-emerald-600" title="Insert full text">
                             <Clipboard size={12} />
                           </button>
                           <button onClick={() => addToCitCart(c.id)}
@@ -974,8 +990,8 @@ export default function LawyerDocuments() {
                         <div key={c.cart_id} className="flex items-center gap-2 bg-white border border-slate-100 rounded-lg px-2.5 py-1.5 text-[11px]">
                           <span className="font-bold text-indigo-600 flex-shrink-0">{c.citation}</span>
                           <span className="text-slate-700 truncate flex-1">{c.title}</span>
-                          <button onClick={() => insertCitationText(`${c.citation} - ${c.title}, ${c.court}`)}
-                            className="p-1 hover:bg-emerald-50 rounded text-slate-400 hover:text-emerald-600" title="Insert">
+                          <button onClick={() => insertCitationText(c)}
+                            className="p-1 hover:bg-emerald-50 rounded text-slate-400 hover:text-emerald-600" title="Insert full text">
                             <Clipboard size={12} />
                           </button>
                           <button onClick={() => removeFromCitCart(c.cart_id)}

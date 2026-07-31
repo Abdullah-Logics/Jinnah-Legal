@@ -5,6 +5,7 @@ import {
   X, Send, Sparkles, Clipboard, Filter, ChevronDown,
   Calendar, Gavel, BadgeCheck, FolderOpen, Clock, SlidersHorizontal,
 } from 'lucide-react';
+import { buildCitationHtml as buildCitationHtmlUtil } from '../../utils/citation';
 import { useStore } from '../../store/useStore';
 import { useNavigate } from 'react-router-dom';
 
@@ -315,51 +316,90 @@ export default function CaseLibrary() {
     loadCart();
   };
 
-  const shareCitation = async (c: Citation, contactId: string) => {
-    const { sendMessage } = (await import('../../store/useStore')).useStore.getState();
-    const statutes = Array.isArray(c.relevant_statutes) ? c.relevant_statutes.join(', ') : c.relevant_statutes || '';
-    await sendMessage({
-      receiverId: contactId,
-      content: '',
-      shareData: JSON.stringify({
-        type: 'citation',
-        title: `${c.citation} - ${c.title}`,
-        description: c.description,
-        details: { citation: c.citation, court: c.court, year: c.year, category: c.category, parties: c.parties, statutes },
-      }),
-    });
-    setShareTarget(null);
-  };
-
   const loadReferences = async (citationId: string) => {
-    if (references[citationId]) return;
+    if (references[citationId]) return references[citationId];
     setLoadingRefs(citationId);
     try {
       const res = await fetch(`${API}/api/citations/${citationId}/references`, { headers: headers() });
       if (res.ok) {
         const data = await res.json();
-        setReferences(prev => ({ ...prev, [citationId]: { citing: data.citing || [], citedBy: data.citedBy || [] } }));
+        const refs = { citing: data.citing || [], citedBy: data.citedBy || [] };
+        setReferences(prev => ({ ...prev, [citationId]: refs }));
+        return refs;
       }
     } catch {}
     setLoadingRefs(null);
+    return { citing: [], citedBy: [] };
   };
 
-  const insertIntoDocument = (c: Citation) => {
-    localStorage.setItem('opencode_insert_citation', `${c.citation} - ${c.title}, ${c.court}`);
+  const getFullCitation = async (c: Citation): Promise<Citation & { references?: { citing: any[]; citedBy: any[] } }> => {
+    let full = c;
+    if (!full.full_text || full.full_text.length === 0) {
+      try {
+        const res = await fetch(`${API}/api/citations/${c.id}/full`, { headers: headers() });
+        if (res.ok) full = await res.json();
+      } catch {}
+    }
+    const refs = await loadReferences(c.id);
+    return { ...full, references: refs };
+  };
+
+  const buildCitationHtml = (full: Citation & { references?: { citing: any[]; citedBy: any[] } }): string => buildCitationHtmlUtil(full as any);
+
+  const shareCitation = async (c: Citation, contactId: string) => {
+    const { sendMessage } = (await import('../../store/useStore')).useStore.getState();
+    const full = await getFullCitation(c);
+    const statutes = Array.isArray(full.relevant_statutes) ? full.relevant_statutes.join(', ') : full.relevant_statutes || '';
+    const refs = full.references || { citing: [], citedBy: [] };
+    await sendMessage({
+      receiverId: contactId,
+      content: '',
+      shareData: JSON.stringify({
+        type: 'citation',
+        title: `${full.citation} - ${full.title}`,
+        description: full.description,
+        details: { citation: full.citation, court: full.court, year: full.year, category: full.category, parties: full.parties, statutes },
+        fullText: full.full_text,
+        contentHtml: buildCitationHtml(full),
+        references: {
+          citing: refs.citing.map(r => ({ citation: r.citation, title: r.title, court: r.court, year: r.year })),
+          citedBy: refs.citedBy.map(r => ({ citation: r.citation, title: r.title, court: r.court, year: r.year })),
+        },
+      }),
+    });
+    setShareTarget(null);
+  };
+
+  const insertIntoDocument = async (c: Citation) => {
+    const full = await getFullCitation(c);
+    localStorage.setItem('opencode_insert_citation', JSON.stringify({
+      citation: full.citation,
+      title: full.title,
+      court: full.court,
+      year: full.year,
+      category: full.category,
+      parties: full.parties,
+      relevant_statutes: full.relevant_statutes,
+      description: full.description,
+      full_text: full.full_text,
+      contentHtml: buildCitationHtml(full),
+      references: full.references,
+    }));
     navigate('/lawyer/documents');
   };
 
   const saveToJournal = async (c: Citation) => {
     const today = new Date().toISOString().slice(0, 10);
     const { addJournalEntry } = useStore.getState();
-    const statutes = Array.isArray(c.relevant_statutes) ? c.relevant_statutes.join(', ') : c.relevant_statutes || '';
+    const full = await getFullCitation(c);
+    const statutes = Array.isArray(full.relevant_statutes) ? full.relevant_statutes.join(', ') : full.relevant_statutes || '';
     await addJournalEntry({
       userId: currentUser?.id || '',
       date: today,
-      notes: `Cited case: ${c.citation} - ${c.title}`,
+      notes: `Cited case: ${full.citation} - ${full.title}${statutes ? ` | ${statutes}` : ''}`,
       todos: [],
       plans: '',
-      content: `<h3>Case Reference: ${c.citation}</h3><p><strong>${c.title}</strong></p><p>Court: ${c.court} (${c.year})</p><p>Category: ${c.category}</p>${c.description ? `<p>${c.description}</p>` : ''}${statutes ? `<p>Statutes: ${statutes}</p>` : ''}`,
+      content: buildCitationHtml(full),
     });
   };
 

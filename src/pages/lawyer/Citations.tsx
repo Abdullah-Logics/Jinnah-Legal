@@ -223,7 +223,7 @@ export default function CaseLibrary() {
   const [showFilters, setShowFilters] = useState(false);
   const [shareTarget, setShareTarget] = useState<Citation | null>(null);
   const [sending, setSending] = useState(false);
-  const [viewMode, setViewMode] = useState<'categories' | 'courts' | 'list'>('categories');
+  const [viewMode, setViewMode] = useState<'categories' | 'courts' | 'list'>('list');
   const [searchMode, setSearchMode] = useState<'fts' | 'fuzzy' | 'standard'>('fts');
   const [references, setReferences] = useState<Record<string, { citing: any[]; citedBy: any[] }>>({});
   const [loadingRefs, setLoadingRefs] = useState<string | null>(null);
@@ -251,8 +251,10 @@ export default function CaseLibrary() {
       const res = await fetch(`${API}/api/citations?${params}`, { headers: headers() });
       if (res.ok) {
         const data = await res.json();
-        setCitations(data.rows || data);
-        setTotal(data.total || data.length || 0);
+        const rows = data.rows || data;
+        setCitations(rows);
+        setTotal(data.total || rows.length || 0);
+        setSelected(prev => prev || rows[0] || null);
       }
     } catch {}
     setLoading(false);

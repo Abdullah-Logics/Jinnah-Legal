@@ -16,7 +16,7 @@ import {
   List, ListOrdered, CheckSquare, Quote, Code, Pilcrow,
   Heading1, Heading2, Heading3, MapPin, Plus, Trash2, Image,
   Clock, Gavel, ArrowUpDown, Printer, Share2,
-  Scale, Search, X, Clipboard, Loader,
+  Scale, Search, X, Clipboard, Loader, ChevronDown, CalendarPlus, Sparkles,
 } from 'lucide-react';
 
 const SLASH_COMMANDS = [
@@ -46,7 +46,7 @@ export default function LawyerJournal() {
   const sketchRef = useRef(sketchData);
   sketchRef.current = sketchData;
   const [entryCreated, setEntryCreated] = useState<string | null>(null);
-  const [showScheduler, setShowScheduler] = useState(true);
+  const [showScheduler, setShowScheduler] = useState(false);
   const [scheduleCase, setScheduleCase] = useState('');
   const [scheduleDate, setScheduleDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [scheduleType, setScheduleType] = useState<'hearing' | 'meeting' | 'deadline'>('hearing');
@@ -171,7 +171,7 @@ export default function LawyerJournal() {
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-slate max-w-none focus:outline-none min-h-[200px] px-0 py-2',
+        class: 'prose prose-slate max-w-none focus:outline-none min-h-[260px] px-0 py-3',
       },
     },
   });
@@ -261,17 +261,17 @@ export default function LawyerJournal() {
     if (!scheduleCase || !scheduleDate) return;
     setScheduling(true);
     try {
-      const token = localStorage.getItem('token') || useStore.getState().token;
+      const t = localStorage.getItem('token') || useStore.getState().token;
       if (scheduleType === 'hearing') {
         await fetch(`${import.meta.env.DEV ? 'http://localhost:3001' : import.meta.env.VITE_API_URL || ''}/api/cases/${scheduleCase}/court-dates`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
           body: JSON.stringify({ date: scheduleDate, court: scheduleLocation, notes: scheduleTitle }),
         });
       } else {
         await fetch(`${import.meta.env.DEV ? 'http://localhost:3001' : import.meta.env.VITE_API_URL || ''}/api/cases/${scheduleCase}/timeline`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` },
           body: JSON.stringify({ date: scheduleDate, event: scheduleTitle, description: scheduleLocation }),
         });
       }
@@ -292,198 +292,144 @@ export default function LawyerJournal() {
 
   if (!editor) return null;
 
+  const todosDone = todos.filter(t => t.completed).length;
+
   return (
-    <div className="max-w-5xl mx-auto space-y-4">
-      {/* Week View */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
-        <div className="flex items-center justify-between mb-4">
-          <button onClick={() => setSelectedDate(addDays(selectedDate, -7))} className="p-2 hover:bg-slate-100 rounded-lg transition">
-            <ChevronLeft size={20} />
-          </button>
-          <h2 className="font-semibold text-slate-900 text-sm md:text-base">
-            {format(weekStart, 'MMM d')} — {format(addDays(weekStart, 6), 'MMM d, yyyy')}
-          </h2>
-          <button onClick={() => setSelectedDate(addDays(selectedDate, 7))} className="p-2 hover:bg-slate-100 rounded-lg transition">
-            <ChevronRight size={20} />
-          </button>
+    <div className="max-w-6xl mx-auto space-y-4">
+      {/* Top bar */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-5">
+        <div className="flex items-center justify-between gap-2 flex-wrap mb-4">
+          <div className="flex items-center gap-1.5">
+            <button onClick={() => setSelectedDate(addDays(selectedDate, -7))} className="p-2 hover:bg-slate-100 rounded-xl transition text-slate-500 hover:text-slate-900" title="Previous week">
+              <ChevronLeft size={19} />
+            </button>
+            <button
+              onClick={() => setSelectedDate(addDays(selectedDate, 7))}
+              className="p-2 hover:bg-slate-100 rounded-xl transition text-slate-500 hover:text-slate-900 -ml-1" title="Next week"
+            >
+              <ChevronRight size={19} />
+            </button>
+            <h2 className="font-semibold text-slate-900 text-sm sm:text-base ml-1">
+              {format(weekStart, 'MMM d')} — {format(addDays(weekStart, 6), 'MMM d, yyyy')}
+            </h2>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setSelectedDate(new Date())}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-100 text-slate-600 hover:bg-slate-200 transition"
+            >
+              <Calendar size={13} /> Today
+            </button>
+            <button
+              onClick={() => setShowScheduler(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-700 transition"
+            >
+              <CalendarPlus size={13} /> Schedule
+            </button>
+          </div>
         </div>
-        <div className="grid grid-cols-7 gap-1 md:gap-2">
+
+        {/* Week strip */}
+        <div className="grid grid-cols-7 gap-1 sm:gap-2">
           {weekDays.map(day => {
             const isSel = format(day, 'yyyy-MM-dd') === dateKey;
             const isT = format(day, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
             const hasEntry = journals.some(j => j.userId === currentUser?.id && j.date === format(day, 'yyyy-MM-dd'));
             return (
-              <button key={day.toString()} onClick={() => setSelectedDate(day)} className={`p-2 md:p-3 rounded-xl text-center transition text-xs md:text-sm ${isSel ? 'bg-emerald-600 text-white' : isT ? 'bg-emerald-50 text-emerald-700' : 'hover:bg-slate-100'}`}>
-                <p className="font-medium opacity-70 text-[10px] md:text-xs">{format(day, 'EEE')}</p>
-                <p className={`font-bold ${isSel ? '' : 'text-slate-900'} text-sm md:text-lg`}>{format(day, 'd')}</p>
-                {hasEntry && !isSel && <div className="w-1 h-1 md:w-1.5 md:h-1.5 bg-emerald-500 rounded-full mx-auto mt-0.5" />}
+              <button key={day.toString()} onClick={() => setSelectedDate(day)}
+                className={`relative p-1.5 sm:p-3 rounded-xl text-center transition-all text-xs sm:text-sm ${isSel ? 'bg-slate-900 text-white shadow-md' : isT ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' : 'hover:bg-slate-100'}`}>
+                <p className={`font-medium text-[9px] sm:text-[11px] uppercase tracking-wide ${isSel ? 'text-white/60' : 'opacity-60'}`}>{format(day, 'EEE')}</p>
+                <p className={`font-bold text-sm sm:text-lg mt-0.5 ${isSel ? 'text-white' : 'text-slate-900'}`}>{format(day, 'd')}</p>
+                {hasEntry && !isSel && (
+                  <span className={`absolute top-1 right-1 sm:top-1.5 sm:right-1.5 w-1.5 h-1.5 rounded-full ${isT ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                )}
               </button>
             );
           })}
         </div>
-      </div>
 
-      {/* Day Events */}
-      {dayEvents.length > 0 && (
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
-          <h3 className="font-semibold text-slate-900 mb-3 text-sm flex items-center gap-2">
-            <Calendar size={16} className="text-emerald-600" /> Court Dates & Events
-          </h3>
-          <div className="space-y-2">
+        {/* Day events */}
+        {dayEvents.length > 0 && (
+          <div className="mt-4 space-y-2">
             {dayEvents.map((ev, i) => (
-              <div key={i} className={`p-3 rounded-xl text-sm ${ev.type === 'court' ? 'bg-red-50 border-l-4 border-red-400' : 'bg-emerald-50 border-l-4 border-emerald-400'}`}>
-                <p className="font-medium text-slate-900">{ev.type === 'court' ? `Court: ${ev.title}` : ev.title}</p>
-                {ev.type === 'court' && ev.court && <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5"><MapPin size={12} />{ev.court}</p>}
-                {(ev.type === 'event' ? ev.description : ev.notes) && <p className="text-xs text-slate-500 mt-0.5">{ev.type === 'event' ? ev.description : ev.notes}</p>}
+              <div key={i} className={`p-3 rounded-xl text-sm flex items-start gap-2.5 ${ev.type === 'court' ? 'bg-red-50 border-l-4 border-red-400' : 'bg-emerald-50 border-l-4 border-emerald-400'}`}>
+                <Gavel size={15} className={`mt-0.5 flex-shrink-0 ${ev.type === 'court' ? 'text-red-500' : 'text-emerald-600'}`} />
+                <div className="min-w-0">
+                  <p className="font-medium text-slate-900">{ev.type === 'court' ? `Court: ${ev.title}` : ev.title}</p>
+                  {ev.type === 'court' && ev.court && <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5"><MapPin size={11} />{ev.court}</p>}
+                  {(ev.type === 'event' ? ev.description : ev.notes) && <p className="text-xs text-slate-500 mt-0.5">{ev.type === 'event' ? ev.description : ev.notes}</p>}
+                </div>
               </div>
             ))}
           </div>
-        </div>
-      )}
-
-      {/* Upcoming & Scheduler */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Upcoming Events */}
-        {allUpcoming.length > 0 && (
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 lg:col-span-2 max-h-48 overflow-y-auto">
-            <h3 className="font-semibold text-slate-900 mb-2 text-sm flex items-center gap-2">
-              <ArrowUpDown size={16} className="text-emerald-600" /> Upcoming
-            </h3>
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              {allUpcoming.map((ev, i) => (
-                <div key={i} className="flex-shrink-0 p-2.5 rounded-xl text-xs border-l-4 min-w-[160px] border-slate-200 bg-slate-50">
-                  <span className="text-emerald-700 font-semibold">{ev.date ? format(new Date(ev.date), 'MMM d') : ''}</span>
-                  <p className="font-medium text-slate-900 truncate">{ev.type === 'hearing' ? `Court: ${ev.caseTitle}` : ev.event}</p>
-                  <p className="text-slate-400 truncate">{ev.caseTitle}</p>
-                </div>
-              ))}
-            </div>
-          </div>
         )}
-
-        {/* Quick Schedule */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
-          <button
-            onClick={() => setShowScheduler(!showScheduler)}
-            className="flex items-center gap-2 text-sm font-medium text-slate-700 hover:text-emerald-700 transition w-full"
-          >
-            <Gavel size={16} className="text-emerald-600" />
-            {showScheduler ? 'Close Scheduler' : 'Schedule'}
-          </button>
-          {showScheduler && (
-            <div className="mt-3 space-y-2.5">
-              <select value={scheduleCase} onChange={e => setScheduleCase(e.target.value)} className="w-full text-sm px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                <option value="">Select case...</option>
-                {myCases.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
-              </select>
-              <div className="flex gap-2">
-                {(['hearing', 'meeting', 'deadline'] as const).map(t => (
-                  <button key={t} onClick={() => setScheduleType(t)} className={`flex-1 py-1.5 rounded-lg text-xs font-medium capitalize transition ${scheduleType === t ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>{t}</button>
-                ))}
-              </div>
-              <input type="date" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)} className="w-full text-sm px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-              <input type="text" value={scheduleTitle} onChange={e => setScheduleTitle(e.target.value)} placeholder={scheduleType === 'hearing' ? 'Notes (optional)' : 'Title'} className="w-full text-sm px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-              {scheduleType === 'hearing' && (
-                <input type="text" value={scheduleLocation} onChange={e => setScheduleLocation(e.target.value)} placeholder="Court & location" className="w-full text-sm px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-              )}
-              <button onClick={handleSchedule} disabled={scheduling || !scheduleCase} className="w-full py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition disabled:opacity-50">
-                {scheduling ? 'Scheduling...' : `Schedule ${scheduleType}`}
-              </button>
-            </div>
-          )}
-        </div>
       </div>
 
-      {/* Journal Page */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100">
-        {/* Date header */}
-        <div className="p-6 md:p-8 pb-4">
-          <div className="text-sm text-slate-400 font-medium mb-1 flex items-center gap-2">
-            <span>{format(selectedDate, 'EEEE')}</span>
-            {entryCreated && (
-              <span className="text-xs text-slate-300 flex items-center gap-1">
-                <Clock size={12} /> started {(() => { try { const d = new Date(entryCreated); return !isNaN(d.getTime()) ? formatDistanceToNow(d, { addSuffix: true }) : ''; } catch { return ''; } })()}
-              </span>
-            )}
-          </div>
-          <div className="text-3xl md:text-4xl font-bold text-slate-900 flex items-center gap-2 flex-wrap">
-            {format(selectedDate, 'MMMM d, yyyy')}
-            <div className="flex items-center gap-1 ml-auto">
+      {/* Main grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+        {/* Journal editor */}
+        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+          {/* Date header */}
+          <div className="px-5 sm:px-7 pt-6 pb-4 bg-gradient-to-b from-slate-50 to-white border-b border-slate-100">
+            <div className="flex items-start justify-between gap-3 flex-wrap">
+              <div>
+                <p className="text-[11px] font-medium text-emerald-600 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                  <Sparkles size={12} /> {format(selectedDate, 'EEEE')}
+                </p>
+                <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 leading-tight">{format(selectedDate, 'MMMM d, yyyy')}</h2>
+                {entryCreated && (
+                  <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
+                    <Clock size={11} /> started {(() => { try { const d = new Date(entryCreated); return !isNaN(d.getTime()) ? formatDistanceToNow(d, { addSuffix: true }) : ''; } catch { return ''; } })()}
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-1 flex-wrap">
+                <button onClick={shareEntry} className="p-2 rounded-xl text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 transition" title="Share with client"><Share2 size={17} /></button>
+                <button onClick={() => setShowCitPanel(true)} className="p-2 rounded-xl text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 transition" title="Search & insert citations"><Scale size={17} /></button>
+                <button onClick={insertTimestamp} className="p-2 rounded-xl text-slate-400 hover:bg-amber-50 hover:text-amber-600 transition" title="Insert current time & date"><Clock size={17} /></button>
+                <button onClick={() => window.print()} className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition" title="Print journal"><Printer size={17} /></button>
+                {todayEntry && (
+                  <button
+                    onClick={() => {
+                      if (window.confirm('Delete this journal entry?')) {
+                        deleteJournalEntry(todayEntry.id);
+                        setEntryCreated(null);
+                        setTodos([]);
+                        setPlans('');
+                        if (editor) editor.commands.setContent('', { emitUpdate: false });
+                      }
+                    }}
+                    className="p-2 rounded-xl text-red-400 hover:bg-red-50 hover:text-red-600 transition" title="Delete entry"
+                  >
+                    <Trash2 size={17} />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex gap-4 mt-4">
               <button
-                onClick={shareEntry}
-                className="p-2 rounded-xl text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 transition"
-                title="Share with client"
+                onClick={() => setTab('notes')}
+                className={`pb-2 flex items-center gap-2 text-sm font-medium border-b-2 transition ${tab === 'notes' ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
               >
-                <Share2 size={18} />
+                <BookOpen size={15} /> Write
               </button>
               <button
-                onClick={() => setShowCitPanel(true)}
-                className="p-2 rounded-xl text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 transition"
-                title="Search & insert citations"
+                onClick={() => setTab('sketch')}
+                className={`pb-2 flex items-center gap-2 text-sm font-medium border-b-2 transition ${tab === 'sketch' ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
               >
-                <Scale size={18} />
+                <Image size={15} /> Sketch
               </button>
-              <button
-                onClick={insertTimestamp}
-                className="p-2 rounded-xl text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 transition"
-                title="Insert current time & date"
-              >
-                <Clock size={18} />
-              </button>
-              <button
-                onClick={() => window.print()}
-                className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
-                title="Print journal"
-              >
-                <Printer size={18} />
-              </button>
-              {todayEntry && (
-                <button
-                  onClick={() => {
-                    if (window.confirm('Delete this journal entry?')) {
-                    deleteJournalEntry(todayEntry.id);
-                    setEntryCreated(null);
-                    setTodos([]);
-                    setPlans('');
-                    if (editor) editor.commands.setContent('', { emitUpdate: false });
-                  }
-                  }}
-                  className="p-2 rounded-xl text-red-400 hover:bg-red-50 hover:text-red-600 transition"
-                  title="Delete entry"
-                >
-                  <Trash2 size={18} />
-                </button>
-              )}
             </div>
           </div>
-        </div>
 
-        {/* Tabs */}
-        <div className="px-6 md:px-8 border-b border-slate-100">
-          <div className="flex gap-4">
-            <button
-              onClick={() => setTab('notes')}
-              className={`pb-3 flex items-center gap-2 text-sm font-medium border-b-2 transition ${tab === 'notes' ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
-            >
-              <BookOpen size={16} /> Write
-            </button>
-            <button
-              onClick={() => setTab('sketch')}
-              className={`pb-3 flex items-center gap-2 text-sm font-medium border-b-2 transition ${tab === 'sketch' ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
-            >
-              <Image size={16} /> Sketch
-            </button>
-          </div>
-        </div>
-
-        {/* Tab Content */}
-        {tab === 'notes' ? (
-          <>
-            {/* Plans for today */}
-            <div className="px-6 md:px-8 pt-4 pb-2">
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-                <label className="flex items-center gap-2 text-sm font-medium text-amber-800 mb-2">
-                  <CheckSquare size={16} /> Plans for Today
+          {tab === 'notes' ? (
+            <div className="p-5 sm:p-7">
+              {/* Plans */}
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 mb-5">
+                <label className="flex items-center gap-2 text-sm font-medium text-amber-800 mb-1.5">
+                  <CheckSquare size={15} /> Plans for Today
                 </label>
                 <div className="flex gap-2">
                   <textarea
@@ -491,19 +437,16 @@ export default function LawyerJournal() {
                     onChange={e => setPlans(e.target.value)}
                     onBlur={() => { if (editor) saveEntryRef.current(editor.getHTML()); }}
                     placeholder="What do you plan to do today? Court prep, client calls, filings..."
-                    className="flex-1 bg-transparent border-0 text-sm text-slate-700 placeholder-slate-400 focus:outline-none resize-none min-h-[60px]"
+                    className="flex-1 bg-transparent border-0 text-sm text-slate-700 placeholder-amber-600/50 focus:outline-none resize-none min-h-[48px]"
                   />
                   {plans.trim() && (
                     <button onClick={() => openShare({ type: 'todo', title: 'Plans for Today', details: { plans } }, getShareContacts())} className="p-2 self-start text-slate-400 hover:text-emerald-600 transition flex-shrink-0" title="Share plans">
-                      <Share2 size={16} />
+                      <Share2 size={15} />
                     </button>
                   )}
                 </div>
               </div>
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-0 p-6 md:p-8 pt-4">
-            {/* Main Editor — 2/3 */}
-            <div className="lg:col-span-2 pr-0 lg:pr-6 border-r-0 lg:border-r border-slate-100">
+
               <BubbleMenu editor={editor} tippyOptions={{ duration: 150 }}>
                 <div className="flex items-center gap-0.5 bg-white rounded-xl shadow-lg border border-slate-200 px-1.5 py-1">
                   <button onClick={() => editor.chain().focus().toggleBold().run()} className={`p-1.5 rounded-md transition ${editor.isActive('bold') ? 'bg-slate-200 text-slate-900' : 'text-slate-500 hover:bg-slate-100'}`}><Bold size={15} /></button>
@@ -524,30 +467,30 @@ export default function LawyerJournal() {
 
               {/* Citation Search Panel */}
               {showCitPanel && (
-                <div className="mb-3 p-3 bg-indigo-50 border border-indigo-200 rounded-xl">
+                <div className="mb-4 p-3 bg-indigo-50 border border-indigo-200 rounded-xl">
                   <div className="flex items-center gap-2 mb-2">
                     <Scale size={14} className="text-indigo-600" />
                     <span className="text-xs font-semibold text-indigo-700">Insert Citation</span>
                     <button onClick={() => setShowCitPanel(false)} className="ml-auto p-0.5 text-indigo-400 hover:text-indigo-600"><X size={14} /></button>
                   </div>
-                  <div className="flex gap-1">
+                  <div className="flex gap-1.5">
                     <input value={citSearch} onChange={e => setCitSearch(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && searchCit(citSearch)}
                       placeholder="Search case name, citation..."
-                      className="flex-1 px-2 py-1.5 bg-white border border-indigo-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="flex-1 px-3 py-2 bg-white border border-indigo-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                     <button onClick={() => searchCit(citSearch)} disabled={citLoading}
-                      className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs hover:bg-indigo-700 transition"
-                    >{citLoading ? <Loader className="animate-spin" size={12} /> : <Search size={12} />}</button>
+                      className="px-3.5 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 transition"
+                    >{citLoading ? <Loader className="animate-spin" size={14} /> : <Search size={14} />}</button>
                   </div>
                   {citResults.length > 0 && (
-                    <div className="mt-2 space-y-1 max-h-40 overflow-y-auto">
+                    <div className="mt-2 space-y-1 max-h-44 overflow-y-auto">
                       {citResults.map(c => (
-                        <div key={c.id} className="flex items-center gap-2 bg-white border border-indigo-100 rounded-lg px-2 py-1.5 text-[11px]">
+                        <div key={c.id} className="flex items-center gap-2 bg-white border border-indigo-100 rounded-lg px-3 py-2 text-xs">
                           <span className="font-bold text-indigo-600 flex-shrink-0">{c.citation}</span>
                           <span className="text-slate-700 truncate flex-1">{c.title}</span>
                           <button onClick={() => insertCit(c.citation, c.title, c.court, c.year)}
-                            className="p-0.5 text-slate-400 hover:text-indigo-600 flex-shrink-0"><Clipboard size={11} /></button>
+                            className="p-1 text-slate-400 hover:text-indigo-600 flex-shrink-0"><Clipboard size={12} /></button>
                         </div>
                       ))}
                     </div>
@@ -555,134 +498,197 @@ export default function LawyerJournal() {
                 </div>
               )}
 
-              {showSlash && (
-                <div ref={slashRef} className="absolute z-50 w-72 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden" style={{ marginTop: -40 }}>
-                  <div className="px-3 py-2 border-b border-slate-100">
-                    <input value={slashSearch} onChange={e => setSlashSearch(e.target.value)} placeholder="Filter commands..." className="w-full text-sm bg-transparent focus:outline-none text-slate-700 placeholder-slate-400" autoFocus onKeyDown={e => { if (e.key === 'Enter' && filteredCommands.length > 0) selectCommand(filteredCommands[0].id); if (e.key === 'Escape') setShowSlash(false); }} />
-                  </div>
-                  <div className="max-h-64 overflow-y-auto p-1.5">
-                    {filteredCommands.map(cmd => (
-                      <button key={cmd.id} onClick={() => selectCommand(cmd.id)} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 transition text-left">
-                        <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 flex-shrink-0"><cmd.icon size={16} /></div>
-                        <div><p className="text-sm font-medium text-slate-900">{cmd.label}</p><p className="text-xs text-slate-400">{cmd.description}</p></div>
-                      </button>
-                    ))}
-                    {filteredCommands.length === 0 && <p className="text-sm text-slate-400 text-center py-4">No results</p>}
-                  </div>
-                </div>
-              )}
-
               <div className="relative">
+                {showSlash && (
+                  <div ref={slashRef} className="absolute z-50 w-72 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden -mt-1 mb-2">
+                    <div className="px-3 py-2 border-b border-slate-100">
+                      <input value={slashSearch} onChange={e => setSlashSearch(e.target.value)} placeholder="Filter commands..." className="w-full text-sm bg-transparent focus:outline-none text-slate-700 placeholder-slate-400" autoFocus onKeyDown={e => { if (e.key === 'Enter' && filteredCommands.length > 0) selectCommand(filteredCommands[0].id); if (e.key === 'Escape') setShowSlash(false); }} />
+                    </div>
+                    <div className="max-h-64 overflow-y-auto p-1.5">
+                      {filteredCommands.map(cmd => (
+                        <button key={cmd.id} onClick={() => selectCommand(cmd.id)} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 transition text-left">
+                          <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600 flex-shrink-0"><cmd.icon size={16} /></div>
+                          <div><p className="text-sm font-medium text-slate-900">{cmd.label}</p><p className="text-xs text-slate-400">{cmd.description}</p></div>
+                        </button>
+                      ))}
+                      {filteredCommands.length === 0 && <p className="text-sm text-slate-400 text-center py-4">No results</p>}
+                    </div>
+                  </div>
+                )}
                 <EditorContent editor={editor} />
               </div>
             </div>
+          ) : (
+            <div className="p-5 sm:p-7">
+              <DrawingCanvas externalData={sketchData} onDataChange={(d) => { setSketchData(d); saveEntryRef.current(editor?.getHTML() || ''); }} />
+            </div>
+          )}
 
-            {/* Todos Panel — 1/3 */}
-            <div className="lg:col-span-1 pt-6 lg:pt-0 lg:pl-6">
-              <div className="flex items-center gap-2 mb-4">
-                <CheckSquare size={18} className="text-emerald-600" />
-                <h2 className="font-semibold text-slate-900">To-do List</h2>
-                <span className="text-xs text-slate-400 ml-auto">{todos.filter(t => t.completed).length}/{todos.length}</span>
+          {/* Footer */}
+          <div className="flex items-center justify-between px-5 sm:px-7 pb-5 pt-4 border-t border-slate-100">
+            <div className="flex items-center gap-2 text-xs text-slate-400">
+              <BookOpen size={13} />
+              {saving ? (
+                <span className="text-emerald-600 font-medium flex items-center gap-1"><Loader size={11} className="animate-spin" /> Saving...</span>
+              ) : (
+                <span className="text-emerald-600 font-medium flex items-center gap-1"><Check size={12} /> Auto-saved</span>
+              )}
+              {entryCreated && (
+                <span className="text-slate-300">· {(() => { try { const d = new Date(entryCreated); return !isNaN(d.getTime()) ? formatDistanceToNow(d, { addSuffix: true }) : ''; } catch { return ''; } })()}</span>
+              )}
+            </div>
+            <div className="text-xs text-slate-400 flex items-center gap-3">
+              <span className="flex items-center gap-1"><CheckSquare size={12} className="text-emerald-500" /> {todosDone} done</span>
+              <span>· {editor.storage.characterCount?.characters?.() || 0} chars</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Right rail */}
+        <div className="space-y-4 lg:col-span-1">
+          {/* Scheduler */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <button
+              onClick={() => setShowScheduler(!showScheduler)}
+              className="w-full flex items-center gap-2.5 px-4 py-3.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition"
+            >
+              <span className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center flex-shrink-0">
+                <Gavel size={16} />
+              </span>
+              <span className="flex-1 text-left">Schedule</span>
+              <ChevronDown size={16} className={`text-slate-400 transition-transform ${showScheduler ? 'rotate-180' : ''}`} />
+            </button>
+            {showScheduler && (
+              <div className="px-4 pb-4 space-y-2.5 border-t border-slate-100 pt-3">
+                <select value={scheduleCase} onChange={e => setScheduleCase(e.target.value)} className="w-full text-sm px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                  <option value="">Select case...</option>
+                  {myCases.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+                </select>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {(['hearing', 'meeting', 'deadline'] as const).map(t => (
+                    <button key={t} onClick={() => setScheduleType(t)} className={`py-1.5 rounded-lg text-xs font-medium capitalize transition ${scheduleType === t ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>{t}</button>
+                  ))}
+                </div>
+                <input type="date" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)} className="w-full text-sm px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                <input type="text" value={scheduleTitle} onChange={e => setScheduleTitle(e.target.value)} placeholder={scheduleType === 'hearing' ? 'Notes (optional)' : 'Title'} className="w-full text-sm px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                {scheduleType === 'hearing' && (
+                  <input type="text" value={scheduleLocation} onChange={e => setScheduleLocation(e.target.value)} placeholder="Court & location" className="w-full text-sm px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                )}
+                <button onClick={handleSchedule} disabled={scheduling || !scheduleCase} className="w-full py-2.5 bg-slate-900 text-white rounded-xl text-sm font-medium hover:bg-slate-800 transition disabled:opacity-50">
+                  {scheduling ? 'Scheduling...' : `Schedule ${scheduleType}`}
+                </button>
               </div>
-              <div className="flex gap-2 mb-3">
-                <input type="text" value={newTodo} onChange={e => setNewTodo(e.target.value)} onKeyDown={e => e.key === 'Enter' && addTodo()} placeholder="Add a task..." className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm" />
-                <button onClick={addTodo} className="p-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex-shrink-0 transition"><Plus size={18} /></button>
+            )}
+          </div>
+
+          {/* Todos */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="flex items-center gap-2.5 px-4 pt-4 pb-3">
+              <span className="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center flex-shrink-0">
+                <CheckSquare size={16} />
+              </span>
+              <h2 className="font-semibold text-slate-900 text-sm flex-1">To-do List</h2>
+              <span className="text-[11px] font-medium text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full">{todosDone}/{todos.length}</span>
+            </div>
+            <div className="px-4 pb-2">
+              <div className="flex gap-2">
+                <input type="text" value={newTodo} onChange={e => setNewTodo(e.target.value)} onKeyDown={e => e.key === 'Enter' && addTodo()} placeholder="Add a task..." className="flex-1 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm" />
+                <button onClick={addTodo} className="p-2.5 bg-slate-900 text-white rounded-xl hover:bg-slate-800 flex-shrink-0 transition"><Plus size={17} /></button>
               </div>
-              <div className="space-y-1.5 max-h-[400px] overflow-y-auto">
-                {todos.length === 0 && <p className="text-center text-slate-400 py-8 text-sm">No tasks for today</p>}
-                {todos.map(todo => (
-                  <div key={todo.id} className="flex items-center gap-2.5 p-2.5 bg-slate-50 rounded-lg group hover:bg-slate-100 transition">
-                    <button onClick={() => toggleTodo(todo.id)} className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition flex-shrink-0 ${todo.completed ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 hover:border-emerald-500'}`}>
-                      {todo.completed && <Check size={12} />}
-                    </button>
-                    <span className={`flex-1 text-sm ${todo.completed ? 'line-through text-slate-400' : 'text-slate-700'}`}>{todo.text}</span>
-                    <button onClick={() => openShare({ type: 'todo', title: todo.text, details: { completed: todo.completed } }, getShareContacts())} className="p-1 text-slate-400 hover:text-emerald-500 transition flex-shrink-0 opacity-0 group-hover:opacity-100"><Share2 size={12} /></button>
-                    <button onClick={() => removeTodo(todo.id)} className="p-1 text-slate-400 hover:text-red-500 transition flex-shrink-0"><Trash2 size={14} /></button>
+            </div>
+            <div className="px-4 pb-4 space-y-1.5 max-h-72 overflow-y-auto">
+              {todos.length === 0 && <p className="text-center text-slate-400 py-6 text-sm">No tasks for today</p>}
+              {todos.map(todo => (
+                <div key={todo.id} className="flex items-center gap-2.5 p-2.5 bg-slate-50 rounded-xl group hover:bg-slate-100 transition">
+                  <button onClick={() => toggleTodo(todo.id)} className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition flex-shrink-0 ${todo.completed ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 hover:border-emerald-500'}`}>
+                    {todo.completed && <Check size={12} />}
+                  </button>
+                  <span className={`flex-1 text-sm ${todo.completed ? 'line-through text-slate-400' : 'text-slate-700'}`}>{todo.text}</span>
+                  <button onClick={() => openShare({ type: 'todo', title: todo.text, details: { completed: todo.completed } }, getShareContacts())} className="p-1 text-slate-400 hover:text-emerald-500 transition flex-shrink-0 opacity-0 group-hover:opacity-100"><Share2 size={12} /></button>
+                  <button onClick={() => removeTodo(todo.id)} className="p-1 text-slate-400 hover:text-red-500 transition flex-shrink-0"><Trash2 size={14} /></button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Upcoming */}
+          {allUpcoming.length > 0 && (
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+              <div className="flex items-center gap-2.5 px-4 pt-4 pb-2">
+                <span className="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center flex-shrink-0">
+                  <ArrowUpDown size={16} />
+                </span>
+                <h3 className="font-semibold text-slate-900 text-sm">Upcoming</h3>
+              </div>
+              <div className="px-4 pb-4 space-y-1.5">
+                {allUpcoming.map((ev, i) => (
+                  <div key={i} className="flex items-start gap-2.5 p-2.5 rounded-xl bg-slate-50 border-l-4 border-emerald-400">
+                    <div className="flex-shrink-0 text-center">
+                      <p className="text-[10px] uppercase text-slate-400 leading-none">{ev.date ? format(new Date(ev.date), 'MMM') : ''}</p>
+                      <p className="text-base font-bold text-emerald-700 leading-tight">{ev.date ? format(new Date(ev.date), 'd') : ''}</p>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-slate-900 truncate">{ev.type === 'hearing' ? `Court: ${ev.caseTitle}` : ev.event}</p>
+                      <p className="text-[11px] text-slate-400 truncate">{ev.type === 'hearing' ? (ev.court || ev.caseTitle) : ev.caseTitle}</p>
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
-          </div>
-          </>
-        ) : (
-          /* Sketch Tab */
-          <div className="p-6 md:p-8">
-            <DrawingCanvas externalData={sketchData} onDataChange={(d) => { setSketchData(d); saveEntryRef.current(editor?.getHTML() || ''); }} />
-          </div>
-        )}
-
-        {/* Footer */}
-        <div className="flex items-center justify-between px-6 md:px-8 pb-6 pt-4 border-t border-slate-100">
-          <div className="flex items-center gap-2 text-xs text-slate-400">
-            <BookOpen size={14} />
-            {saving ? (
-              <span className="text-emerald-600 font-medium">Saving...</span>
-            ) : (
-              <span className="text-emerald-600 font-medium">Auto-saved</span>
-            )}
-            {entryCreated && (
-              <span className="text-slate-300 flex items-center gap-1">· <Clock size={12} /> {(() => { try { const d = new Date(entryCreated); return !isNaN(d.getTime()) ? formatDistanceToNow(d, { addSuffix: true }) : ''; } catch { return ''; } })()}</span>
-            )}
-          </div>
-          <div className="text-xs text-slate-400 flex items-center gap-3">
-            <span>{todos.filter(t => t.completed).length} tasks done</span>
-            {editor && <span>· {editor.storage.characterCount?.characters?.() || 0} chars</span>}
-          </div>
+          )}
         </div>
       </div>
 
       {/* Journal History */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100">
-        <div className="p-5 md:p-6">
-          <button
-            onClick={() => setShowHistory(!showHistory)}
-            className="flex items-center gap-2 text-sm font-semibold text-slate-700 hover:text-emerald-700 transition w-full"
-          >
-            <BookOpen size={16} className="text-emerald-600" />
-            Journal History ({journals.filter(j => j.userId === currentUser?.id).length})
-            <span className="ml-auto text-slate-400">{showHistory ? '▲' : '▼'}</span>
-          </button>
-          {showHistory && (
-            <div className="mt-4 space-y-2 max-h-[500px] overflow-y-auto">
-              {journals
-                .filter(j => j.userId === currentUser?.id)
-                .sort((a, b) => b.date.localeCompare(a.date))
-                .map(j => {
-                  const jd = toDate(j.date);
-                  const jc = j.createdAt ? toDate(j.createdAt) : null;
-                  return (
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <button
+          onClick={() => setShowHistory(!showHistory)}
+          className="w-full flex items-center gap-2.5 px-4 sm:px-5 py-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition"
+        >
+          <span className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center flex-shrink-0">
+            <BookOpen size={16} />
+          </span>
+          Journal History ({journals.filter(j => j.userId === currentUser?.id).length})
+          <ChevronDown size={16} className={`ml-auto text-slate-400 transition-transform ${showHistory ? 'rotate-180' : ''}`} />
+        </button>
+        {showHistory && (
+          <div className="px-4 sm:px-5 pb-4 space-y-1.5 max-h-[500px] overflow-y-auto">
+            {journals
+              .filter(j => j.userId === currentUser?.id)
+              .sort((a, b) => b.date.localeCompare(a.date))
+              .map(j => {
+                const jd = toDate(j.date);
+                const jc = j.createdAt ? toDate(j.createdAt) : null;
+                return (
                   <button
                     key={j.id}
                     onClick={() => { if (jd) setSelectedDate(jd); }}
-                    className={`w-full text-left p-3 rounded-xl transition flex items-start gap-3 ${j.date === dateKey ? 'bg-emerald-50 border border-emerald-200' : 'hover:bg-slate-50 border border-transparent'}`}
+                    className={`w-full text-left p-3 rounded-xl transition flex items-center gap-3 ${j.date === dateKey ? 'bg-emerald-50 ring-1 ring-emerald-200' : 'hover:bg-slate-50'}`}
                   >
-                    <div className="w-12 h-12 bg-emerald-100 rounded-xl flex flex-col items-center justify-center flex-shrink-0">
-                      {jd ? <><span className="text-xs text-emerald-600 font-medium">{format(jd, 'MMM')}</span>
-                      <span className="text-base font-bold text-emerald-800 leading-none">{format(jd, 'd')}</span></> : <span className="text-xs text-slate-400">No date</span>}
+                    <div className="w-11 h-11 bg-emerald-100 rounded-xl flex flex-col items-center justify-center flex-shrink-0">
+                      {jd ? <><span className="text-[10px] text-emerald-600 font-medium uppercase">{format(jd, 'MMM')}</span>
+                      <span className="text-base font-bold text-emerald-800 leading-none">{format(jd, 'd')}</span></> : <span className="text-xs text-slate-400">—</span>}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-slate-900">{jd ? format(jd, 'EEEE, MMMM d, yyyy') : 'Unknown date'}</p>
                       <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-400">
-                        {jc && <span className="flex items-center gap-1"><Clock size={11} />{(() => { try { return formatDistanceToNow(jc, { addSuffix: true }); } catch { return ''; } })()}</span>}
+                        {jc && <span className="flex items-center gap-1 flex-shrink-0"><Clock size={11} />{(() => { try { return formatDistanceToNow(jc, { addSuffix: true }); } catch { return ''; } })()}</span>}
                         {j.content && <span className="truncate">{(j.content || '').replace(/<[^>]*>/g, '').slice(0, 80)}</span>}
                         {!j.content && j.notes && <span className="truncate">{(j.notes || '').slice(0, 80)}</span>}
                         {!j.content && !j.notes && (j.todos || []).length > 0 && <span>{j.todos.length} tasks</span>}
                       </div>
                     </div>
-                    <div className="flex gap-1 flex-shrink-0">
-                      {(j.todos || []).filter(t => t.completed).length > 0 && (
-                        <span className="text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">{(j.todos || []).filter(t => t.completed).length}/{j.todos.length}</span>
-                      )}
-                    </div>
+                    {(j.todos || []).filter(t => t.completed).length > 0 && (
+                      <span className="text-[11px] text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex-shrink-0">{(j.todos || []).filter(t => t.completed).length}/{j.todos.length}</span>
+                    )}
                   </button>
-                  );
-                })}
-              {journals.filter(j => j.userId === currentUser?.id).length === 0 && (
-                <p className="text-center text-slate-400 py-8 text-sm">No journal entries yet. Start writing above!</p>
-              )}
-            </div>
-          )}
-        </div>
+                );
+              })}
+            {journals.filter(j => j.userId === currentUser?.id).length === 0 && (
+              <p className="text-center text-slate-400 py-8 text-sm">No journal entries yet. Start writing above!</p>
+            )}
+          </div>
+        )}
       </div>
 
       <ShareDialog

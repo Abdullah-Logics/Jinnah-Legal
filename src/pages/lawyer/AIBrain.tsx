@@ -7,6 +7,7 @@ import {
 import { useSearchParams } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import ShareDialog, { useShareDialog } from '../../components/ShareDialog';
+import LinkifiedText from '../../components/LinkifiedText';
 
 interface Message { id: string; role: 'user' | 'ai'; content: string; }
 interface Session { id: string; title: string; created_at: string; }
@@ -397,10 +398,10 @@ export default function LawyerAIBrain() {
                     </div>
                     <div className={`min-w-0 ${msg.role === 'user' ? 'bg-slate-900 text-white rounded-2xl rounded-tr-sm px-4 py-3 shadow-sm' : ''}`}>
                       {msg.role === 'user' ? (
-                        <p className="whitespace-pre-wrap text-sm leading-relaxed">{msg.content}</p>
+                        <p className="whitespace-pre-wrap text-sm leading-relaxed"><LinkifiedText text={msg.content} tone="light" /></p>
                       ) : (
                         <>
-                          <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-800">{msg.content}</p>
+                          <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-800"><LinkifiedText text={msg.content} /></p>
                           <div className="flex items-center gap-1 mt-2">
                             {msg.id !== '0' && (
                               <>

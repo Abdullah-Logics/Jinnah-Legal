@@ -4,6 +4,7 @@ import { Bot, Send, Loader, Plus, MessageSquare, Trash2, Menu, ArrowLeft, Share2
 import { useSearchParams } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import ShareDialog, { useShareDialog } from '../../components/ShareDialog';
+import LinkifiedText from '../../components/LinkifiedText';
 
 interface Message { id: string; role: 'user' | 'ai'; content: string; sources?: any[]; }
 interface Session { id: string; title: string; created_at: string; }
@@ -276,7 +277,7 @@ export default function ClientAIAssistant() {
                   {msg.role === 'ai' ? <Bot size={16} /> : 'U'}
                 </div>
                 <div className={`rounded-2xl px-4 py-3 ${msg.role === 'user' ? 'bg-emerald-600 text-white rounded-tr-sm' : 'bg-slate-100 text-slate-900 rounded-tl-sm'}`}>
-                  <p className="whitespace-pre-wrap text-sm leading-relaxed">{msg.content}</p>
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed"><LinkifiedText text={msg.content} tone={msg.role === 'user' ? 'light' : 'dark'} /></p>
                   {msg.sources && msg.sources.length > 0 && (
                     <div className="mt-2 pt-2 border-t border-slate-200">
                       <p className="text-[10px] text-slate-400 mb-1 flex items-center gap-1"><Zap size={8} /> Sources</p>

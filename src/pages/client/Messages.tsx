@@ -16,6 +16,7 @@ import ShareCard, { parseShareData } from '../../components/ShareCard';
 import { avatarUrl, downloadFile } from '../../utils/resolveUrl';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import PdfViewer from '../../components/PdfViewer';
+import LinkifiedText from '../../components/LinkifiedText';
 
 const API = import.meta.env.DEV ? 'http://localhost:3001' : import.meta.env.VITE_API_URL || '';
 
@@ -695,7 +696,7 @@ export default function ClientMessages() {
                                   ${showTail ? (isMine ? 'rounded-br-sm' : 'rounded-bl-sm') : ''}
                                 `}
                               >
-                                <p className="whitespace-pre-wrap break-words text-[13.5px] sm:text-sm leading-relaxed">{msg.content}</p>
+                                <p className="whitespace-pre-wrap break-words text-[13.5px] sm:text-sm leading-relaxed"><LinkifiedText text={msg.content} /></p>
                               </div>
                             )}
                                                         {(() => { try { const sd = msg.shareData ? parseShareData(msg.shareData) : null; return sd ? <ShareCard data={sd} /> : null; } catch { return null; }})()}

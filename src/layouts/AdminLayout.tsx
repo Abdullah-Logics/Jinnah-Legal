@@ -5,13 +5,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Users, UserCheck, CreditCard, BarChart3, Settings,
   Menu, X, LogOut, Bell, Scale, Gavel,
-  AlertTriangle, Shield, MessageSquare, Phone,
+  AlertTriangle, Shield, MessageSquare, Phone, Star,
 } from 'lucide-react';
 
 const platformNav = [
   { path: '/admin', icon: LayoutDashboard, label: 'Dashboard', end: true },
   { path: '/admin/lawyers', icon: Gavel, label: 'Lawyers' },
   { path: '/admin/clients', icon: Users, label: 'Clients' },
+  { path: '/admin/reviews', icon: Star, label: 'Reviews' },
   { path: '/admin/verification', icon: UserCheck, label: 'Verification' },
   { path: '/admin/reports', icon: AlertTriangle, label: 'Reports' },
   { path: '/admin/blocks', icon: Shield, label: 'Blocks' },
@@ -26,6 +27,7 @@ const firmNav = [
   { path: '/admin', icon: LayoutDashboard, label: 'Dashboard', end: true },
   { path: '/admin/lawyers', icon: Gavel, label: 'Lawyers' },
   { path: '/admin/clients', icon: Users, label: 'Clients' },
+  { path: '/admin/reviews', icon: Star, label: 'Reviews' },
   { path: '/admin/verification', icon: UserCheck, label: 'Verification' },
 ];
 

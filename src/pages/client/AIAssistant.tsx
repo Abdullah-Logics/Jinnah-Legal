@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bot, Send, Loader, Plus, MessageSquare, Trash2, Menu, ArrowLeft, Share2, Printer, Zap } from 'lucide-react';
+import { Bot, Send, Loader, Plus, MessageSquare, Trash2, Menu, ArrowLeft, Share2, Printer, Zap, Link2, Check } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import ShareDialog, { useShareDialog } from '../../components/ShareDialog';
 
@@ -15,12 +16,14 @@ const GREETING: Message = {
 
 export default function ClientAIAssistant() {
   const { token } = useStore();
+  const [searchParams] = useSearchParams();
   const [messages, setMessages] = useState<Message[]>([GREETING]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [activeSession, setActiveSession] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const { shareState, openShare, closeShare } = useShareDialog();
 
@@ -29,9 +32,30 @@ export default function ClientAIAssistant() {
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
   useEffect(() => { loadSessions(); }, []);
   useEffect(() => {
+    const forkId = searchParams.get('fork');
+    if (forkId) {
+      forkSession(forkId);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [searchParams]);
+  useEffect(() => {
     if (activeSession) loadHistory(activeSession);
     else setMessages([GREETING]);
   }, [activeSession]);
+
+  const forkSession = async (id: string) => {
+    try {
+      const res = await fetch(`${API}/api/ai/sessions/${id}/fork`, {
+        method: 'POST',
+        headers: headers(),
+      });
+      if (!res.ok) return;
+      const session = await res.json();
+      setSessions(prev => [session, ...prev]);
+      setActiveSession(session.id);
+      setMessages([GREETING]);
+    } catch {}
+  };
 
   const headers = (): Record<string, string> => {
     const h: Record<string, string> = {};
@@ -210,6 +234,18 @@ export default function ClientAIAssistant() {
           </div>
           {messages.length > 1 && (
             <>
+              <button onClick={async () => {
+                  if (!activeSession) return;
+                  const link = `${window.location.origin}/chat/ai/${activeSession}`;
+                  try {
+                    await navigator.clipboard.writeText(link);
+                    setCopiedLink(true);
+                    setTimeout(() => setCopiedLink(false), 2000);
+                  } catch {}
+                }} className="p-2 hover:bg-slate-100 rounded-xl transition flex-shrink-0 flex items-center gap-1" title="Copy share link">
+                <Link2 size={18} className="text-slate-500" />
+                {copiedLink && <Check size={13} className="text-emerald-600" />}
+              </button>
               <button onClick={() => {
                   const text = messages.filter(m=>m.id!=='0').map(m=>`${m.role==='user'?'You':'AI'}: ${m.content}`).join('\n\n');
                   const contacts = useStore.getState().users?.filter(u=>u.id!==useStore.getState().currentUser?.id).map(u=>({id:u.id,name:u.name}))||[];

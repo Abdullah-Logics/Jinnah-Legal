@@ -486,6 +486,28 @@ async function executeTool(name, args, req) {
   }
 }
 
+aiRouter.get('/sessions/:id/shared', asyncHandler(async (req, res) => {
+  const session = await queryOne('SELECT id, title, user_id FROM ai_sessions WHERE id = ?', [req.params.id]);
+  if (!session) throw new AppError('Shared conversation not found', 404);
+  const history = await query('SELECT role, content FROM ai_chat_history WHERE session_id=? ORDER BY created_at ASC', [req.params.id]);
+  res.json({ session: { id: session.id, title: session.title }, history });
+}));
+
+aiRouter.post('/sessions/:id/fork', asyncHandler(async (req, res) => {
+  const src = await queryOne('SELECT * FROM ai_sessions WHERE id = ?', [req.params.id]);
+  if (!src) throw new AppError('Shared conversation not found', 404);
+  const history = await query('SELECT role, content FROM ai_chat_history WHERE session_id=? ORDER BY created_at ASC', [req.params.id]);
+
+  const id = uuid();
+  await run('INSERT INTO ai_sessions (id,user_id,title) VALUES (?,?,?)', [id, req.user.id, `Fork: ${src.title}`]);
+  for (const h of history) {
+    await run('INSERT INTO ai_chat_history (id,user_id,role,content,session_id) VALUES (?,?,?,?,?)', [uuid(), req.user.id, h.role, h.content, id]);
+  }
+
+  const session = await queryOne('SELECT * FROM ai_sessions WHERE id = ?', [id]);
+  res.status(201).json(session);
+}));
+
 aiRouter.post('/sessions', asyncHandler(async (req, res) => {
   const id = uuid();
   await run('INSERT INTO ai_sessions (id,user_id,title) VALUES (?,?,?)', [id, req.user.id, 'New Chat']);

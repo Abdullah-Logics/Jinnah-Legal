@@ -1,13 +1,20 @@
+import { useEffect } from 'react';
 import { useStore } from '../../store/useStore';
 import { CreditCard, Users, TrendingUp } from 'lucide-react';
 
 export default function AdminSubscriptions() {
-  const { users } = useStore();
+  const { users, invoices, loadInvoices } = useStore();
   const lawyers = users.filter(u => u.role === 'lawyer');
   const clients = users.filter(u => u.role === 'client');
 
+  useEffect(() => { loadInvoices(); }, [loadInvoices]);
+
   const lawyerPlans = { student: lawyers.filter(l => l.subscriptionPlan === 'student').length, starter: lawyers.filter(l => l.subscriptionPlan === 'starter').length, pro: lawyers.filter(l => l.subscriptionPlan === 'pro').length, firm: lawyers.filter(l => l.subscriptionPlan === 'firm').length };
   const clientPlans = { free: clients.filter(c => c.subscriptionPlan === 'free').length, pro: clients.filter(c => c.subscriptionPlan === 'pro').length };
+
+  const totalRevenue = invoices.reduce((s, i) => s + (i.amount || 0), 0);
+  const paidRevenue = invoices.filter(i => i.status === 'paid').reduce((s, i) => s + (i.amount || 0), 0);
+  const successRate = totalRevenue > 0 ? Math.round((paidRevenue / totalRevenue) * 100) : 0;
 
   return (
     <div className="space-y-6">
@@ -16,8 +23,8 @@ export default function AdminSubscriptions() {
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="bg-gradient-to-r from-emerald-600 to-emerald-800 rounded-2xl p-6 text-white">
           <TrendingUp size={32} className="mb-4" />
-          <p className="text-3xl font-bold">—</p>
-          <p className="text-emerald-200">Monthly Revenue</p>
+          <p className="text-3xl font-bold">Rs. {paidRevenue.toLocaleString()}</p>
+          <p className="text-emerald-200">Collected Revenue</p>
         </div>
         <div className="bg-gradient-to-r from-teal-600 to-teal-800 rounded-2xl p-6 text-white">
           <Users size={32} className="mb-4" />
@@ -26,7 +33,7 @@ export default function AdminSubscriptions() {
         </div>
         <div className="bg-gradient-to-r from-purple-600 to-purple-800 rounded-2xl p-6 text-white">
           <CreditCard size={32} className="mb-4" />
-          <p className="text-3xl font-bold">—</p>
+          <p className="text-3xl font-bold">{successRate}%</p>
           <p className="text-purple-200">Payment Success Rate</p>
         </div>
       </div>

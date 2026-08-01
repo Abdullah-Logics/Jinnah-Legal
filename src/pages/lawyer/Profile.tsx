@@ -1,14 +1,13 @@
 import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useStore } from '../../store/useStore';
-import { resolveUrl, avatarUrl } from '../../utils/resolveUrl';
+import { avatarUrl } from '../../utils/resolveUrl';
 import {
   User, Mail, Phone, MapPin, Briefcase, GraduationCap, Award, Edit2, Camera, Save,
-  Shield, Image as ImageIcon, X, Loader2, Paintbrush,
+  Shield, X, Loader2, Paintbrush,
 } from 'lucide-react';
 import CallHistory from '../../components/CallHistory';
-
-const API = import.meta.env.DEV ? 'http://localhost:3001' : import.meta.env.VITE_API_URL || '';
+import { compressImage } from '../../utils/image';
 
 const WALLPAPERS = [
   { id: '', name: 'Default', bg: '' },
@@ -58,19 +57,8 @@ export default function LawyerProfile() {
     if (!file || !currentUser) return;
     setUploadingAvatar(true);
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const token = localStorage.getItem('token') || useStore.getState().token;
-      const res = await fetch(`${API}/api/upload`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const avatarUrl = data.url;
-        await updateUser(currentUser.id, { avatar: avatarUrl });
-      }
+      const avatarData = await compressImage(file);
+      await updateUser(currentUser.id, { avatar: avatarData });
     } catch {}
     setUploadingAvatar(false);
   };

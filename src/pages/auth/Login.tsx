@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useStore, UserRole } from '../../store/useStore';
 import { Scale, Mail, Lock, Eye, EyeOff, ArrowRight, Gavel, Users, Shield } from 'lucide-react';
@@ -14,6 +14,8 @@ export default function Login() {
   
   const { login } = useStore();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirectTo = searchParams.get('redirect');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,7 +25,9 @@ export default function Login() {
     try {
       const success = await login(email, password, role);
       if (success) {
-        if (role === 'lawyer') navigate('/lawyer');
+        if (redirectTo) {
+          navigate(redirectTo);
+        } else if (role === 'lawyer') navigate('/lawyer');
         else if (role === 'client') navigate('/client');
         else navigate('/admin');
       } else {

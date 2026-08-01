@@ -34,6 +34,8 @@ import WeeklyReport from './pages/WeeklyReport';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import ForgotPassword from './pages/auth/ForgotPassword';
+import ChatLinkRedirect from './components/ChatLinkRedirect';
+import AiChatLinkRedirect from './components/AiChatLinkRedirect';
 
 // Lawyer Portal
 import LawyerDashboard from './pages/lawyer/Dashboard';
@@ -76,6 +78,7 @@ import ClientGroups from './pages/client/Groups';
 import AdminDashboard from './pages/admin/Dashboard';
 import AdminLawyers from './pages/admin/Lawyers';
 import AdminClients from './pages/admin/Clients';
+import AdminReviews from './pages/admin/Reviews';
 import AdminVerification from './pages/admin/Verification';
 import AdminReports from './pages/admin/Reports';
 import AdminBlocks from './pages/admin/Blocks';
@@ -118,6 +121,8 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/chat/:userId" element={<ChatLinkRedirect />} />
+          <Route path="/chat/ai/:id" element={<AiChatLinkRedirect />} />
 
           {/* Lawyer Portal */}
           <Route path="/lawyer" element={
@@ -179,6 +184,7 @@ function App() {
             <Route index element={<AdminDashboard />} />
             <Route path="lawyers" element={<AdminLawyers />} />
             <Route path="clients" element={<AdminClients />} />
+            <Route path="reviews" element={<AdminReviews />} />
             <Route path="verification" element={<AdminVerification />} />
             <Route path="reports" element={<AdminReports />} />
             <Route path="blocks" element={<AdminBlocks />} />

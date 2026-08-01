@@ -47,6 +47,58 @@ adminRouter.get('/users', asyncHandler(async (req, res) => {
   res.json({ users, total: count, page: Number(page), limit: Number(limit) });
 }));
 
+adminRouter.get('/reviews', asyncHandler(async (req, res) => {
+  if (!['admin','firm_admin'].includes(req.user.role)) throw new AppError('Forbidden', 403);
+  let sql = `SELECT r.*,
+    (SELECT name FROM users WHERE id=r.client_id::uuid) as client_name,
+    (SELECT email FROM users WHERE id=r.client_id::uuid) as client_email,
+    (SELECT name FROM users WHERE id=r.lawyer_id::uuid) as lawyer_name,
+    (SELECT title FROM cases WHERE id=r.case_id) as case_title
+    FROM reviews r ORDER BY r.created_at DESC`;
+  const params = [];
+  if (req.user.role === 'firm_admin') {
+    const firm = await queryOne('SELECT id FROM firms WHERE admin_id = ?', [req.user.id]);
+    if (firm) {
+      sql = `SELECT r.*,
+        (SELECT name FROM users WHERE id=r.client_id::uuid) as client_name,
+        (SELECT email FROM users WHERE id=r.client_id::uuid) as client_email,
+        (SELECT name FROM users WHERE id=r.lawyer_id::uuid) as lawyer_name,
+        (SELECT title FROM cases WHERE id=r.case_id) as case_title
+        FROM reviews r
+        JOIN users lu ON lu.id = r.lawyer_id::uuid AND lu.firm_id = ?
+        ORDER BY r.created_at DESC`;
+      params.push(firm.id);
+    }
+  }
+  res.json(await query(sql, params));
+}));
+
+adminRouter.get('/billing', asyncHandler(async (req, res) => {
+  if (!['admin','firm_admin'].includes(req.user.role)) throw new AppError('Forbidden', 403);
+  const params = [];
+  let firmJoin = '';
+  if (req.user.role === 'firm_admin') {
+    const firm = await queryOne('SELECT id FROM firms WHERE admin_id = ?', [req.user.id]);
+    if (firm) { firmJoin = ' JOIN users lu ON lu.id = i.lawyer_id::uuid AND lu.firm_id = ?'; params.push(firm.id); }
+  }
+  const invoices = await query(
+    `SELECT i.*,
+      (SELECT name FROM users WHERE id=i.client_id::uuid) as client_name,
+      (SELECT email FROM users WHERE id=i.client_id::uuid) as client_email,
+      (SELECT name FROM users WHERE id=i.lawyer_id::uuid) as lawyer_name
+     FROM invoices i ${firmJoin} ORDER BY i.created_at DESC`,
+    params
+  );
+  const totals = (await queryOne(
+    `SELECT COUNT(*) as total_invoices,
+      COALESCE(SUM(amount),0) as total_amount,
+      COALESCE(SUM(CASE WHEN status='paid' THEN amount ELSE 0 END),0) as paid_amount
+     FROM invoices i ${firmJoin}`,
+    params
+  )) || { total_invoices: 0, total_amount: 0, paid_amount: 0 };
+  res.json({ invoices, totals });
+}));
+
 adminRouter.get('/messages/:userId', asyncHandler(async (req, res) => {
   await requireAdmin(req);
   const { userId } = req.params;

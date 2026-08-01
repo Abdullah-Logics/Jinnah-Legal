@@ -187,7 +187,7 @@ export const userUpdateSchema = z.object({
   phone: z.string().max(50).optional().nullable(),
   address: z.string().max(500).optional().nullable(),
   city: z.string().max(100).optional().nullable(),
-  avatar: z.string().max(500).optional().nullable(),
+  avatar: z.string().max(5000000).optional().nullable(),
   bio: z.string().max(1000).optional().nullable(),
 });
 

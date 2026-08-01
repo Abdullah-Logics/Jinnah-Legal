@@ -5,14 +5,14 @@ import {
   Search, Send, Paperclip, Phone, Video,
   Check, CheckCheck, Camera, Mic, MicOff, FileText, X,
   Image as ImageIcon, ArrowLeft, Smile, MessageSquare, AlertTriangle, UsersRound,
-  Info, Image, MoreVertical, Download, Scale, Clipboard, Plus, Loader, Ban,
+  Info, Image, MoreVertical, Download, Scale, Clipboard, Plus, Loader, Ban, Link2,
 } from 'lucide-react';
 import ReportModal from '../../components/ReportModal';
 import { format, isToday, isYesterday } from 'date-fns';
 import { useCall } from '../../context/CallContext';
 import ShareCard, { parseShareData } from '../../components/ShareCard';
-import { Link } from 'react-router-dom';
-import { resolveUrl, avatarUrl, downloadFile } from '../../utils/resolveUrl';
+import { Link, useSearchParams } from 'react-router-dom';
+import { avatarUrl, downloadFile } from '../../utils/resolveUrl';
 import ErrorBoundary from '../../components/ErrorBoundary';
 import PdfViewer from '../../components/PdfViewer';
 
@@ -57,6 +57,7 @@ function resolveUrl(url: string) {
 export default function LawyerMessages() {
   const { currentUser, users, cases, connections, messages, loadMessages, loadCases, loadConnections, sendMessage, markAsRead } = useStore();
   const { startCall, onlineUsers } = useCall();
+  const [searchParams] = useSearchParams();
 
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState('');
@@ -82,6 +83,7 @@ export default function LawyerMessages() {
   const [showBlockConfirm, setShowBlockConfirm] = useState(false);
   const { blockedUsers, blockUser, unblockUser, loadBlockedUsers } = useStore();
   const [pdfViewer, setPdfViewer] = useState<{ url: string; name: string } | null>(null);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   const isBlocked = selectedUser ? blockedUsers.some(b => b.user_id === selectedUser) : false;
 
@@ -111,6 +113,26 @@ export default function LawyerMessages() {
   const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => { loadMessages(); loadCases(); loadConnections(); loadBlockedUsers(); }, [loadMessages, loadCases, loadConnections, loadBlockedUsers]);
+
+  useEffect(() => {
+    const openId = searchParams.get('open');
+    if (openId) {
+      setSelectedUser(openId);
+      setMobileView('chat');
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [searchParams]);
+
+  const copyChatLink = async () => {
+    if (!selectedUser) return;
+    const link = `${window.location.origin}/chat/${selectedUser}`;
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
+    } catch {}
+    setMoreMenuOpen(false);
+  };
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -566,6 +588,13 @@ export default function LawyerMessages() {
                         >
                           <Info size={16} className="text-slate-400" />
                           Contact Info
+                        </button>
+                        <button
+                          onClick={copyChatLink}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition"
+                        >
+                          <Link2 size={16} className="text-slate-400" />
+                          {copiedLink ? 'Link Copied!' : 'Copy Chat Link'}
                         </button>
                         <button
                           onClick={() => { setShowBlockConfirm(true); setMoreMenuOpen(false); }}

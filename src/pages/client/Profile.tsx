@@ -1,13 +1,12 @@
 import { useState, useRef } from 'react';
 import { useStore } from '../../store/useStore';
-import { resolveUrl, avatarUrl } from '../../utils/resolveUrl';
+import { avatarUrl } from '../../utils/resolveUrl';
 import {
-  User, Mail, Phone, MapPin, Edit2, Save, Camera, Loader2, CreditCard,
+  User, Mail, Phone, Edit2, Save, Camera, Loader2, CreditCard,
   Paintbrush, X,
 } from 'lucide-react';
 import CallHistory from '../../components/CallHistory';
-
-const API = import.meta.env.DEV ? 'http://localhost:3001' : import.meta.env.VITE_API_URL || '';
+import { compressImage } from '../../utils/image';
 
 const WALLPAPERS = [
   { id: '', name: 'Default', bg: '' },
@@ -43,18 +42,8 @@ export default function ClientProfile() {
     if (!file || !currentUser) return;
     setUploadingAvatar(true);
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const token = localStorage.getItem('token') || useStore.getState().token;
-      const res = await fetch(`${API}/api/upload`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
-      if (res.ok) {
-        const data = await res.json();
-        await updateUser(currentUser.id, { avatar: data.url });
-      }
+      const avatarData = await compressImage(file);
+      await updateUser(currentUser.id, { avatar: avatarData });
     } catch {}
     setUploadingAvatar(false);
   };

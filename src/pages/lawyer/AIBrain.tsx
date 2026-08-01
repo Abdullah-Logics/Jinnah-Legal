@@ -2,8 +2,9 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Brain, Send, Plus, MessageSquare, Trash2, FileDown, Menu,
-  Sparkles, Share2, Printer, Search, Copy, Check, CornerDownLeft, X, Scale, BookOpen, PenLine, FileText,
+  Sparkles, Share2, Printer, Search, Copy, Check, CornerDownLeft, X, Scale, BookOpen, PenLine, FileText, Link2,
 } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import ShareDialog, { useShareDialog } from '../../components/ShareDialog';
 
@@ -25,6 +26,7 @@ const FEATURED = [
 
 export default function LawyerAIBrain() {
   const { token } = useStore();
+  const [searchParams] = useSearchParams();
   const [messages, setMessages] = useState<Message[]>([GREETING]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -33,6 +35,7 @@ export default function LawyerAIBrain() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sessionSearch, setSessionSearch] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [copiedLink, setCopiedLink] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const { shareState, openShare, closeShare } = useShareDialog();
@@ -42,9 +45,31 @@ export default function LawyerAIBrain() {
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, isTyping]);
   useEffect(() => { loadSessions(); }, []);
   useEffect(() => {
+    const forkId = searchParams.get('fork');
+    if (forkId) {
+      forkSession(forkId);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [searchParams]);
+  useEffect(() => {
     if (activeSession) loadHistory(activeSession);
     else setMessages([GREETING]);
   }, [activeSession]);
+
+  const forkSession = async (id: string) => {
+    try {
+      const res = await fetch(`${API}/api/ai/sessions/${id}/fork`, {
+        method: 'POST',
+        headers: headers(),
+      });
+      if (!res.ok) return;
+      const session = await res.json();
+      setSessions(prev => [session, ...prev]);
+      setActiveSession(session.id);
+      setMessages([GREETING]);
+      if (inputRef.current) inputRef.current.focus();
+    } catch {}
+  };
 
   const headers = (): Record<string, string> => {
     const h: Record<string, string> = {};
@@ -185,6 +210,16 @@ export default function LawyerAIBrain() {
     } catch {}
   };
 
+  const copyShareLink = async () => {
+    if (!activeSession) return;
+    const link = `${window.location.origin}/chat/ai/${activeSession}`;
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
+    } catch {}
+  };
+
   const filteredSessions = useMemo(() => {
     if (!sessionSearch.trim()) return sessions;
     return sessions.filter(s => s.title.toLowerCase().includes(sessionSearch.toLowerCase()));
@@ -296,6 +331,10 @@ export default function LawyerAIBrain() {
           </div>
           {hasConversation && (
             <div className="flex items-center gap-1">
+              <button onClick={copyShareLink} className="p-2 hover:bg-slate-100 rounded-xl transition flex items-center gap-1.5" title="Copy share link">
+                <Link2 size={17} className="text-slate-500" />
+                {copiedLink && <Check size={13} className="text-emerald-600" />}
+              </button>
               <button onClick={shareConversation} className="p-2 hover:bg-slate-100 rounded-xl transition" title="Share conversation">
                 <Share2 size={17} className="text-slate-500" />
               </button>

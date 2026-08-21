@@ -13,10 +13,11 @@ export const ragRouter = Router();
 ragRouter.use(auth);
 
 let indexing = false;
+let lastIndexError = null;
 
 ragRouter.get('/status', asyncHandler(async (req, res) => {
   const status = await getIndexStatus(query);
-  res.json({ ...status, promptVersion: PROMPT_VERSION });
+  res.json({ ...status, promptVersion: PROMPT_VERSION, lastIndexError });
 }));
 
 ragRouter.post('/index', asyncHandler(async (req, res) => {
@@ -26,6 +27,7 @@ ragRouter.post('/index', asyncHandler(async (req, res) => {
   try {
     await indexAll(query);
   } catch (err) {
+    lastIndexError = `full: ${err.message}`;
     console.error('Full index error:', err.message);
   } finally {
     indexing = false;
@@ -39,6 +41,7 @@ ragRouter.post('/index/constitution', asyncHandler(async (req, res) => {
   try {
     await indexConstitution(query);
   } catch (err) {
+    lastIndexError = `constitution: ${err.message}`;
     console.error('Constitution index error:', err.message);
   } finally {
     indexing = false;
@@ -52,6 +55,7 @@ ragRouter.post('/index/cases', asyncHandler(async (req, res) => {
   try {
     await indexAllCases(query);
   } catch (err) {
+    lastIndexError = `cases: ${err.message}`;
     console.error('Cases index error:', err.message);
   } finally {
     indexing = false;

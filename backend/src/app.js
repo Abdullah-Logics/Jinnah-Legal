@@ -48,7 +48,15 @@ export async function createApp() {
     console.warn('Vector store init failed:', e.message);
   }
 
-  const app = express();
+  // Surface silent background failures instead of dying invisibly
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled promise rejection:', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception:', err);
+});
+
+const app = express();
 
   app.set('trust proxy', 1);
 

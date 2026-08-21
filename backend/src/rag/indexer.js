@@ -29,6 +29,21 @@ async function persistChunks(chunks, embeddings) {
   return chunks.length;
 }
 
+// Embed + persist in small slices so progress lands incrementally and a
+// crash mid-run never loses more than one slice of work.
+const EMBED_SLICE = 100;
+
+async function embedAndPersist(chunks, { log, label = '' } = {}) {
+  let stored = 0;
+  for (let i = 0; i < chunks.length; i += EMBED_SLICE) {
+    const slice = chunks.slice(i, i + EMBED_SLICE);
+    const embeddings = await embedBatch(slice.map(c => c.chunkText), { taskType: 'RETRIEVAL_DOCUMENT' });
+    stored += await persistChunks(slice, embeddings);
+    if (log) log(`  ${label}: persisted ${stored}/${chunks.length} chunks`);
+  }
+  return stored;
+}
+
 export async function indexAllCases(queryFn, { log = console.log } = {}) {
   log('Starting case indexing...');
   const startTime = Date.now();
@@ -49,17 +64,13 @@ export async function indexAllCases(queryFn, { log = console.log } = {}) {
 
     // Multi-chunk expansion: each case may produce summary + holding + N full-text chunks
     const chunks = rows.flatMap(chunkCase).filter(Boolean);
-    if (chunks.length === 0) { offset += limit; continue; }
-
-    const texts = chunks.map(c => c.chunkText);
-    const embeddings = await embedBatch(texts, {
-      taskType: 'RETRIEVAL_DOCUMENT',
-      onProgress: (done, totalInBatch) => {
-        if (done >= totalInBatch) log(`  embedded ${total}/${totalCases}+ cases (${offset + done}/${totalCases} rows)...`);
-      },
-    });
-
-    total += await persistChunks(chunks, embeddings);
+    if (chunks.length > 0) {
+      total += await embedAndPersist(chunks, {
+        log,
+        label: `cases ${offset + 1}-${offset + rows.length}`,
+      });
+      log(`Progress: ${Math.min(offset + rows.length, totalCases)}/${totalCases} cases, ${total} chunks stored`);
+    }
     offset += limit;
   }
 
@@ -79,10 +90,7 @@ export async function indexConstitution(queryFn, { log = console.log } = {}) {
 
   const chunks = rows.flatMap(chunkConstitutionArticle).filter(Boolean);
   log(`Embedding ${chunks.length} constitution chunks...`);
-
-  const texts = chunks.map(c => c.chunkText);
-  const embeddings = await embedBatch(texts, { taskType: 'RETRIEVAL_DOCUMENT' });
-  const stored = await persistChunks(chunks, embeddings);
+  const stored = await embedAndPersist(chunks, { log, label: 'constitution' });
 
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
   log(`Constitution indexing complete: ${stored} chunks in ${elapsed}s`);

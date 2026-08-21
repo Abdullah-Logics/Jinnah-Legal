@@ -70,22 +70,34 @@ async function embedWithModel(modelName, text, taskType) {
 /**
  * Resolve a working embedding model once per process.
  * Tries candidates in order until one returns a usable vector.
+ * Rate-limit (429) means the model EXISTS but is busy — wait and retry
+ * the same candidate rather than discarding it.
  */
 export async function resolveModel() {
   if (resolvedModel) return resolvedModel;
   let lastErr;
   for (const candidate of MODEL_CANDIDATES) {
-    try {
-      const probe = await embedWithModel(candidate, 'embedding model probe', undefined);
-      // Accept any non-empty vector; we truncate/pad to DIMENSION below.
-      if (probe && probe.length > 0) {
-        resolvedModel = candidate;
-        console.log(`Embedding model resolved: ${candidate} (${probe.length}d -> ${DIMENSION}d)`);
-        return resolvedModel;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const probe = await embedWithModel(candidate, 'embedding model probe', undefined);
+        if (probe && probe.length > 0) {
+          resolvedModel = candidate;
+          console.log(`Embedding model resolved: ${candidate} (${probe.length}d -> ${DIMENSION}d)`);
+          return resolvedModel;
+        }
+        break;
+      } catch (err) {
+        lastErr = err;
+        if (isRateLimit(err) || err.status === 500 || err.status === 503) {
+          const wait = Math.min(extractRetryDelay(err) ?? 15000, 30000);
+          console.warn(`Embedding model "${candidate}" temporarily limited; retrying in ${Math.round(wait / 1000)}s`);
+          await sleep(wait);
+          continue;
+        }
+        // 404/400 etc. — model genuinely unavailable, try next candidate
+        console.warn(`Embedding model "${candidate}" unavailable: ${err.message}`);
+        break;
       }
-    } catch (err) {
-      lastErr = err;
-      console.warn(`Embedding model "${candidate}" unavailable: ${err.message}`);
     }
   }
   throw lastErr || new Error('No embedding model available');

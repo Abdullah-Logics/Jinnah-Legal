@@ -475,15 +475,22 @@ export async function getChunkCount() {
 // Resume support: which of these chunk ids are already stored?
 export async function getExistingChunkIds(ids) {
   if (!ids || ids.length === 0) return new Set();
+  const found = new Set();
   if (usePg && pgStore.queryFn) {
-    const list = ids.map(i => `'${String(i).replace(/'/g, "''")}'`).join(',');
-    try {
-      const rows = await pgStore.queryFn(`SELECT id FROM rag_chunks WHERE id IN (${list})`);
-      return new Set((rows || []).map(r => r.id));
-    } catch (e) {
-      console.warn('getExistingChunkIds failed:', e.message);
-      return new Set();
+    // Batched to keep each RPC small enough for PostgREST/exec_sql limits.
+    const BATCH = 400;
+    for (let i = 0; i < ids.length; i += BATCH) {
+      const list = ids.slice(i, i + BATCH)
+        .map(id => `'${String(id).replace(/'/g, "''")}'`)
+        .join(',');
+      try {
+        const rows = await pgStore.queryFn(`SELECT id FROM rag_chunks WHERE id IN (${list})`);
+        for (const r of rows || []) found.add(r.id);
+      } catch (e) {
+        console.warn('getExistingChunkIds batch failed:', e.message);
+      }
     }
+    return found;
   }
   return new Set(memStore.vectors.filter(v => ids.includes(v.id)).map(v => v.id));
 }

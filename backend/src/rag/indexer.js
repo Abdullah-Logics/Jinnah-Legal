@@ -55,7 +55,7 @@ export async function indexAllCases(queryFn, { log = console.log } = {}) {
   const startTime = Date.now();
   let total = 0;
   let offset = 0;
-  const limit = 300;
+  const limit = 100;
 
   const countRow = await queryFn('SELECT COUNT(*) as c FROM citations');
   const totalCases = Number(countRow?.[0]?.c || countRow?.c || 0);

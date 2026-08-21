@@ -3,49 +3,24 @@ import { v4 as uuid } from 'uuid';
 import { hybridSearch, buildRAGContext } from './search.js';
 import { run, query, queryOne } from '../db/adapter.js';
 
+const queryMany = (sql, params) => query(sql, params);
+import {
+  PROMPT_VERSION,
+  AGENT_SYSTEM,
+  CLIENT_AGENT_SYSTEM,
+  citationRepairPrompt,
+} from './prompts.js';
+
 const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 const MAX_ROUNDS = 15;
 
-const CITATION_PATTERN = /(?:\d{4}\s+(?:SCMR|PLD|PCrLJ|CLC|MLD|YLR|PTD|CLD|CrPC)\s+\d+)/gi;
-
-const AGENT_SYSTEM = `You are Jinnah Legal AI — an advanced RAG (Retrieval-Augmented Generation) system for Pakistani law.
-
-CRITICAL RULES — YOU MUST FOLLOW THESE:
-
-1. ONLY cite cases that were PROVIDED in the search results above. NEVER invent or hallucinate case names, citations, or legal principles.
-2. If the search results are insufficient, say "I could not find specific case law on this in our database" rather than making up cases.
-3. Every citation you use must be EXACTLY as it appears in the search results — citation format, year, court, title must all match.
-4. Do NOT combine details from multiple cases into a single fictional case.
-5. Do NOT extrapolate beyond what the search results tell you.
-6. If you are unsure, clearly state:"This information is based on the available case summaries. For complete judgments, please consult the full case text."
-7. Use proper Pakistani citation format exactly as shown in search results.
-8. Reference Constitution articles as "Article X of the Constitution of Pakistan, 1973" only when they appear in search results.
-
-You have access to a comprehensive database of 16,000+ Pakistani court cases and the Constitution of Pakistan 1973.
-
-RESEARCH WORKFLOW:
-1. Review the search results already provided to you
-2. Synthesize findings into a well-cited response
-3. If search results are missing something important, use searchLegalDatabase tool to find more
-4. Always cite your sources with EXACT citations from the search results
-
-TOOL USAGE:
-- Use searchLegalDatabase as your PRIMARY research tool
-- Use searchConstitution for specific constitutional questions
-- Use other tools for case management as needed`;
-
-const CLIENT_AGENT_SYSTEM = `You are Jinnah Legal AI — an AI legal assistant for Pakistani citizens.
-
-CRITICAL RULES:
-1. ONLY cite cases that were PROVIDED in the search results. NEVER invent cases or citations.
-2. If search results don't have an answer, say so honestly.
-3. Explain legal concepts simply. Recommend consulting a qualified lawyer for specific advice.
-4. Every case citation must match EXACTLY what appears in the search results.`;
+// Broad Pakistani reporter pattern used for post-generation citation audit.
+const CITATION_PATTERN = /\b\d{4}\s*(?:SCMR|PLD|PCr?\.?\s?LJ|CLC|MLD|YLR|PTD|CLD|SCC|PLC|PLJ|NLR|CLR|TLC|SHC|CRM|SCP|LHC|PHC|FSC|PTCL|SLJ|TAX)\s+\d{1,6}\b/gi;
 
 const TOOL_DECLARATIONS = [
   {
     name: 'searchLegalDatabase',
-    description: 'Search the Pakistani legal database of 16,000+ cases and Constitution. Returns semantically ranked results. Use when you need additional cases beyond what was already provided.',
+    description: 'Search the Pakistani legal database of court cases and Constitution. Returns hybrid semantic+keyword ranked results. Use when you need additional or more specific authorities.',
     parameters: {
       type: 'object',
       properties: {
@@ -110,38 +85,63 @@ const TOOL_DECLARATIONS = [
   },
 ];
 
-async function validateCitations(responseText) {
-  const foundCitations = responseText.match(CITATION_PATTERN) || [];
-  if (foundCitations.length === 0) return { valid: true, invalid: [], message: 'No citations to validate' };
+function normalizeCitation(c) {
+  return c.replace(/\s+/g, ' ').trim();
+}
 
-  const unique = [...new Set(foundCitations)];
+// Portable (SQLite + Postgres) helpers — no ILIKE / regexp_replace here.
+const compactKey = (s) => String(s).replace(/[^a-z0-9]/gi, '').toLowerCase();
+
+export async function validateCitations(responseText) {
+  const found = (responseText.match(CITATION_PATTERN) || []).map(normalizeCitation);
+  if (found.length === 0) return { valid: true, invalid: [], verified: [], message: 'No citations to validate' };
+
+  const unique = [...new Set(found)];
   const invalid = [];
+  const verified = [];
 
   for (const citation of unique) {
     try {
+      // Exact match after whitespace normalization (works on both dialects).
       const exists = await queryOne(
-        'SELECT id FROM citations WHERE citation ILIKE ?',
-        [citation]
+        'SELECT id, title FROM citations WHERE LOWER(REPLACE(citation, \' \', \'\')) = ? LIMIT 1',
+        [compactKey(citation)]
       );
-      if (!exists) {
-        const fuzzyExists = await queryOne(
-          "SELECT citation FROM citations WHERE citation LIKE ?",
-          [`%${citation.slice(0, 15)}%`]
-        );
-        invalid.push({
-          citation,
-          closestMatch: fuzzyExists?.citation || null,
-        });
+      if (exists) {
+        verified.push({ citation, title: exists.title, id: exists.id });
+        continue;
       }
-    } catch { invalid.push({ citation, closestMatch: null }); }
+      // Fuzzy rescue: candidates sharing the year prefix, compact-compared in JS.
+      const year = citation.match(/^\d{4}/)?.[0];
+      let rescued = null;
+      if (year) {
+        const candidates = await queryMany(
+          'SELECT id, citation, title FROM citations WHERE citation LIKE ? LIMIT 400',
+          [`${year}%`]
+        );
+        rescued = candidates.find(c => compactKey(c.citation) === compactKey(citation)) || null;
+      }
+      if (rescued) {
+        verified.push({ citation: rescued.citation, title: rescued.title, id: rescued.id });
+        invalid.push({ citation, closestMatch: rescued.citation, resolvableTo: rescued.citation });
+      } else {
+        const prefix = year
+          ? await queryOne('SELECT citation, title FROM citations WHERE citation LIKE ? LIMIT 1', [`${year}%`])
+          : null;
+        invalid.push({ citation, closestMatch: prefix?.citation || null });
+      }
+    } catch {
+      invalid.push({ citation, closestMatch: null });
+    }
   }
 
   return {
     valid: invalid.length === 0,
     invalid,
+    verified,
     message: invalid.length > 0
       ? `Found ${invalid.length} citations not in database.`
-      : 'All citations verified in database.',
+      : `All ${verified.length} citations verified in database.`,
   };
 }
 
@@ -164,13 +164,33 @@ export async function agentChat({ message, history = [], userId, userRole, sessi
   const hasGrounding = initialSearch.count > 0;
 
   const groundedMessage = hasGrounding
-    ? `User Question: ${message}\n\nRELEVANT DATABASE RESULTS:\n${initialContext}\n\nIf the question relates to legal research or case law, use the database results above to answer. For case management questions (listing cases, client info, documents), use your available tools instead.`
+    ? `User Question: ${message}\n\nDATABASE RESULTS:\n${initialContext}\n\nIf the question relates to legal research or case law, answer from the database results above (cite them). For case management questions (listing cases, client info, documents), use your available tools instead.`
     : `User Question: ${message}\n\nNo relevant results found in the legal database. Search the database using searchLegalDatabase tool to find relevant cases. If no results exist after searching, honestly tell the user.`;
 
   const chat = model.startChat({ history: geminiHistory });
   let responseText = '';
   let currentMessage = groundedMessage;
   const toolTrace = [];
+  const sourcePool = new Map();
+
+  const collectSources = results => {
+    for (const r of results || []) {
+      const key = r.citation || r.id;
+      if (!sourcePool.has(key)) {
+        sourcePool.set(key, {
+          id: r.sourceId || r.id,
+          title: r.title,
+          citation: r.citation || (r.article ? `Article ${r.article}` : ''),
+          court: r.court,
+          year: r.year,
+          category: r.category,
+          sourceType: r.sourceType,
+          score: Number((r.score || 0).toFixed(4)),
+        });
+      }
+    }
+  };
+  collectSources(initialSearch.results);
 
   for (let round = 0; round < MAX_ROUNDS; round++) {
     const result = await chat.sendMessage(currentMessage);
@@ -185,6 +205,7 @@ export async function agentChat({ message, history = [], userId, userRole, sessi
     const toolResponses = [];
     for (const call of functionCalls) {
       const fnResult = await executeAgentTool(call.name, call.args, userId);
+      if (call.name === 'searchLegalDatabase') collectSources(fnResult._results);
       toolTrace.push({ round, tool: call.name, args: call.args, resultKeys: Object.keys(fnResult) });
       toolResponses.push({
         functionResponse: { name: call.name, response: fnResult },
@@ -197,15 +218,42 @@ export async function agentChat({ message, history = [], userId, userRole, sessi
     responseText = 'I have completed the research. Please let me know if you need more details on any specific aspect.';
   }
 
-  const validation = await validateCitations(responseText);
-  let finalResponse = responseText;
+  // ── Citation audit + one self-repair round ────────────────────
+  let validation = await validateCitations(responseText);
+  let repaired = false;
+  if (!validation.valid && validation.invalid.some(i => i.closestMatch)) {
+    try {
+      const repairChat = model.startChat({ history: [...geminiHistory] });
+      const fixResult = await repairChat.sendMessage(
+        citationRepairPrompt(responseText, validation.invalid, null)
+      );
+      const fixedText = fixResult.response.text();
+      const revalidation = await validateCitations(fixedText);
+      if (revalidation.valid || revalidation.invalid.length < validation.invalid.length) {
+        responseText = fixedText;
+        validation = revalidation;
+        repaired = true;
+      }
+    } catch (e) {
+      console.warn('Citation repair round failed:', e.message);
+    }
+  }
 
+  let finalResponse = responseText;
   if (!validation.valid) {
-    const warning = `\n\n─── NOTE ───\nThe following citations could not be verified in the case database: ${validation.invalid.map(i => i.citation).join(', ')}. ${validation.invalid.some(i => i.closestMatch) ? 'The closest matches found were: ' + validation.invalid.filter(i => i.closestMatch).map(i => `${i.citation} → did you mean ${i.closestMatch}?`).join('; ') + '.' : ''} Please verify these against official law reports before use.`;
+    const warning = `\n\n─── VERIFICATION NOTE ───\nThe following citations could not be verified in the case database: ${validation.invalid.map(i => i.citation).join(', ')}. ${validation.invalid.some(i => i.closestMatch) ? 'Closest matches: ' + validation.invalid.filter(i => i.closestMatch).map(i => `${i.citation} → ${i.closestMatch}`).join('; ') + '. ' : ''}Please verify against official law reports before relying on them.`;
     finalResponse = responseText + warning;
   }
 
-  return { responseText: finalResponse, validated: validation, toolTrace, sessionId, grounded: hasGrounding };
+  return {
+    responseText: finalResponse,
+    validated: { ...validation, repaired },
+    sources: [...sourcePool.values()].sort((a, b) => b.score - a.score),
+    toolTrace,
+    sessionId,
+    grounded: hasGrounding,
+    promptVersion: PROMPT_VERSION,
+  };
 }
 
 async function executeAgentTool(name, args, userId) {
@@ -216,7 +264,7 @@ async function executeAgentTool(name, args, userId) {
       return {
         context: buildRAGContext(results),
         resultCount: results.count,
-        hasCases: results.results.some(r => r.sourceType === 'case'),
+        hasCases: results.results.some(r => r.sourceType !== 'constitution'),
         hasConstitution: results.results.some(r => r.sourceType === 'constitution'),
         topResults: results.results.slice(0, 5).map(r => ({
           title: r.title,
@@ -226,6 +274,7 @@ async function executeAgentTool(name, args, userId) {
           score: (r.score || 0).toFixed(3),
           sourceType: r.sourceType,
         })),
+        _results: results.results,
       };
     }
 

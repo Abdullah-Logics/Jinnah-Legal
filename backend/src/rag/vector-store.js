@@ -40,8 +40,16 @@ class InMemoryVectorStore {
     return scored;
   }
 
+  keywordSearch(_queryText, _options) {
+    // Lexical search not supported in memory mode; hybrid falls back to semantic-only.
+    return [];
+  }
+
   size() { return this.vectors.length; }
 }
+
+const MATCH_FN = 'match_rag_chunks';
+const FTS_FN = 'search_rag_chunks_fts';
 
 class PgVectorStore {
   constructor() {
@@ -49,6 +57,7 @@ class PgVectorStore {
     this.queryFn = null;
     this.runFn = null;
     this.ready = false;
+    this.rpcReady = false;
   }
 
   init(supabaseClient, queryFn, runFn) {
@@ -58,12 +67,123 @@ class PgVectorStore {
     if (supabaseClient) {
       this.ready = true;
       console.log('pgvector store initialized (via Supabase REST API)');
+      // Install/refresh server-side search functions in background.
+      this._ensureFunctions().then(ok => {
+        this.rpcReady = ok;
+        console.log(`pgvector RPC search functions: ${ok ? 'ready' : 'unavailable (fallback mode)'}`);
+      }).catch(() => { this.rpcReady = false; });
     }
     return this.ready;
   }
 
-  async addBatch(chunks) {
-    if (!this.ready || chunks.length === 0) return false;
+  async _exec(sql) {
+    const { data, error } = await this.supabase.rpc('exec_sql', { query_text: sql });
+    if (error) throw new Error(error.message);
+    if (data && typeof data === 'object' && !Array.isArray(data) && data._error) {
+      throw new Error(data._error);
+    }
+    return data;
+  }
+
+  async _ensureFunctions() {
+    try {
+      await this._exec(`
+        CREATE OR REPLACE FUNCTION ${MATCH_FN}(
+          query_embedding vector(${DIMENSION}),
+          match_count int DEFAULT 10,
+          filter_source text DEFAULT NULL,
+          filter_court text DEFAULT NULL,
+          filter_category text DEFAULT NULL,
+          filter_year_from int DEFAULT NULL,
+          filter_year_to int DEFAULT NULL,
+          min_score float DEFAULT 0.0
+        ) RETURNS TABLE (
+          id text, source_type text, source_id text, title text, chunk_text text,
+          citation text, court text, year int, category text, keywords text,
+          article text, metadata text, score float
+        ) LANGUAGE sql STABLE AS $$
+          SELECT c.id, c.source_type, c.source_id, c.title, c.chunk_text,
+                 c.citation, c.court, c.year, c.category, c.keywords,
+                 c.article, c.metadata,
+                 1 - (c.embedding <=> query_embedding) AS score
+          FROM rag_chunks c
+          WHERE (filter_source IS NULL OR c.source_type = filter_source)
+            AND (filter_court IS NULL OR c.court ILIKE '%' || filter_court || '%')
+            AND (filter_category IS NULL OR c.category = filter_category)
+            AND (filter_year_from IS NULL OR c.year >= filter_year_from)
+            AND (filter_year_to IS NULL OR c.year <= filter_year_to)
+            AND 1 - (c.embedding <=> query_embedding) > min_score
+          ORDER BY c.embedding <=> query_embedding ASC
+          LIMIT LEAST(match_count, 100);
+        $$;
+      `);
+      await this._exec(`
+        CREATE OR REPLACE FUNCTION ${FTS_FN}(
+          query_text text,
+          match_count int DEFAULT 10,
+          filter_source text DEFAULT NULL,
+          filter_court text DEFAULT NULL,
+          filter_category text DEFAULT NULL,
+          filter_year_from int DEFAULT NULL,
+          filter_year_to int DEFAULT NULL
+        ) RETURNS TABLE (
+          id text, source_type text, source_id text, title text, chunk_text text,
+          citation text, court text, year int, category text, keywords text,
+          article text, metadata text, score float
+        ) LANGUAGE plpgsql STABLE AS $$
+        DECLARE
+          tsq tsquery;
+        BEGIN
+          BEGIN
+            tsq := websearch_to_tsquery('english', query_text);
+          EXCEPTION WHEN OTHERS THEN
+            tsq := to_tsquery('english', 'noposiblematch');
+          END;
+
+          RETURN QUERY
+          SELECT c.id, c.source_type, c.source_id, c.title, c.chunk_text,
+                 c.citation, c.court, c.year, c.category, c.keywords,
+                 c.article, c.metadata,
+                 GREATEST(
+                   ts_rank(c.fts, tsq),
+                   CASE WHEN c.citation ILIKE '%' || query_text || '%' THEN 0.99 ELSE 0 END,
+                   CASE WHEN c.title ILIKE '%' || query_text || '%' THEN 0.9 ELSE 0 END
+                 )::float AS score
+          FROM rag_chunks c
+          WHERE (filter_source IS NULL OR c.source_type = filter_source)
+            AND (filter_court IS NULL OR c.court ILIKE '%' || filter_court || '%')
+            AND (filter_category IS NULL OR c.category = filter_category)
+            AND (filter_year_from IS NULL OR c.year >= filter_year_from)
+            AND (filter_year_to IS NULL OR c.year <= filter_year_to)
+            AND (
+              c.fts @@ tsq
+              OR c.citation ILIKE '%' || query_text || '%'
+              OR c.title ILIKE '%' || query_text || '%'
+              OR c.keywords ILIKE '%' || query_text || '%'
+            )
+          ORDER BY score DESC
+          LIMIT LEAST(match_count, 100);
+        END;
+        $$;
+      `);
+      // Generated FTS column backing the lexical leg (fast, always in sync).
+      try {
+        await this._exec(`ALTER TABLE rag_chunks ADD COLUMN IF NOT EXISTS fts tsvector GENERATED ALWAYS AS (
+          to_tsvector('english', coalesce(title,'') || ' ' || coalesce(citation,'') || ' ' || coalesce(keywords,'') || ' ' || coalesce(chunk_text,''))
+        ) STORED`);
+      } catch {}
+      try {
+        await this._exec(`CREATE INDEX IF NOT EXISTS idx_rag_chunks_fts ON rag_chunks USING GIN(fts)`);
+      } catch {}
+      return true;
+    } catch (e) {
+      console.warn('RAG search function install failed:', e.message);
+      return false;
+    }
+  }
+
+  addBatch(chunks) {
+    if (!this.ready || chunks.length === 0) return Promise.resolve(false);
     const rows = chunks.map(c => ({
       id: c.id,
       source_type: c.sourceType,
@@ -72,30 +192,90 @@ class PgVectorStore {
       chunk_text: c.chunkText,
       citation: c.citation || '',
       court: c.court || '',
-      year: c.year || 0,
+      year: Number(c.year) || 0,
       category: c.category || '',
       keywords: c.keywords || '',
       article: c.article || '',
       metadata: JSON.stringify(c.metadata || {}),
-      embedding: c.embedding.slice(0, DIMENSION),
+      embedding: (c.embedding || new Array(DIMENSION).fill(0)).slice(0, DIMENSION),
     }));
-    const { error } = await this.supabase
+    return this.supabase
       .from('rag_chunks')
-      .upsert(rows, { onConflict: 'id', ignoreDuplicates: false });
-    if (error) {
-      console.error('pgvector batch insert error:', error.message);
-      throw error;
-    }
-    return true;
+      .upsert(rows, { onConflict: 'id', ignoreDuplicates: false })
+      .then(({ error }) => {
+        if (error) {
+          console.error('pgvector batch insert error:', error.message);
+          throw error;
+        }
+        return true;
+      });
   }
 
-  async search(queryEmbedding, { limit = 20, filters = {} } = {}) {
+  rowToResult(r) {
+    let meta = r.metadata ?? {};
+    if (typeof meta === 'string') {
+      try { meta = JSON.parse(meta); } catch { meta = {}; }
+    }
+    return {
+      id: r.id,
+      sourceType: r.source_type,
+      sourceId: r.source_id,
+      title: r.title,
+      chunkText: r.chunk_text,
+      citation: r.citation,
+      court: r.court,
+      year: r.year,
+      category: r.category,
+      keywords: r.keywords,
+      article: r.article,
+      metadata: meta || {},
+      score: Number(r.score) || 0,
+    };
+  }
+
+  buildFilterArgs(filters) {
+    return {
+      filter_source: filters.sourceType || null,
+      filter_court: filters.court || null,
+      filter_category: filters.category || null,
+      filter_year_from: filters.yearFrom ? Number(filters.yearFrom) : null,
+      filter_year_to: filters.yearTo ? Number(filters.yearTo) : null,
+    };
+  }
+
+  /**
+   * True ANN vector search executed inside Postgres (uses the HNSW index).
+   * Falls back to fetch-and-score only when RPC functions are unavailable.
+   */
+  async search(queryEmbedding, { limit = 20, filters = {}, minScore = 0 } = {}) {
     if (!this.ready) return [];
     const emb = queryEmbedding.slice(0, DIMENSION);
+
+    if (this.rpcReady) {
+      try {
+        const { data, error } = await this.supabase.rpc(MATCH_FN, {
+          query_embedding: emb,
+          match_count: Math.min(limit, 100),
+          min_score: minScore,
+          ...this.buildFilterArgs(filters),
+        });
+        if (error) throw new Error(error.message);
+        return (data || []).map(r => this.rowToResult(r));
+      } catch (e) {
+        console.warn(`${MATCH_FN} RPC failed (${e.message}); using fallback scan`);
+        this.rpcReady = false;
+      }
+    }
+    return this._fallbackScan(emb, { limit, filters });
+  }
+
+  /** Correct-but-heavy fallback: pull candidate embeddings, score in Node. */
+  async _fallbackScan(emb, { limit, filters }) {
+    const CANDIDATE_CAP = 2000;
     let query = this.supabase
       .from('rag_chunks')
       .select('id, source_type, source_id, title, chunk_text, citation, court, year, category, keywords, article, metadata')
-      .limit(limit);
+      .limit(CANDIDATE_CAP);
 
     if (filters.sourceType) query = query.eq('source_type', filters.sourceType);
     if (filters.court) query = query.ilike('court', `%${filters.court}%`);
@@ -105,40 +285,22 @@ class PgVectorStore {
 
     const { data, error } = await query;
     if (error) {
-      console.error('pgvector search fetch error:', error.message);
+      console.error('pgvector fallback fetch error:', error.message);
       return [];
     }
 
-    const scored = (data || []).map(r => {
-      const score = 0;
-      return {
-        id: r.id,
-        sourceType: r.source_type,
-        sourceId: r.source_id,
-        title: r.title,
-        chunkText: r.chunk_text,
-        citation: r.citation,
-        court: r.court,
-        year: r.year,
-        category: r.category,
-        keywords: r.keywords,
-        article: r.article,
-        metadata: typeof r.metadata === 'string' ? JSON.parse(r.metadata) : (r.metadata || {}),
-        score,
-      };
-    });
+    const candidates = (data || []).map(r => ({ ...this.rowToResult(r), score: 0 }));
+    if (candidates.length === 0) return [];
 
-    if (scored.length === 0) return scored;
-
-    const embeddings = await this._fetchEmbeddings(scored.map(r => r.id));
+    const embeddings = await this._fetchEmbeddings(candidates.map(r => r.id));
     const embMap = new Map(embeddings);
 
     let normEmb = 0;
     for (let i = 0; i < emb.length; i++) normEmb += emb[i] * emb[i];
     normEmb = Math.sqrt(normEmb);
-    if (normEmb === 0) return scored;
+    if (normEmb === 0) return [];
 
-    for (const r of scored) {
+    for (const r of candidates) {
       const vec = embMap.get(r.id);
       if (vec) {
         let dot = 0, norm = 0;
@@ -148,20 +310,80 @@ class PgVectorStore {
         }
         norm = Math.sqrt(norm);
         r.score = norm === 0 ? 0 : dot / (normEmb * norm);
-      } else {
-        r.score = 0;
+      }
+    }
+    return candidates.sort((a, b) => b.score - a.score).slice(0, limit);
+  }
+
+  /**
+   * Lexical (keyword) search leg of hybrid retrieval.
+   * Uses Postgres FTS RPC when available, ILIKE otherwise.
+   */
+  async keywordSearch(queryText, { limit = 20, filters = {} } = {}) {
+    if (!this.ready || !queryText) return [];
+
+    if (this.rpcReady) {
+      try {
+        const { data, error } = await this.supabase.rpc(FTS_FN, {
+          query_text: String(queryText).slice(0, 500),
+          match_count: Math.min(limit, 100),
+          ...this.buildFilterArgs(filters),
+        });
+        if (error) throw new Error(error.message);
+        return (data || []).map(r => this.rowToResult(r));
+      } catch (e) {
+        console.warn(`${FTS_FN} RPC failed (${e.message}); using ILIKE fallback`);
       }
     }
 
-    return scored.sort((a, b) => b.score - a.score).slice(0, limit);
+    // ILIKE fallback across identity + content columns
+    const p = `%${queryText.replace(/[%_]/g, '').slice(0, 120)}%`;
+    let q = this.supabase
+      .from('rag_chunks')
+      .select('id, source_type, source_id, title, chunk_text, citation, court, year, category, keywords, article, metadata')
+      .or(`citation.ilike.${p},title.ilike.${p},keywords.ilike.${p},chunk_text.ilike.${p}`)
+      .limit(limit);
+
+    if (filters.sourceType) q = q.eq('source_type', filters.sourceType);
+    if (filters.court) q = q.ilike('court', `%${filters.court}%`);
+    if (filters.category) q = q.eq('category', filters.category);
+    if (filters.yearFrom) q = q.gte('year', filters.yearFrom);
+    if (filters.yearTo) q = q.lte('year', filters.yearTo);
+
+    const { data, error } = await q;
+    if (error) return [];
+    return (data || []).map(r => ({ ...this.rowToResult(r), score: 0.5 }));
+  }
+
+  async getByIds(ids) {
+    if (!this.ready || !ids?.length) return [];
+    const out = [];
+    for (let i = 0; i < ids.length; i += 100) {
+      const chunk = ids.slice(i, i + 100);
+      const { data, error } = await this.supabase
+        .from('rag_chunks')
+        .select('id, source_type, source_id, title, chunk_text, citation, court, year, category, keywords, article, metadata')
+        .in('id', chunk);
+      if (!error && data) out.push(...data.map(r => this.rowToResult(r)));
+    }
+    return out;
+  }
+
+  async getBySourceId(sourceId) {
+    if (!this.ready || !sourceId) return [];
+    const { data, error } = await this.supabase
+      .from('rag_chunks')
+      .select('id, source_type, source_id, title, chunk_text, citation, court, year, category, keywords, article, metadata')
+      .eq('source_id', sourceId);
+    if (error) return [];
+    return (data || []).map(r => this.rowToResult(r));
   }
 
   async _fetchEmbeddings(ids) {
     if (!ids.length) return [];
-    const chunkSize = 100;
     const results = [];
-    for (let i = 0; i < ids.length; i += chunkSize) {
-      const chunk = ids.slice(i, i + chunkSize);
+    for (let i = 0; i < ids.length; i += 100) {
+      const chunk = ids.slice(i, i + 100);
       try {
         const { data, error } = await this.supabase
           .from('rag_chunks')
@@ -184,7 +406,14 @@ class PgVectorStore {
 
   async clear() {
     if (!this.ready) return;
-    await this.supabase.from('rag_chunks').delete().neq('id', '');
+    // Prefer server-side TRUNCATE via exec_sql (no REST payload).
+    try {
+      await this._exec('TRUNCATE TABLE rag_chunks');
+      return;
+    } catch {}
+    // Fallback: REST delete without .select() so no row payloads come back.
+    const { error } = await this.supabase.from('rag_chunks').delete().neq('id', '__none__');
+    if (error) console.error('rag_chunks clear failed:', error.message);
   }
 }
 
@@ -198,8 +427,14 @@ export function initVectorStore(supabaseClient, queryFn, runFn) {
   return usePg ? 'pgvector' : 'in-memory';
 }
 
-export function addToMemory(id, embedding, metadata) {
-  memStore.add(id, embedding, metadata);
+export function addToMemory(id, embedding, data) {
+  // Accept either a chunk object ({id, title, …, metadata:{chunkKind,…}})
+  // or a plain metadata object; normalizes to the same flat shape pgvector returns.
+  const { metadata, ...rest } = data || {};
+  const meta = Object.keys(rest).length
+    ? { ...rest, ...(metadata || {}) }
+    : (metadata || {});
+  memStore.add(id, embedding, meta);
 }
 
 export function clearMemory() {
@@ -217,6 +452,21 @@ export async function vectorSearch(queryEmbedding, options = {}) {
   return memStore.search(queryEmbedding, options);
 }
 
+export async function keywordSearch(queryText, options = {}) {
+  if (usePg) return pgStore.keywordSearch(queryText, options);
+  return memStore.keywordSearch(queryText, options);
+}
+
+export async function getChunksByIds(ids) {
+  if (usePg) return pgStore.getByIds(ids);
+  return memStore.vectors.filter(v => ids.includes(v.id)).map(v => ({ ...v.metadata, id: v.id, chunkText: v.metadata?.chunkText || '', score: 0 }));
+}
+
+export async function getChunksBySourceId(sourceId) {
+  if (usePg) return pgStore.getBySourceId(sourceId);
+  return memStore.vectors.filter(v => v.metadata?.sourceId === sourceId).map(v => ({ ...v.metadata, id: v.id, chunkText: v.metadata?.chunkText || '', score: 0 }));
+}
+
 export async function getChunkCount() {
   if (usePg) return pgStore.count();
   return memStore.size();
@@ -228,3 +478,4 @@ export async function clearAllChunks() {
 }
 
 export function isPgReady() { return usePg; }
+export function isRpcReady() { return usePg && pgStore.rpcReady; }

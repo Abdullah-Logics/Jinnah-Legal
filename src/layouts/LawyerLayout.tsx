@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { avatarUrl } from '../utils/resolveUrl';
 import {
   LayoutDashboard, Briefcase, BookOpen, Search, FileText, Clock, Users,
-  Calendar, MessageSquare, User, UserPlus, Brain, Menu, X, LogOut, Bell, Scale, BarChart3, UsersRound, BookMarked, Phone,
+  Calendar, MessageSquare, User, UserPlus, Brain, Menu, X, LogOut, Bell, Scale, BarChart3, UsersRound, BookMarked, Phone, Wand2,
 } from 'lucide-react';
 
 const sidebarItems = [
@@ -23,6 +23,7 @@ const sidebarItems = [
 
   { path: '/lawyer/call-logs', icon: Phone, label: 'Call Logs' },
   { path: '/lawyer/research', icon: Search, label: 'AI Research' },
+  { path: '/lawyer/drafting', icon: Wand2, label: 'AI Drafter' },
   { path: '/lawyer/citations', icon: Scale, label: 'Citations' },
   { path: '/lawyer/time-tracking', icon: Clock, label: 'Time & Billing' },
   { path: '/lawyer/requests', icon: UserPlus, label: 'Network' },

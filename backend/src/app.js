@@ -24,6 +24,7 @@ import { citationsRouter } from './routes/citations.js';
 import { evidenceRouter } from './routes/evidence.js';
 import { constitutionRouter } from './routes/constitution.js';
 import { ragRouter } from './routes/rag.js';
+import { docAgentRouter } from './routes/docagent.js';
 import { initVectorStore } from './rag/vector-store.js';
 import { sanitizeInput, sqlInjectionGuard } from './middleware/sanitize.js';
 import { securityHeaders } from './middleware/security.js';
@@ -120,6 +121,14 @@ export async function createApp() {
   app.use('/api/ai/', aiLimiter);
   app.use('/api/rag/', aiLimiter);
   app.use('/api/rag/index', ragIndexLimiter);
+  const docAgentLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many document generation requests. Please wait a moment.' },
+  });
+  app.use('/api/docagent/', docAgentLimiter);
 
   const corsOrigins = getCorsOrigin();
   app.use(cors({
@@ -176,6 +185,7 @@ export async function createApp() {
   app.use('/api/evidence',  evidenceRouter);
   app.use('/api/constitution', constitutionRouter);
   app.use('/api/rag', ragRouter);
+  app.use('/api/docagent', docAgentRouter);
   app.use('/api',           apiRouter);
 
   if (!process.env.VERCEL) {

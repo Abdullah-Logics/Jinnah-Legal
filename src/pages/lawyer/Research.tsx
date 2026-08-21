@@ -1,11 +1,12 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Search, Brain, FileText, Clock, BookOpen, Sparkles, Send, Lightbulb, Save, Loader, Trash2,
+  Search, Brain, FileText, Clock, BookOpen, Sparkles, Send, Save, Loader, Trash2,
   Scale, Gavel, Plus, Clipboard, ShoppingCart, Calendar, ChevronDown, ChevronRight,
-  BadgeCheck, FolderOpen, SlidersHorizontal, Zap, ExternalLink, RefreshCw,
+  BadgeCheck, FolderOpen, SlidersHorizontal, Zap, RefreshCw, AlertTriangle,
 } from 'lucide-react';
 import api from '../../utils/api';
+import LinkifiedText from '../../components/LinkifiedText';
 import { useStore } from '../../store/useStore';
 
 interface RAGResult {
@@ -16,16 +17,26 @@ interface RAGResult {
   court: string;
   year: number;
   category: string;
-  keywords: string;
-  chunkText: string;
+  keywords?: string;
+  chunkText?: string;
   score: number;
 }
 
 interface RAGResponse {
-  query: string;
-  results: RAGResult[];
-  count: number;
-  context: string;
+  query?: string;
+  response?: string;
+  results?: RAGResult[];
+  sources?: RAGResult[];
+  count?: number;
+  context?: string;
+  validation?: { valid: boolean; repaired?: boolean; verifiedCount?: number; invalid?: { citation: string; closestMatch?: string | null }[] };
+}
+
+interface Validation {
+  valid: boolean;
+  repaired?: boolean;
+  verifiedCount: number;
+  invalid: { citation: string; closestMatch?: string | null }[];
 }
 
 interface Memo {
@@ -35,6 +46,8 @@ interface Memo {
   sources: RAGResult[];
   createdAt: string;
 }
+
+const asArray = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
 
 interface Citation {
   id: string;
@@ -69,6 +82,7 @@ export default function LawyerResearch() {
   const [isSearching, setIsSearching] = useState(false);
   const [ragResults, setRagResults] = useState<RAGResult[]>([]);
   const [ragCount, setRagCount] = useState(0);
+  const [validation, setValidation] = useState<Validation | null>(null);
   const [aiAnswer, setAiAnswer] = useState('');
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState<'search' | 'citations' | 'memos'>('search');
@@ -140,10 +154,10 @@ export default function LawyerResearch() {
       const res = await fetch(`${API}/api/citations?${params}`, { headers: { Authorization: `Bearer ${token}` } });
       if (res.ok) {
         const data = await res.json();
-        const raw = data.rows || data;
-        const safe = Array.isArray(raw) ? raw : [];
+        const raw = data?.rows ?? data;
+        const safe = asArray<Citation>(raw);
         setCitResults(safe);
-        setCitTotal(typeof data.total === 'number' ? data.total : safe.length);
+        setCitTotal(typeof data?.total === 'number' ? data.total : safe.length);
       }
     } catch (e) { console.error('Citation search failed', e); }
     setCitLoading(false);
@@ -152,7 +166,7 @@ export default function LawyerResearch() {
   const loadCitCart = async () => {
     try {
       const res = await fetch(`${API}/api/citations/cart/list`, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) { const d = await res.json(); setCitCart(Array.isArray(d) ? d : []); }
+      if (res.ok) { const d = await res.json(); setCitCart(asArray(d)); }
     } catch {}
   };
 
@@ -170,7 +184,10 @@ export default function LawyerResearch() {
   useEffect(() => {
     try {
       const stored = localStorage.getItem('legal-memos');
-      if (stored) setMemos(JSON.parse(stored));
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setMemos(asArray<Memo>(parsed).map(m => ({ ...m, sources: asArray<RAGResult>(m.sources) })));
+      }
     } catch {}
   }, []);
 
@@ -180,17 +197,28 @@ export default function LawyerResearch() {
     setError('');
     setRagResults([]);
     setRagCount(0);
+    setValidation(null);
     setAiAnswer('');
     try {
-      const data = await api.post<{ response?: string; results?: RAGResult[]; count?: number }>('/api/rag/ask', {
+      const data = await api.post<RAGResponse>('/api/rag/ask', {
         message: query,
         history: [],
       });
-      if (data.results) {
-        setRagResults(data.results);
-        setRagCount(data.count || 0);
+      // Backend returns verified `sources`; older builds returned `results`.
+      const sources = asArray<RAGResult>(data?.sources).length > 0
+        ? asArray<RAGResult>(data.sources)
+        : asArray<RAGResult>(data?.results);
+      setRagResults(sources);
+      setRagCount(sources.length);
+      if (data?.validation) {
+        setValidation({
+          valid: !!data.validation.valid,
+          repaired: !!data.validation.repaired,
+          verifiedCount: Number(data.validation.verifiedCount || 0),
+          invalid: asArray(data.validation.invalid),
+        });
       }
-      setAiAnswer(data.response || 'No response received.');
+      setAiAnswer(data?.response || 'No response received.');
     } catch (err: any) {
       try {
         const data = await api.post<{ response: string }>('/api/ai/chat', {
@@ -199,7 +227,7 @@ export default function LawyerResearch() {
           noSession: true,
           noTools: true,
         });
-        setAiAnswer(data.response || 'No response received.');
+        setAiAnswer(data?.response || 'No response received.');
       } catch {
         setError('Research failed. Check your connection and try again.');
       }
@@ -317,7 +345,7 @@ export default function LawyerResearch() {
                     </div>
                     <div className="space-y-1.5 max-h-60 overflow-y-auto">
                       {ragResults.slice(0, 8).map((r, i) => (
-                        <div key={r.id} className={`flex items-start gap-2 p-2 rounded-lg text-xs ${r.sourceType === 'constitution' ? 'bg-purple-50' : 'bg-slate-50'}`}>
+                        <div key={r.id || i} className={`flex items-start gap-2 p-2 rounded-lg text-xs ${r.sourceType === 'constitution' ? 'bg-purple-50' : 'bg-slate-50'}`}>
                           <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 ${r.sourceType === 'constitution' ? 'bg-purple-100' : 'bg-indigo-100'}`}>
                             {r.sourceType === 'constitution' ? <BookOpen size={10} className="text-purple-600" /> : <Gavel size={10} className="text-indigo-600" />}
                           </div>
@@ -329,7 +357,7 @@ export default function LawyerResearch() {
                             </div>
                             <p className="font-medium text-slate-800 truncate">{r.title}</p>
                           </div>
-                          <span className="text-[10px] text-slate-400 flex-shrink-0">{(r.score * 100).toFixed(0)}%</span>
+                          <span className="text-[10px] text-slate-400 flex-shrink-0">{((r.score || 0) * 100).toFixed(0)}%</span>
                         </div>
                       ))}
                     </div>
@@ -337,11 +365,20 @@ export default function LawyerResearch() {
                 )}
 
                 <div className="bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-100">
-                  <div className="flex items-center gap-2 mb-3">
+                  <div className="flex items-center gap-2 mb-3 flex-wrap">
                     <Brain size={16} className="text-emerald-600" />
                     <h3 className="text-sm font-bold text-slate-900">AI Analysis</h3>
+                    {validation && (validation.valid ? (
+                      <span className="ml-auto flex items-center gap-1 text-[10px] px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 font-medium">
+                        <BadgeCheck size={11} /> {validation.verifiedCount > 0 ? `${validation.verifiedCount} citations verified` : 'Verified'}{validation.repaired ? ' · auto-corrected' : ''}
+                      </span>
+                    ) : (
+                      <span className="ml-auto flex items-center gap-1 text-[10px] px-2 py-1 rounded-full bg-amber-50 text-amber-700 font-medium">
+                        <AlertTriangle size={11} /> {validation.invalid.length} unverified citation{validation.invalid.length > 1 ? 's' : ''}{validation.repaired ? ' · auto-corrected' : ''}
+                      </span>
+                    ))}
                   </div>
-                  <div className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{aiAnswer}</div>
+                  <div className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap"><LinkifiedText text={aiAnswer} /></div>
                 </div>
               </div>
             )}

@@ -43,6 +43,7 @@ import LawyerCases from './pages/lawyer/Cases';
 import LawyerCaseDetail from './pages/lawyer/CaseDetail';
 import LawyerJournal from './pages/lawyer/Journal';
 import LawyerResearch from './pages/lawyer/Research';
+import LawyerDrafting from './pages/lawyer/Drafting';
 import LawyerDocuments from './pages/lawyer/Documents';
 import LawyerTimeTracking from './pages/lawyer/TimeTracking';
 import LawyerClients from './pages/lawyer/Clients';
@@ -135,6 +136,7 @@ function App() {
             <Route path="cases/:id" element={<LawyerCaseDetail />} />
             <Route path="journal" element={<LawyerJournal />} />
             <Route path="research" element={<LawyerResearch />} />
+            <Route path="drafting" element={<LawyerDrafting />} />
             <Route path="documents" element={<LawyerDocuments />} />
             <Route path="time-tracking" element={<LawyerTimeTracking />} />
             <Route path="clients" element={<LawyerClients />} />

@@ -102,8 +102,10 @@ function rrfScore(lists, id, k = 60) {
 }
 
 export async function semanticSearch(query, options = {}) {
-  const { limit = 20, sourceType, court, category, yearFrom, yearTo } = options;
-  const embedding = await embedText(query, { taskType: 'RETRIEVAL_QUERY' });
+  const { limit = 20, sourceType, court, category, yearFrom, yearTo, maxWaitMs = Infinity } = options;
+  // Interactive callers pass a small maxWaitMs so a quota-starved index
+  // degrades to keyword-only search instantly instead of hanging the request.
+  const embedding = await embedText(query, { taskType: 'RETRIEVAL_QUERY', maxWaitMs });
   if (!embedding || embedding.every(v => v === 0)) return [];
 
   const filters = {};
@@ -135,6 +137,7 @@ export async function hybridSearch(query, options = {}) {
     yearTo,
     perCase = 2,
     expansion = true,
+    maxWaitMs = Infinity,
   } = options;
 
   const filters = {};
@@ -153,7 +156,7 @@ export async function hybridSearch(query, options = {}) {
   const keywordLimit = Math.min(Math.max(limit * 2, 16), 80);
 
   const tasks = [
-    semanticSearch(expandedQuery, { ...options, limit: semanticLimit }),
+    semanticSearch(expandedQuery, { ...options, limit: semanticLimit, maxWaitMs }),
     keywordSearch(query, { limit: keywordLimit, filters }),
   ];
   if (synonyms.length) {

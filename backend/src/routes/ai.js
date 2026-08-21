@@ -244,7 +244,7 @@ async function executeTool(name, args, req) {
   switch (name) {
     case 'searchLegalDatabase': {
       const { query: q, sourceType, category, court, yearFrom, yearTo } = args;
-      const results = await hybridSearch(q, { limit: 15, sourceType, category, court, yearFrom, yearTo });
+      const results = await hybridSearch(q, { limit: 15, sourceType, category, court, yearFrom, yearTo, maxWaitMs: 6000 });
       const ragContext = buildRAGContext(results);
       return {
         context: ragContext,
@@ -558,7 +558,7 @@ aiRouter.post('/chat', validate(aiChatSchema), asyncHandler(async (req, res) => 
     });
 
     if (!noTools) {
-      const initialSearch = await hybridSearch(message, { limit: 8 });
+      const initialSearch = await hybridSearch(message, { limit: 8, maxWaitMs: 6000 });
       const hasGrounding = initialSearch.count > 0;
       let groundedMessage;
       if (hasGrounding) {
@@ -581,13 +581,31 @@ aiRouter.post('/chat', validate(aiChatSchema), asyncHandler(async (req, res) => 
     let responseText = '';
     let currentMessage = messageToModel;
 
+    const sleepMs = (ms) => new Promise(r => setTimeout(r, ms));
+    const isTransientErr = (err) => [429, 500, 502, 503, 504].includes(err?.status) ||
+      /overload|unavailable|timeout|fetch failed|network/i.test(err?.message || '');
+
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-      const result = await chat.sendMessage(currentMessage);
+      let result;
+      let lastErr = null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try { result = await chat.sendMessage(currentMessage); lastErr = null; break; }
+        catch (err) {
+          lastErr = err;
+          if (!isTransientErr(err) || attempt === 2) break;
+          await sleepMs(2500 * (attempt + 1));
+        }
+      }
+      if (!result) {
+        console.error('AI chat sendMessage failed:', lastErr?.message);
+        responseText = 'The AI service is temporarily busy (the legal database is being re-indexed in the background). Please try again in a minute.';
+        break;
+      }
       const response = result.response;
 
       const functionCalls = response.functionCalls();
       if (!functionCalls || functionCalls.length === 0) {
-        responseText = response.text();
+        try { responseText = response.text() || ''; } catch { responseText = ''; }
         break;
       }
 

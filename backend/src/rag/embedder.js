@@ -113,8 +113,11 @@ function isRateLimit(err) {
   return err?.status === 429 || /quota|too many requests/i.test(err?.message || '');
 }
 
-async function waitForQuota(err, attempt) {
-  const wait = extractRetryDelay(err) ?? 25000 * Math.min(attempt + 1, 3);
+async function waitForQuota(err, attempt, maxWaitMs = Infinity) {
+  const wait = Math.min(extractRetryDelay(err) ?? 25000 * Math.min(attempt + 1, 3), maxWaitMs);
+  if (maxWaitMs !== Infinity && wait >= maxWaitMs) {
+    throw Object.assign(new Error('Embedding quota exhausted (interactive timeout)'), { code: 'QUOTA_TIMEOUT' });
+  }
   console.warn(`Embed rate limited; backing off ${Math.round(wait / 1000)}s`);
   await sleep(wait);
 }
@@ -124,7 +127,7 @@ async function embedOnce(modelName, text, taskType) {
   return l2Normalize(fitDimension(values));
 }
 
-export async function embedText(text, { taskType = 'RETRIEVAL_QUERY' } = {}) {
+export async function embedText(text, { taskType = 'RETRIEVAL_QUERY', maxWaitMs = Infinity } = {}) {
   const cleaned = clean(text);
   if (!cleaned) return new Array(DIMENSION).fill(0);
 
@@ -137,7 +140,8 @@ export async function embedText(text, { taskType = 'RETRIEVAL_QUERY' } = {}) {
       return v;
     } catch (err) {
       lastErr = err;
-      if (isRateLimit(err)) { await waitForQuota(err, attempt); continue; }
+      if (err.code === 'QUOTA_TIMEOUT') break;
+      if (isRateLimit(err)) { await waitForQuota(err, attempt, maxWaitMs); continue; }
       if (attempt < MAX_RETRIES) await sleep(800 * (attempt + 1));
     }
   }

@@ -186,7 +186,7 @@ export async function agentChat({ message, history = [], userId, userRole, sessi
     parts: [{ text: h.content }],
   }));
 
-  const initialSearch = await hybridSearch(message, { limit: 10 });
+  const initialSearch = await hybridSearch(message, { limit: 10, maxWaitMs: 6000 });
   const initialContext = buildRAGContext(initialSearch);
   const hasGrounding = initialSearch.count > 0;
 
@@ -308,7 +308,7 @@ async function executeAgentTool(name, args, userId) {
   switch (name) {
     case 'searchLegalDatabase': {
       const { query: q, sourceType, category, court, yearFrom, yearTo } = args;
-      const results = await hybridSearch(q, { limit: 10, sourceType, category, court, yearFrom, yearTo });
+      const results = await hybridSearch(q, { limit: 10, sourceType, category, court, yearFrom, yearTo, maxWaitMs: 6000 });
       return {
         context: buildRAGContext(results),
         resultCount: results.count,

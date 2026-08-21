@@ -1,7 +1,7 @@
 import { embedBatch, getResolvedModel } from './embedder.js';
 import { chunkCase, chunkConstitutionArticle } from './chunker.js';
 import {
-  addToMemory, addBatchToPg, clearAllChunks, isPgReady,
+  addToMemory, addBatchToPg, clearAllChunks, isPgReady, getExistingChunkIds,
 } from './vector-store.js';
 
 const BATCH_SIZE = 40;
@@ -34,12 +34,18 @@ async function persistChunks(chunks, embeddings) {
 const EMBED_SLICE = 100;
 
 async function embedAndPersist(chunks, { log, label = '' } = {}) {
+  // Skip chunks already stored (idempotent resume after restarts/redeploys)
+  const existing = await getExistingChunkIds(chunks.map(c => c.id));
+  const fresh = existing.size ? chunks.filter(c => !existing.has(c.id)) : chunks;
+  if (existing.size && log) log(`  ${label}: skipping ${existing.size} already-indexed chunks`);
+  if (fresh.length === 0) return 0;
+
   let stored = 0;
-  for (let i = 0; i < chunks.length; i += EMBED_SLICE) {
-    const slice = chunks.slice(i, i + EMBED_SLICE);
+  for (let i = 0; i < fresh.length; i += EMBED_SLICE) {
+    const slice = fresh.slice(i, i + EMBED_SLICE);
     const embeddings = await embedBatch(slice.map(c => c.chunkText), { taskType: 'RETRIEVAL_DOCUMENT' });
     stored += await persistChunks(slice, embeddings);
-    if (log) log(`  ${label}: persisted ${stored}/${chunks.length} chunks`);
+    if (log) log(`  ${label}: persisted ${stored}/${fresh.length} new chunks`);
   }
   return stored;
 }

@@ -472,6 +472,22 @@ export async function getChunkCount() {
   return memStore.size();
 }
 
+// Resume support: which of these chunk ids are already stored?
+export async function getExistingChunkIds(ids) {
+  if (!ids || ids.length === 0) return new Set();
+  if (usePg && pgStore.queryFn) {
+    const list = ids.map(i => `'${String(i).replace(/'/g, "''")}'`).join(',');
+    try {
+      const rows = await pgStore.queryFn(`SELECT id FROM rag_chunks WHERE id IN (${list})`);
+      return new Set((rows || []).map(r => r.id));
+    } catch (e) {
+      console.warn('getExistingChunkIds failed:', e.message);
+      return new Set();
+    }
+  }
+  return new Set(memStore.vectors.filter(v => ids.includes(v.id)).map(v => v.id));
+}
+
 export async function clearAllChunks() {
   if (usePg) await pgStore.clear();
   memStore.clear();

@@ -145,6 +145,33 @@ export async function validateCitations(responseText) {
   };
 }
 
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+function isTransient(err) {
+  const status = err?.status;
+  if ([429, 500, 502, 503, 504].includes(status)) return true;
+  return /overload|unavailable|timeout|fetch failed|network/i.test(err?.message || '');
+}
+
+async function sendMessageWithRetry(chat, message, { attempts = 3 } = {}) {
+  let lastErr;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await chat.sendMessage(message);
+    } catch (err) {
+      lastErr = err;
+      if (!isTransient(err) || i === attempts - 1) break;
+      const m = (err.message || '').match(/retry\s+in\s+([\d.]+)\s*s/i);
+      await sleep(m ? parseFloat(m[1]) * 1000 + 500 : 2500 * (i + 1));
+    }
+  }
+  throw lastErr;
+}
+
+function extractText(response) {
+  try { return response?.text() || ''; } catch { return ''; }
+}
+
 export async function agentChat({ message, history = [], userId, userRole, sessionId }) {
   const isLawyer = ['lawyer', 'firm_admin'].includes(userRole);
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -193,12 +220,23 @@ export async function agentChat({ message, history = [], userId, userRole, sessi
   collectSources(initialSearch.results);
 
   for (let round = 0; round < MAX_ROUNDS; round++) {
-    const result = await chat.sendMessage(currentMessage);
+    let result;
+    try {
+      result = await sendMessageWithRetry(chat, currentMessage);
+    } catch (err) {
+      console.error('agentChat sendMessage failed:', err.message);
+      // Graceful degradation: never throw — answer from what we have.
+      const pool = [...sourcePool.values()].sort((a, b) => b.score - a.score);
+      responseText = pool.length
+        ? `I retrieved the following authorities for your question, but the AI service is temporarily unavailable to write a full analysis. Please try again shortly.\n\nRelevant authorities found:\n${pool.slice(0, 5).map(s => `- ${s.title ? `"${s.title}", ` : ''}${s.citation}${s.court ? ` (${s.court})` : ''}`).join('\n')}`
+        : 'The AI service is temporarily unavailable. Please try again in a few moments — your question was received but could not be processed right now.';
+      break;
+    }
     const response = result.response;
     const functionCalls = response.functionCalls();
 
     if (!functionCalls || functionCalls.length === 0) {
-      responseText = response.text();
+      responseText = extractText(response);
       break;
     }
 
@@ -214,11 +252,21 @@ export async function agentChat({ message, history = [], userId, userRole, sessi
     currentMessage = toolResponses;
   }
 
+  // Loop ended without plain text (e.g. model kept calling tools until MAX_ROUNDS)
   if (!responseText) {
-    responseText = 'I have completed the research. Please let me know if you need more details on any specific aspect.';
+    const pool = [...sourcePool.values()].sort((a, b) => b.score - a.score);
+    if (pool.length) {
+      try {
+        const summaryMsg = `Based ONLY on these sources, write your final cited answer now (no more tool calls):\n${pool.slice(0, 8).map(s => `[${s.citation || s.id}] ${s.title}`).join('\n')}`;
+        const finalResult = await sendMessageWithRetry(chat, summaryMsg, { attempts: 2 });
+        responseText = extractText(finalResult.response);
+      } catch {}
+    }
   }
 
-  // ── Citation audit + one self-repair round ────────────────────
+  if (!responseText) {
+    responseText = 'I have completed the research. Please let me know if you need more details on any specific aspect.';
+  }  // ── Citation audit + one self-repair round ────────────────────
   let validation = await validateCitations(responseText);
   let repaired = false;
   if (!validation.valid && validation.invalid.some(i => i.closestMatch)) {

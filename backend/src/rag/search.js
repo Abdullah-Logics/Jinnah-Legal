@@ -10,6 +10,8 @@ const LEGAL_SYNONYMS = {
   blasphemy: ['section 295-C PPC', 'section 295 PPC', 'defiling Quran', 'prophet Muhammad'],
   divorce: ['talaq', 'khula', 'dissolution of marriage', 'Muslim Family Laws Ordinance'],
   custody: ['guardianship', 'welfare of minor', 'Guardians and Wards Act', 'hzanat'],
+  adoption: ['kafala', 'guardianship', 'child custody', 'Guardians and Wards Act', 'welfare of minor', 'orphans'],
+  guardianship: ['custody of minor', 'Guardians and Wards Act', 'welfare principle', 'kafala'],
   maintenance: ['nafaqa', 'family court', 'MFLO'],
   dower: ['mahr', 'haq mehr', 'dowry'],
   inheritance: ['succession', 'wirasat', 'shares of heirs', 'Muslim personal law'],
@@ -41,7 +43,7 @@ const LEGAL_SYNONYMS = {
   writ: ['certiorari', 'mandamus', 'prohibition', 'quo warranto', 'judicial review'],
 };
 
-const FULL_CITATION_RE = /\b\d{4}\s+(?:SCMR|PLD|PCrLJ|CLC|MLD|YLR|PTD|CLD|SCC|PLC|PLJ|NLR|CLR|TLC|SHC|CRM)\s+\d{1,6}\b/gi;
+const FULL_CITATION_RE = /\b\d{4}\s*(?:SCMR|PLD|PCr?\.?\s?LJ|CLC|MLD|YLR|PTD|CLD|SCC|PLC|PLJ|NLR|CLR|TLC|SHC|CRM|SCP|LHC|PHC|FSC|PTCL|SLJ|TAX)\s+\d{1,6}\b/gi;
 const ARTICLE_RE = /\barticle\s+(\d{1,3}[A-Z]?)\b/gi;
 
 const COURT_WEIGHTS = [
@@ -182,6 +184,14 @@ export async function hybridSearch(query, options = {}) {
     }
   }
 
+  // Near-noise gate: drop weak semantic-only hits (no lexical corroboration)
+  const NOISE_FLOOR = 0.25;
+  for (const [id, r] of pool) {
+    if (!r._semMissing && r._sem < NOISE_FLOOR && r._lex === 0 && !citedCases.length && !citedArticles.length) {
+      pool.delete(id);
+    }
+  }
+
   const maxLex = Math.max(0.0001, ...[...pool.values()].map(r => r._lex));
   const rrfLists = [semanticResults, ...lexicalLists];
 
@@ -232,9 +242,17 @@ export async function hybridSearch(query, options = {}) {
   fused.sort((a, b) => b.score - a.score);
 
   // ── Per-case diversity: keep best `perCase` chunks per source case ──
+  // Constitution articles get a hard share cap so they can't crowd out
+  // case law unless the user explicitly asked about the Constitution.
+  const constitutionCap = citedArticles.length || /constitution|article\s*\d+/i.test(query) ? Infinity : 3;
   const seenPerCase = new Map();
+  let constitutionCount = 0;
   const diversified = [];
   for (const r of fused) {
+    if ((r.sourceType || '') === 'constitution') {
+      if (constitutionCount >= constitutionCap) continue;
+      constitutionCount++;
+    }
     const key = r.sourceId || r.citation || r.id;
     const n = seenPerCase.get(key) || 0;
     if (n >= perCase) continue;

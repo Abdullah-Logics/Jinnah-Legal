@@ -6,6 +6,7 @@ import { auth } from '../middleware/auth.js';
 import { validate, aiChatSchema } from '../middleware/validate.js';
 import { AppError, asyncHandler } from '../middleware/errorHandler.js';
 import { hybridSearch, buildRAGContext } from '../rag/search.js';
+import { validateCitations } from '../rag/agent.js';
 
 export const aiRouter = Router();
 aiRouter.use(auth);
@@ -566,7 +567,9 @@ aiRouter.post('/chat', validate(aiChatSchema), asyncHandler(async (req, res) => 
       } else {
         groundedMessage = `User Question: ${message}\n\nNo relevant results found in the legal database. For legal research, search the database using searchLegalDatabase tool. For case management, use your available tools.`;
       }
-      message = groundedMessage;
+      var messageToModel = groundedMessage;
+    } else {
+      var messageToModel = message;
     }
 
     const geminiHistory = history.map(h => ({
@@ -576,7 +579,7 @@ aiRouter.post('/chat', validate(aiChatSchema), asyncHandler(async (req, res) => 
 
     const chat = model.startChat({ history: geminiHistory });
     let responseText = '';
-    let currentMessage = message;
+    let currentMessage = messageToModel;
 
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
       const result = await chat.sendMessage(currentMessage);
@@ -607,21 +610,15 @@ aiRouter.post('/chat', validate(aiChatSchema), asyncHandler(async (req, res) => 
     }
 
     if (!noTools) {
-      const CITATION_PATTERN = /(?:\d{4}\s+(?:SCMR|PLD|PCrLJ|CLC|MLD|YLR|PTD|CLD|CrPC)\s+\d+)/gi;
-      const foundCitations = responseText.match(CITATION_PATTERN) || [];
-      if (foundCitations.length > 0) {
-        const unique = [...new Set(foundCitations)];
-        const invalid = [];
-        for (const citation of unique) {
-          try {
-            const exists = await queryOne('SELECT id FROM citations WHERE citation ILIKE ?', [citation]);
-            if (!exists) invalid.push(citation);
-          } catch {}
+      try {
+        const validation = await validateCitations(responseText);
+        if (!validation.valid && validation.invalid.length > 0) {
+          const bad = validation.invalid.map(i =>
+            i.resolvableTo ? `${i.citation} (correct form: ${i.resolvableTo})` : i.citation
+          ).join(', ');
+          responseText += `\n\n─── VERIFICATION NOTE ───\nThe following citations could not be verified in the database: ${bad}. Please verify these before use.`;
         }
-        if (invalid.length > 0) {
-          responseText += `\n\n─── NOTE ───\nThe following citations could not be verified: ${invalid.join(', ')}. Please verify these before use.`;
-        }
-      }
+      } catch {}
     }
 
     if (!noSession) {

@@ -75,7 +75,7 @@ async function embedWithModel(modelName, text, taskType) {
  */
 export async function resolveModel() {
   if (resolvedModel) return resolvedModel;
-  let lastErr;
+  const failures = [];
   for (const candidate of MODEL_CANDIDATES) {
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
@@ -87,7 +87,6 @@ export async function resolveModel() {
         }
         break;
       } catch (err) {
-        lastErr = err;
         if (isRateLimit(err) || err.status === 500 || err.status === 503) {
           const wait = Math.min(extractRetryDelay(err) ?? 15000, 30000);
           console.warn(`Embedding model "${candidate}" temporarily limited; retrying in ${Math.round(wait / 1000)}s`);
@@ -96,11 +95,12 @@ export async function resolveModel() {
         }
         // 404/400 etc. — model genuinely unavailable, try next candidate
         console.warn(`Embedding model "${candidate}" unavailable: ${err.message}`);
+        failures.push(`${candidate} [${err.status || '?'}]: ${err.message?.slice(0, 160)}`);
         break;
       }
     }
   }
-  throw lastErr || new Error('No embedding model available');
+  throw new Error(`No embedding model available. Attempts -> ${failures.join(' | ')}`);
 }
 
 export function getResolvedModel() {

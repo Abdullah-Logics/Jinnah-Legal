@@ -1,6 +1,8 @@
 // src/utils/api.ts
 // Thin API client — wraps fetch, handles auth headers + errors
 
+import { useStore } from '../store/useStore';
+
 const BASE = import.meta.env.DEV
   ? 'http://localhost:3001'
   : import.meta.env.VITE_API_URL || '';
@@ -24,6 +26,14 @@ async function request<T>(path: string, opts: RequestInit = {}): Promise<T> {
     },
   });
   if (!res.ok) {
+    // Expired/invalid token: reset auth so the app returns to the login
+    // screen instead of silently rendering empty data everywhere.
+    if (res.status === 401 && token) {
+      try { useStore.getState().logout(); } catch {}
+      if (!window.location.pathname.startsWith('/login')) {
+        window.location.href = '/login';
+      }
+    }
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.error || 'Request failed');
   }

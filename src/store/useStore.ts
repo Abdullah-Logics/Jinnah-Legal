@@ -291,6 +291,14 @@ async function apiFetch(path: string, opts: RequestInit = {}, token?: string | n
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
+    // Expired/invalid token: reset auth so the app returns to the login
+    // screen instead of silently rendering empty data everywhere.
+    if (res.status === 401 && token) {
+      try { useStore.getState().logout(); } catch {}
+      if (!window.location.pathname.startsWith('/login')) {
+        window.location.href = '/login';
+      }
+    }
     const msg = err.error || 'Request failed';
     if (err.details && Array.isArray(err.details)) {
       throw new Error(`${msg}: ${err.details.map((d: {field:string,message:string}) => `${d.field}: ${d.message}`).join('; ')}`);

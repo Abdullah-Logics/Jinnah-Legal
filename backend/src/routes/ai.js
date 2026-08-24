@@ -11,7 +11,7 @@ import { validateCitations } from '../rag/agent.js';
 export const aiRouter = Router();
 aiRouter.use(auth);
 
-const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+const MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
 const MAX_TOOL_ROUNDS = 15;
 
 const LAWYER_SYSTEM = `You are an AI Legal Second Brain for Pakistani lawyers on the Jinnah Legal platform, specializing in Pakistani constitutional law, legal research, and document drafting. You have comprehensive knowledge of the Constitution of Pakistan 1973 (all 280+ articles across 12 Parts), Pakistan Penal Code (PPC), Code of Criminal Procedure (CrPC), Code of Civil Procedure (CPC), Qanun-e-Shahadat Order 1984, and all Pakistani case law.

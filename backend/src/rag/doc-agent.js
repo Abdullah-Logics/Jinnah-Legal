@@ -15,7 +15,7 @@ import {
   refinePrompt,
 } from './prompts.js';
 
-const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+const MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
 
 function getModel(systemInstruction, jsonMode = false) {
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);

@@ -11,7 +11,7 @@ import {
   citationRepairPrompt,
 } from './prompts.js';
 
-const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+const MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
 const MAX_ROUNDS = 15;
 
 // Broad Pakistani reporter pattern used for post-generation citation audit.

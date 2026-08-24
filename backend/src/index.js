@@ -21,7 +21,7 @@ async function main() {
     console.log(` ✅  Health   → http://localhost:${PORT}/api/health`);
     const dbType = process.env.SUPABASE_URL || process.env.DATABASE_URL ? 'PostgreSQL (Neon)' : process.env.MSSQL_SERVER ? 'MSSQL: ' + process.env.MSSQL_SERVER : 'SQLite (local file)';
     console.log(` 🗄️  DB       → ${dbType}`);
-    console.log(` 🤖  AI       → ${process.env.GEMINI_API_KEY ? 'Gemini ' + (process.env.GEMINI_MODEL || 'gemini-2.5-flash') : 'Mock (add GEMINI_API_KEY for real AI)'}`);
+    console.log(` 🤖  AI       → ${process.env.GEMINI_API_KEY ? 'Gemini ' + (process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite') : 'Mock (add GEMINI_API_KEY for real AI)'}`);
     console.log(` 🌐  Mode     → ${process.env.NODE_ENV || 'development'}`);
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
   });

@@ -2,7 +2,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { hybridSearch, buildRAGContext } from './search.js';
 import { STREAM_SYSTEM } from './prompts.js';
 
-const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+const MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
 
 export async function streamRAGResponse(query, res, options = {}) {
   const { sourceType, category, court, yearFrom, yearTo, history = [] } = options;

@@ -85,7 +85,7 @@ evidenceRouter.post('/:id/analyze', asyncHandler(async (req, res) => {
 
   const { GoogleGenerativeAI } = await import('@google/generative-ai');
   const genAI = new GoogleGenerativeAI(GEMINI_KEY);
-  const model = genAI.getGenerativeModel({ model: process.env.GEMINI_MODEL || 'gemini-2.5-flash' });
+  const model = genAI.getGenerativeModel({ model: process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite' });
 
   const mimeToExt = {
     'application/pdf': 'pdf',

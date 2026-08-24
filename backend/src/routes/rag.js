@@ -125,7 +125,7 @@ ragRouter.post('/ask', asyncHandler(async (req, res) => {
 
   res.json({
     response: result.responseText,
-    model: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
+    model: process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite',
     sessionId: sid,
     toolTrace: result.toolTrace,
     // Always arrays so the frontend can map safely:

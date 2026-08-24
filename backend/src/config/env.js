@@ -11,7 +11,7 @@ const defaults = {
   PORT: '3001',
   JWT_SECRET: 'jinnah-legal-dev-secret',
   FRONTEND_URL: 'http://localhost:5173',
-  GEMINI_MODEL: 'gemini-2.5-flash',
+  GEMINI_MODEL: 'gemini-3.5-flash-lite',
   MSSQL_PORT: '1433',
   MSSQL_ENCRYPT: 'true',
   MSSQL_TRUST_CERT: 'false',

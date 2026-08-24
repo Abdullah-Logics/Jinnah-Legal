@@ -164,11 +164,17 @@ export default function LawyerAIBrain() {
         headers: { 'Content-Type': 'application/json', ...headers() },
         body: JSON.stringify({ message: msg, history: historyForApi, sessionId: sid }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}) as any);
+      let content: string = data.response || '';
+      if (!content && !res.ok) {
+        if (res.status === 401) content = 'Your session has expired. Please log out and sign in again.';
+        else if (res.status === 429) content = 'Too many messages too quickly. Please wait a few seconds and try again.';
+        else content = data.error || 'Sorry, I could not process your request.';
+      }
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         role: 'ai',
-        content: data.response || 'Sorry, I could not process your request.',
+        content: content || 'Sorry, I could not process your request.',
       }]);
     } catch {
       setMessages(prev => [...prev, {

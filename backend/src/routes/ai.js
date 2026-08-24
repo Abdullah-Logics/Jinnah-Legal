@@ -584,21 +584,42 @@ aiRouter.post('/chat', validate(aiChatSchema), asyncHandler(async (req, res) => 
     const sleepMs = (ms) => new Promise(r => setTimeout(r, ms));
     const isTransientErr = (err) => [429, 500, 502, 503, 504].includes(err?.status) ||
       /overload|unavailable|timeout|fetch failed|network/i.test(err?.message || '');
+    const isQuotaErr = (err) => err?.status === 429 || /RESOURCE_EXHAUSTED|quota exceeded/i.test(err?.message || '');
+    const retryDelayMs = (err) => {
+      const m = /retry\s+in\s+([\d.]+)\s*s/i.exec(err?.message || '');
+      // Honor Gemini's own retry hint (it knows the per-minute bucket reset);
+      // cap at 35s so two waits stay under Render's ~100s proxy timeout.
+      return Math.min(Math.ceil(parseFloat(m?.[1] ?? '18') * 1000) + 500, 35000);
+    };
 
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
       let result;
       let lastErr = null;
-      for (let attempt = 0; attempt < 3; attempt++) {
-        try { result = await chat.sendMessage(currentMessage); lastErr = null; break; }
+      let quotaWaits = 0;
+      let transientRetries = 0;
+      while (true) {
+        try { result = await chat.sendMessage(currentMessage); break; }
         catch (err) {
           lastErr = err;
-          if (!isTransientErr(err) || attempt === 2) break;
-          await sleepMs(2500 * (attempt + 1));
+          if (!isTransientErr(err)) break;
+          if (isQuotaErr(err)) {
+            // Free tier allows only a handful of requests/min — Gemini tells us
+            // exactly how long to wait ("retry in 13.2s"). Honor it instead of
+            // failing fast so a busy minute doesn't break the conversation.
+            if (quotaWaits >= 2) break;
+            quotaWaits += 1;
+            console.warn(`AI chat rate limited; backing off ${Math.round(retryDelayMs(err) / 1000)}s (${quotaWaits}/2)`);
+            await sleepMs(retryDelayMs(err));
+            continue;
+          }
+          if (transientRetries >= 2) break;
+          transientRetries += 1;
+          await sleepMs(2500 * transientRetries);
         }
       }
       if (!result) {
         console.error('AI chat sendMessage failed:', lastErr?.message);
-        responseText = 'The AI service is temporarily busy (the legal database is being re-indexed in the background). Please try again in a minute.';
+        responseText = 'The AI assistant has hit its free-tier request limit. Please wait about a minute and try again.';
         break;
       }
       const response = result.response;

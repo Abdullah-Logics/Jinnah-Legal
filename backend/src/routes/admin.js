@@ -79,13 +79,13 @@ adminRouter.get('/billing', asyncHandler(async (req, res) => {
   let firmJoin = '';
   if (req.user.role === 'firm_admin') {
     const firm = await queryOne('SELECT id FROM firms WHERE admin_id = ?', [req.user.id]);
-    if (firm) { firmJoin = ' JOIN users lu ON lu.id = i.lawyer_id::uuid AND lu.firm_id = ?'; params.push(firm.id); }
+    if (firm) { firmJoin = ' JOIN users lu ON lu.id::text = i.lawyer_id AND lu.firm_id = ?'; params.push(firm.id); }
   }
   const invoices = await query(
     `SELECT i.*,
-      (SELECT name FROM users WHERE id=i.client_id::uuid) as client_name,
-      (SELECT email FROM users WHERE id=i.client_id::uuid) as client_email,
-      (SELECT name FROM users WHERE id=i.lawyer_id::uuid) as lawyer_name
+      (SELECT name FROM users WHERE id::text=i.client_id) as client_name,
+      (SELECT email FROM users WHERE id::text=i.client_id) as client_email,
+      (SELECT name FROM users WHERE id::text=i.lawyer_id) as lawyer_name
      FROM invoices i ${firmJoin} ORDER BY i.created_at DESC`,
     params
   );
@@ -209,4 +209,36 @@ adminRouter.get('/documents/:userId', asyncHandler(async (req, res) => {
     [req.params.userId]
   );
   res.json(docs);
+}));
+
+adminRouter.patch('/users/:userId', asyncHandler(async (req, res) => {
+  if (!['admin','firm_admin'].includes(req.user.role)) throw new AppError('Forbidden', 403);
+  const target = await queryOne('SELECT * FROM users WHERE id=?', [req.params.userId]);
+  if (!target) throw new AppError('User not found', 404);
+
+  if (req.user.role === 'firm_admin') {
+    const firm = await queryOne('SELECT id FROM firms WHERE admin_id = ?', [req.user.id]);
+    if (!firm || target.firm_id !== firm.id) throw new AppError('You can only manage your own firm', 403);
+  }
+
+  const { subscription_plan, verification_status, is_verified } = req.body;
+  const updates = [];
+  const params = [];
+  const validPlans = ['free','student','starter','pro','firm'];
+  if (subscription_plan) {
+    if (!validPlans.includes(subscription_plan)) throw new AppError('Invalid subscription plan', 400);
+    updates.push('subscription_plan=?'); params.push(subscription_plan);
+  }
+  if (verification_status && ['pending','approved','rejected'].includes(verification_status)) {
+    updates.push('verification_status=?'); params.push(verification_status);
+    updates.push('is_verified=?'); params.push(verification_status === 'approved' ? true : false);
+  } else if (typeof is_verified === 'boolean') {
+    updates.push('is_verified=?'); params.push(is_verified);
+  }
+  if (updates.length === 0) throw new AppError('No valid fields provided', 400);
+
+  params.push(req.params.userId);
+  await run(`UPDATE users SET ${updates.join(', ')} WHERE id=?`, params);
+  const updated = await queryOne('SELECT id,email,name,role,phone,city,firm_id,subscription_plan,is_verified,verification_status,bar_number FROM users WHERE id=?', [req.params.userId]);
+  res.json(updated);
 }));

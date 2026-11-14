@@ -26,7 +26,7 @@ export default function AdminDashboard() {
     loadInvoices();
     if (currentUser?.role === 'admin' || currentUser?.role === 'firm_admin') {
       import('../../utils/api').then(({ default: api }) => {
-        api.get<AdminReview[]>('/admin/reviews').then(d => setReviews(Array.isArray(d) ? d : [])).catch(() => {});
+        api.get<AdminReview[]>('/api/admin/reviews').then(d => setReviews(Array.isArray(d) ? d : [])).catch(() => {});
       });
     }
   }, [loadUsers, loadInvoices, currentUser?.role]);

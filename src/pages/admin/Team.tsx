@@ -40,7 +40,7 @@ export default function Team() {
       const params = new URLSearchParams({ limit: '100' });
       if (roleFilter) params.set('role', roleFilter);
       if (search) params.set('search', search);
-      const data = await api.get<{ users: AdminUser[] }>(`/admin/users?${params}`);
+      const data = await api.get<{ users: AdminUser[] }>(`/api/admin/users?${params}`);
       setUsers(data.users || []);
     } catch { setUsers([]); }
     setLoading(false);
@@ -55,7 +55,7 @@ export default function Team() {
     if (plan === u.subscription_plan) return;
     setUpdating(u.id);
     try {
-      await api.patch<AdminUser>(`/admin/users/${u.id}`, { subscription_plan: plan });
+      await api.patch<AdminUser>(`/api/admin/users/${u.id}`, { subscription_plan: plan });
       setUsers(prev => prev.map(x => x.id === u.id ? { ...x, subscription_plan: plan } : x));
       setFlash(`${u.name} → ${plan} plan`);
       setTimeout(() => setFlash(''), 2500);
@@ -66,7 +66,7 @@ export default function Team() {
   const blockUser = async (u: AdminUser) => {
     if (!window.confirm(`Block ${u.name}?`)) return;
     try {
-      await api.post('/admin/block', { userId: u.id, reason: 'Blocked by platform admin' });
+      await api.post('/api/admin/block', { userId: u.id, reason: 'Blocked by platform admin' });
       setFlash(`${u.name} blocked`);
       setTimeout(() => setFlash(''), 2500);
     } catch { setFlash(`Could not block ${u.name}`); }
@@ -172,7 +172,7 @@ export default function Team() {
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
                         {u.role === 'lawyer' && u.verification_status === 'pending' && (
-                          <button onClick={async () => { try { await api.patch(`/admin/users/${u.id}`, { verification_status: 'approved' }); setUsers(prev => prev.map(x => x.id === u.id ? { ...x, verification_status: 'approved', is_verified: true } : x)); } catch {} }}
+                          <button onClick={async () => { try { await api.patch(`/api/admin/users/${u.id}`, { verification_status: 'approved' }); setUsers(prev => prev.map(x => x.id === u.id ? { ...x, verification_status: 'approved', is_verified: true } : x)); } catch {} }}
                             title="Approve" className="p-1.5 hover:bg-emerald-50 rounded-lg text-emerald-600 transition"><CheckCircle2 size={15} /></button>
                         )}
                         {!isFirmAdmin && (

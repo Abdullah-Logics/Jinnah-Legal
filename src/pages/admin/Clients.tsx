@@ -30,7 +30,7 @@ export default function AdminClients() {
     if (currentUser?.role !== 'admin' && currentUser?.role !== 'firm_admin') return;
     let mounted = true;
     setLoadingReviews(true);
-    api.get<AdminReview[]>('/admin/reviews')
+    api.get<AdminReview[]>('/api/admin/reviews')
       .then(data => { if (mounted) setReviews(Array.isArray(data) ? data : []); })
       .catch(() => {})
       .finally(() => { if (mounted) setLoadingReviews(false); });

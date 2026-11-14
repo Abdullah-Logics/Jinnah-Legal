@@ -26,7 +26,7 @@ export default function AdminReviews() {
 
   useEffect(() => {
     let mounted = true;
-    api.get<AdminReview[]>('/admin/reviews')
+    api.get<AdminReview[]>('/api/admin/reviews')
       .then(data => { if (mounted) setReviews(Array.isArray(data) ? data : []); })
       .catch(() => {})
       .finally(() => { if (mounted) setLoading(false); });

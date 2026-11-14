@@ -25,7 +25,7 @@ export default function Billing() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    api.get<BillingData>('/admin/billing')
+    api.get<BillingData>('/api/admin/billing')
       .then(d => setData(d || { invoices: [], totals: { total_invoices: 0, total_amount: 0, paid_amount: 0 } }))
       .catch(() => setError('Could not load billing data.'))
       .finally(() => setLoading(false));

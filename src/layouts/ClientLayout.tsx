@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { avatarUrl } from '../utils/resolveUrl';
 import {
   LayoutDashboard, Briefcase, Search, CreditCard, Calendar, MessageSquare,
-  User, UserPlus, Menu, X, LogOut, Bell, Scale, Bot, FileText, BarChart3, UsersRound, Phone,
+  User, UserPlus, Menu, X, LogOut, Bell, Bot, FileText, BarChart3, UsersRound, Phone,
 } from 'lucide-react';
 
 const sidebarItems = [
@@ -52,7 +52,7 @@ export default function ClientLayout() {
           <Menu size={22} />
         </button>
         <div className="flex items-center gap-2">
-          <Scale size={20} className="text-emerald-200" />
+          <img src="/logo192.png" alt="Jinnah Legal" className="w-7 h-7 rounded-lg object-cover" />
           <span className="font-serif font-bold text-base">Jinnah Legal</span>
         </div>
         <button className="p-2 hover:bg-white/10 rounded-lg relative transition">
@@ -86,9 +86,7 @@ export default function ClientLayout() {
       `}>
         <div className="flex-shrink-0 p-4 flex items-center justify-between border-b border-white/10">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center">
-              <Scale size={22} className="text-white" />
-            </div>
+            <img src="/logo192.png" alt="Jinnah Legal" className="w-10 h-10 rounded-xl object-cover shadow-md" />
             <div>
               <h1 className="font-serif font-bold text-base">Jinnah Legal</h1>
               <p className="text-[10px] text-emerald-200">Client Portal</p>
@@ -154,11 +152,11 @@ export default function ClientLayout() {
 
       {/* Main Content */}
       {location.pathname.startsWith('/client/messages') ? (
-        <main className="lg:ml-72 pt-14 lg:pt-0 flex flex-col min-h-0">
+        <main className="lg:ml-72 pt-14 lg:pt-0 flex flex-col min-h-0 overflow-x-hidden">
           <Outlet />
         </main>
       ) : (
-        <main className="lg:ml-72 pt-14 lg:pt-0 overflow-y-auto min-h-0 scroll-main">
+        <main className="lg:ml-72 pt-14 lg:pt-0 overflow-y-auto min-h-0 scroll-main overflow-x-hidden">
           <div className="p-3 lg:p-6" style={{ minHeight: 'calc(100vh + 2px)' }}>
             <Outlet />
           </div>

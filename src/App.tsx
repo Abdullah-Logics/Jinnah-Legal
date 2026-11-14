@@ -43,7 +43,6 @@ import LawyerCases from './pages/lawyer/Cases';
 import LawyerCaseDetail from './pages/lawyer/CaseDetail';
 import LawyerJournal from './pages/lawyer/Journal';
 import LawyerResearch from './pages/lawyer/Research';
-import LawyerDrafting from './pages/lawyer/Drafting';
 import LawyerDocuments from './pages/lawyer/Documents';
 import LawyerTimeTracking from './pages/lawyer/TimeTracking';
 import LawyerClients from './pages/lawyer/Clients';
@@ -52,7 +51,6 @@ import LawyerCalendar from './pages/lawyer/Calendar';
 import LawyerMessages from './pages/lawyer/Messages';
 import LawyerProfile from './pages/lawyer/Profile';
 import LawyerAIBrain from './pages/lawyer/AIBrain';
-import LawyerCitations from './pages/lawyer/Citations';
 
 
 import ConstitutionReader from './pages/lawyer/Constitution';
@@ -88,6 +86,8 @@ import AdminCallLogs from './pages/admin/CallLogs';
 import AdminSubscriptions from './pages/admin/Subscriptions';
 import AdminAnalytics from './pages/admin/Analytics';
 import AdminSettings from './pages/admin/Settings';
+import AdminTeam from './pages/admin/Team';
+import AdminBilling from './pages/admin/Billing';
 
 // Layouts
 import LawyerLayout from './layouts/LawyerLayout';
@@ -136,7 +136,7 @@ function App() {
             <Route path="cases/:id" element={<LawyerCaseDetail />} />
             <Route path="journal" element={<LawyerJournal />} />
             <Route path="research" element={<LawyerResearch />} />
-            <Route path="drafting" element={<LawyerDrafting />} />
+            <Route path="drafting" element={<Navigate to="/lawyer/documents" replace />} />
             <Route path="documents" element={<LawyerDocuments />} />
             <Route path="time-tracking" element={<LawyerTimeTracking />} />
             <Route path="clients" element={<LawyerClients />} />
@@ -146,7 +146,7 @@ function App() {
             <Route path="messages" element={<LawyerMessages />} />
             <Route path="profile" element={<LawyerProfile />} />
             <Route path="ai-brain" element={<LawyerAIBrain />} />
-            <Route path="citations" element={<LawyerCitations />} />
+            <Route path="citations" element={<Navigate to="/lawyer/research" replace />} />
             <Route path="call-logs" element={<CallLogs />} />
 
 
@@ -195,6 +195,8 @@ function App() {
             <Route path="subscriptions" element={<AdminSubscriptions />} />
             <Route path="analytics" element={<AdminAnalytics />} />
             <Route path="settings" element={<AdminSettings />} />
+            <Route path="team" element={<AdminTeam />} />
+            <Route path="billing" element={<AdminBilling />} />
           </Route>
 
           {/* Fallback */}

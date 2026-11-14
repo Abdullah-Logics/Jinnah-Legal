@@ -4,12 +4,13 @@ import { useStore } from '../store/useStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Users, UserCheck, CreditCard, BarChart3, Settings,
-  Menu, X, LogOut, Bell, Scale, Gavel,
-  AlertTriangle, Shield, MessageSquare, Phone, Star,
+  Menu, X, LogOut, Bell, Gavel,
+  AlertTriangle, Shield, MessageSquare, Phone, Star, UsersRound,
 } from 'lucide-react';
 
 const platformNav = [
   { path: '/admin', icon: LayoutDashboard, label: 'Dashboard', end: true },
+  { path: '/admin/team', icon: UsersRound, label: 'Team' },
   { path: '/admin/lawyers', icon: Gavel, label: 'Lawyers' },
   { path: '/admin/clients', icon: Users, label: 'Clients' },
   { path: '/admin/reviews', icon: Star, label: 'Reviews' },
@@ -19,16 +20,19 @@ const platformNav = [
   { path: '/admin/messages', icon: MessageSquare, label: 'Messages' },
   { path: '/admin/call-logs', icon: Phone, label: 'Call Logs' },
   { path: '/admin/subscriptions', icon: CreditCard, label: 'Subscriptions' },
+  { path: '/admin/billing', icon: CreditCard, label: 'Billing' },
   { path: '/admin/analytics', icon: BarChart3, label: 'Analytics' },
   { path: '/admin/settings', icon: Settings, label: 'Settings' },
 ];
 
 const firmNav = [
   { path: '/admin', icon: LayoutDashboard, label: 'Dashboard', end: true },
+  { path: '/admin/team', icon: UsersRound, label: 'Team' },
   { path: '/admin/lawyers', icon: Gavel, label: 'Lawyers' },
   { path: '/admin/clients', icon: Users, label: 'Clients' },
   { path: '/admin/reviews', icon: Star, label: 'Reviews' },
   { path: '/admin/verification', icon: UserCheck, label: 'Verification' },
+  { path: '/admin/billing', icon: CreditCard, label: 'Billing' },
 ];
 
 export default function AdminLayout() {
@@ -61,7 +65,7 @@ export default function AdminLayout() {
           <Menu size={22} />
         </button>
         <div className="flex items-center gap-2">
-          <Scale size={20} className="text-emerald-400" />
+          <img src="/logo192.png" alt="Jinnah Legal" className="w-7 h-7 rounded-lg object-cover" />
           <span className="font-serif font-bold text-base">{isFirmAdmin ? 'Firm Admin' : 'Jinnah Admin'}</span>
         </div>
         <button className="p-2 hover:bg-white/10 rounded-lg relative transition">
@@ -96,9 +100,7 @@ export default function AdminLayout() {
       `}>
         <div className="p-4 flex items-center justify-between border-b border-white/10">
           <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${isFirmAdmin ? 'bg-emerald-600' : 'bg-emerald-800'}`}>
-              <Scale size={22} className="text-white" />
-            </div>
+            <img src="/logo192.png" alt="Jinnah Legal" className="w-10 h-10 rounded-xl object-cover shadow-md" />
             <div>
               <h1 className="font-serif font-bold text-base">Jinnah Legal</h1>
               <p className={`text-[10px] ${isFirmAdmin ? 'text-emerald-200' : 'text-slate-300'}`}>{isFirmAdmin ? 'Firm Admin Portal' : 'Admin Portal'}</p>
@@ -162,7 +164,7 @@ export default function AdminLayout() {
       </aside>
 
       {/* Main Content */}
-      <main className="lg:ml-72 pt-14 lg:pt-0 overflow-y-auto min-h-0 scroll-main">
+      <main className="lg:ml-72 pt-14 lg:pt-0 overflow-y-auto min-h-0 scroll-main overflow-x-hidden">
         <div className="p-3 lg:p-6" style={{ minHeight: 'calc(100vh + 2px)' }}>
           <Outlet />
         </div>

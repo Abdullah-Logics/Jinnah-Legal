@@ -2,13 +2,14 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FileText, Plus, Search, Download, Trash2, Upload, Loader,
-  ArrowLeft, Save, Sparkles, Edit3, BookTemplate, FolderOpen,
+  ArrowLeft, Save, Sparkles, Wand2, Edit3, BookTemplate, FolderOpen,
   X, Eye, ChevronDown, Printer, CaseSensitive, Scale, ShoppingCart, BookOpen, Clipboard,
   Bold, Italic, Underline, Heading1, Heading2, Heading3,
   List, ListOrdered, AlignLeft, AlignCenter, AlignRight, Share2,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import ShareDialog, { useShareDialog } from '../../components/ShareDialog';
+import AiDrafterPanel from '../../components/AiDrafterPanel';
 import { buildCitationHtml } from '../../utils/citation';
 
 interface Citation {
@@ -344,6 +345,7 @@ export default function LawyerDocuments() {
   const [docName, setDocName] = useState('');
   const [docContent, setDocContent] = useState('');
   const [docCaseId, setDocCaseId] = useState('');
+  const [showDrafter, setShowDrafter] = useState(false);
 
   const [showCitationPanel, setShowCitationPanel] = useState(false);
   const [citSearch, setCitSearch] = useState('');
@@ -480,6 +482,7 @@ export default function LawyerDocuments() {
     }
     setView('editor');
     setAiPrompt('');
+    setShowDrafter(false);
   };
 
   useEffect(() => {
@@ -526,6 +529,33 @@ export default function LawyerDocuments() {
     } catch {}
     setSaving(false);
   };
+
+  const handleDraftGenerated = useCallback(async (draft: string, name: string) => {
+    setDocName(name);
+    setDocContent(draft);
+    setDocCaseId('');
+    if (editorRef.current) editorRef.current.innerHTML = /<[a-z][\s\S]*>/i.test(draft) ? draft : textToHtml(draft);
+    try {
+      if (editing) {
+        await fetch(`${API}/api/upload/${editing.id}`, {
+          method: 'PUT',
+          headers: headers(),
+          body: JSON.stringify({ name, content: draft, case_id: editing.case_id || null }),
+        });
+      } else {
+        const res = await fetch(`${API}/api/upload/draft`, {
+          method: 'POST',
+          headers: headers(),
+          body: JSON.stringify({ name, content: draft }),
+        });
+        if (res.ok) {
+          const newDoc = await res.json();
+          setDocs(prev => [newDoc, ...prev]);
+          setEditing(newDoc);
+        }
+      }
+    } catch {}
+  }, [API, editing, headers]);
 
   const fillTemplate = (content: string) => {
     const firm = currentUser?.firmId ? firms.find(f => f.id === currentUser.firmId) : null;
@@ -893,6 +923,24 @@ export default function LawyerDocuments() {
           </div>
         </div>
 
+        {/* AI Drafter (inline, part of the document) */}
+        <AnimatePresence>
+          {showDrafter && (
+            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+              className="border-b border-slate-200 overflow-hidden flex-shrink-0 bg-gradient-to-b from-indigo-50/40 to-white"
+            >
+              <div className="max-w-4xl mx-auto px-3 md:px-4 py-3">
+                <AiDrafterPanel
+                  inline
+                  token={token}
+                  onGenerated={handleDraftGenerated}
+                  onClose={() => setShowDrafter(false)}
+                />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Pending Citation Banner */}
         <AnimatePresence>
           {pendingCitation && (
@@ -1094,13 +1142,22 @@ export default function LawyerDocuments() {
           <h1 className="text-2xl font-bold text-slate-900">Document Drafting</h1>
           <p className="text-slate-500">Create and manage legal documents with AI assistance</p>
         </div>
-        <button
-          onClick={() => openEditor(null)}
-          className="flex items-center justify-center gap-2 bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-emerald-700 transition"
-        >
-          <Plus size={20} />
-          New Document
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => { openEditor(null); setShowDrafter(true); }}
+            className="flex items-center justify-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-indigo-700 transition"
+          >
+            <Wand2 size={20} />
+            AI Drafter
+          </button>
+          <button
+            onClick={() => openEditor(null)}
+            className="flex items-center justify-center gap-2 bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-emerald-700 transition"
+          >
+            <Plus size={20} />
+            New Document
+          </button>
+        </div>
       </div>
 
       {/* Search */}

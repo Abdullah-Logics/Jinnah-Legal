@@ -5,6 +5,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import ShareDialog, { useShareDialog } from '../../components/ShareDialog';
 import LinkifiedText from '../../components/LinkifiedText';
+import VoiceInput from '../../components/VoiceInput';
 
 interface Message { id: string; role: 'user' | 'ai'; content: string; sources?: any[]; }
 interface Session { id: string; title: string; created_at: string; }
@@ -26,6 +27,7 @@ export default function ClientAIAssistant() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const pendingSpokenRef = useRef({ typed: '', spoken: '' });
   const { shareState, openShare, closeShare } = useShareDialog();
 
   const API = import.meta.env.DEV ? 'http://localhost:3001' : import.meta.env.VITE_API_URL || '';
@@ -319,7 +321,21 @@ export default function ClientAIAssistant() {
         {/* Input */}
         <div className="border-t border-slate-200 p-3 bg-white flex-shrink-0">
           <div className="flex gap-2">
-            <input value={input} onChange={e => setInput(e.target.value)}
+            <VoiceInput
+              size={18}
+              className="w-11"
+              onTranscript={(text, isFinal) => {
+                const base = pendingSpokenRef.current.typed;
+                if (isFinal) {
+                  setInput((base + ' ' + text).trim());
+                  pendingSpokenRef.current.spoken = '';
+                } else {
+                  // interim — live preview appended to whatever was typed before speaking
+                  setInput((base + ' ' + text).trim());
+                }
+              }}
+            />
+            <input value={input} onChange={e => { setInput(e.target.value); pendingSpokenRef.current.typed = e.target.value; }}
               onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
               placeholder="Ask a legal question..."
               className="flex-1 bg-slate-50 rounded-xl px-4 py-3 text-sm outline-none border border-slate-200 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"

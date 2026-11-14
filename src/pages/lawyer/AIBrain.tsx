@@ -8,6 +8,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import ShareDialog, { useShareDialog } from '../../components/ShareDialog';
 import LinkifiedText from '../../components/LinkifiedText';
+import VoiceInput from '../../components/VoiceInput';
 
 interface Message { id: string; role: 'user' | 'ai'; content: string; }
 interface Session { id: string; title: string; created_at: string; }
@@ -39,6 +40,7 @@ export default function LawyerAIBrain() {
   const [copiedLink, setCopiedLink] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const pendingSpokenRef = useRef({ typed: '', spoken: '' });
   const { shareState, openShare, closeShare } = useShareDialog();
 
   const API = import.meta.env.DEV ? 'http://localhost:3001' : import.meta.env.VITE_API_URL || '';
@@ -463,10 +465,24 @@ export default function LawyerAIBrain() {
         <div className="border-t border-slate-200 bg-white px-4 sm:px-6 py-3 flex-shrink-0">
           <div className="max-w-3xl mx-auto">
             <div className="flex items-end gap-2 rounded-2xl border border-slate-200 bg-white shadow-sm focus-within:border-emerald-400 focus-within:ring-4 focus-within:ring-emerald-100/60 transition p-2">
+              <VoiceInput
+                size={16}
+                className="w-9 mb-1"
+                onTranscript={(text, isFinal) => {
+                  const base = pendingSpokenRef.current.typed;
+                  const next = (base + ' ' + text).trim();
+                  setInput(next);
+                  if (inputRef.current) {
+                    inputRef.current.value = next;
+                    autoResize({ target: inputRef.current } as any);
+                  }
+                  if (isFinal) pendingSpokenRef.current.spoken = '';
+                }}
+              />
               <textarea
                 ref={inputRef}
                 value={input}
-                onChange={e => { setInput(e.target.value); autoResize(e); }}
+                onChange={e => { setInput(e.target.value); pendingSpokenRef.current.typed = e.target.value; autoResize(e); }}
                 onKeyDown={e => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();

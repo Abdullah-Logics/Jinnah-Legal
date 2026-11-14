@@ -205,7 +205,7 @@ const CitationCard = memo(({ c, selected, onSelect, onAddToCart, onRemoveFromCar
   </motion.div>
 ));
 
-export default function CaseLibrary() {
+export function CaseLibrary() {
   const { token, currentUser, users, cases } = useStore();
   const navigate = useNavigate();
   const [citations, setCitations] = useState<Citation[]>([]);
@@ -252,7 +252,7 @@ export default function CaseLibrary() {
       const res = await fetch(`${API}/api/citations?${params}`, { headers: headers() });
       if (res.ok) {
         const data = await res.json();
-        const rows = data.rows || data;
+        const rows = Array.isArray(data?.rows) ? data.rows : Array.isArray(data) ? data : [];
         setCitations(rows);
         setTotal(data.total || rows.length || 0);
         setSelected(prev => prev || rows[0] || null);
@@ -265,7 +265,10 @@ export default function CaseLibrary() {
     setCartLoading(true);
     try {
       const res = await fetch(`${API}/api/citations/cart/list`, { headers: headers() });
-      if (res.ok) setCart(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setCart(Array.isArray(data) ? data : Array.isArray(data?.rows) ? data.rows : []);
+      }
     } catch {}
     setCartLoading(false);
   }, [API, token]);
@@ -285,7 +288,7 @@ export default function CaseLibrary() {
       const res = await fetch(`${API}/api/citations?${params}`, { headers: headers() });
       if (res.ok) {
         const data = await res.json();
-        const rows = data.rows || data;
+        const rows = Array.isArray(data?.rows) ? data.rows : Array.isArray(data) ? data : [];
         setCitations(rows);
         setTotal(data.total || rows.length || 0);
       }
@@ -421,15 +424,8 @@ export default function CaseLibrary() {
   }, {} as Record<string, Citation[]>), [citations]);
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
-      <div className="px-3 sm:px-4 lg:px-6 pt-4 sm:pt-6 max-w-6xl mx-auto" style={{ willChange: 'transform' }}>
-        <div className="flex items-center justify-between mb-3 sm:mb-4">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Pakistani Case Law</h1>
-            <p className="text-xs sm:text-sm text-slate-500 mt-0.5">{total.toLocaleString()} Pakistani judgments (2000–2026) — Jinnah Data</p>
-          </div>
-        </div>
-
+    <div>
+      <div>
         <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
           <div className="flex bg-slate-100 rounded-xl p-0.5">
             <button onClick={() => setTab('search')}

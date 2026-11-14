@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useStore, UserRole, SubscriptionPlan } from '../../store/useStore';
-import { Scale, Mail, Lock, User, Phone, MapPin, Eye, EyeOff, ArrowRight, Gavel, Users, Building, Upload, CheckCircle, Globe } from 'lucide-react';
+import { Mail, Lock, User, Phone, MapPin, Eye, EyeOff, ArrowRight, Gavel, Users, Building, Upload, CheckCircle, Globe } from 'lucide-react';
 
 export default function Register() {
   const [step, setStep] = useState(1);
@@ -670,9 +670,7 @@ export default function Register() {
       <div className="max-w-2xl mx-auto">
         {/* Logo */}
         <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="w-12 h-12 bg-amber-500 rounded-xl flex items-center justify-center">
-            <Scale className="text-white" size={28} />
-          </div>
+          <img src="/logo192.png" alt="Jinnah Legal" className="w-12 h-12 rounded-xl object-cover shadow-lg" />
           <div>
             <h1 className="font-serif font-bold text-2xl text-white">Jinnah Legal</h1>
             <p className="text-emerald-200 text-sm">Create Your Account</p>

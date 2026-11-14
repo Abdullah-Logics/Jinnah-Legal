@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Scale, Mail, ArrowLeft, CheckCircle } from 'lucide-react';
+import { Mail, ArrowLeft, CheckCircle } from 'lucide-react';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
@@ -26,9 +26,7 @@ export default function ForgotPassword() {
       >
         {/* Logo */}
         <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="w-12 h-12 bg-amber-500 rounded-xl flex items-center justify-center">
-            <Scale className="text-white" size={28} />
-          </div>
+          <img src="/logo192.png" alt="Jinnah Legal" className="w-12 h-12 rounded-xl object-cover shadow-lg" />
           <div>
             <h1 className="font-serif font-bold text-2xl text-white">Jinnah Legal</h1>
           </div>

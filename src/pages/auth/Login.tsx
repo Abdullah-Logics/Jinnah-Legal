@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useStore, UserRole } from '../../store/useStore';
-import { Scale, Mail, Lock, Eye, EyeOff, ArrowRight, Gavel, Users, Shield } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, Gavel, Users, Shield } from 'lucide-react';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -58,9 +58,7 @@ export default function Login() {
         
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-12">
-            <div className="w-12 h-12 bg-amber-500 rounded-xl flex items-center justify-center">
-              <Scale className="text-white" size={28} />
-            </div>
+            <img src="/logo192.png" alt="Jinnah Legal" className="w-12 h-12 rounded-xl object-cover shadow-lg" />
             <div>
               <h1 className="font-serif font-bold text-2xl text-white">Jinnah Legal</h1>
               <p className="text-emerald-200 text-sm">AI-Powered Legal Platform</p>
@@ -93,9 +91,7 @@ export default function Login() {
         >
           {/* Mobile Logo */}
           <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
-            <div className="w-12 h-12 bg-amber-500 rounded-xl flex items-center justify-center">
-              <Scale className="text-white" size={28} />
-            </div>
+            <img src="/logo192.png" alt="Jinnah Legal" className="w-12 h-12 rounded-xl object-cover shadow-lg" />
             <div>
               <h1 className="font-serif font-bold text-2xl text-white">Jinnah Legal</h1>
             </div>

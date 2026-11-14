@@ -5,7 +5,7 @@ import {
   Search, Send, Paperclip, Phone, Video,
   Check, CheckCheck, Camera, Mic, MicOff, FileText, X,
   Image as ImageIcon, ArrowLeft, Smile, MessageSquare, AlertTriangle, UsersRound,
-  Info, Image, MoreVertical, Download, Scale, Clipboard, Plus, Loader, Ban, Link2,
+  Info, Image, MoreVertical, Download, Scale, Clipboard, Plus, Loader, Ban, Link2, Eye,
 } from 'lucide-react';
 import ReportModal from '../../components/ReportModal';
 import { format, isToday, isYesterday } from 'date-fns';
@@ -153,9 +153,16 @@ export default function LawyerMessages() {
 
   useEffect(() => {
     if (selectedUser) {
-      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 150);
+      setTimeout(() => messagesEndRef.current?.scrollIntoView(), 120);
     }
   }, [selectedUser]);
+
+  useEffect(() => {
+    if (selectedUser && conversation.length > 0) {
+      const t = setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 60);
+      return () => clearTimeout(t);
+    }
+  }, [conversation.length, selectedUser]);
 
   const myClientIds = new Set(cases.filter(c => c.lawyerId === currentUser?.id).map(c => c.clientId));
   const connectedUserIds = new Set(connections.map(c => c.user1_id === currentUser?.id ? c.user2_id : c.user1_id));
@@ -245,13 +252,21 @@ export default function LawyerMessages() {
     const src = resolveUrl(att.url);
     if (att.type?.startsWith('image/')) {
       return (
-        <div className="relative group">
-          <img src={src} alt={att.name} className="max-w-[200px] rounded-xl object-cover cursor-pointer" onClick={() => window.open(src)} />
-          <button onClick={() => downloadFile(src, att.name)}
-            className="absolute top-1 right-1 p-1.5 bg-black/50 text-white rounded-lg opacity-0 group-hover:opacity-100 hover:bg-black/70 transition"
-            title="Download">
-            <Download size={14} />
-          </button>
+        <div className={`relative group overflow-hidden rounded-2xl border ${isMine ? 'border-emerald-700/20' : 'border-slate-200'} max-w-[260px]`}>
+          <img src={src} alt={att.name}
+            className="w-full max-h-[320px] object-cover cursor-pointer"
+            onClick={() => window.open(src)} loading="lazy" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition" />
+          <div className="absolute bottom-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition">
+            <button onClick={() => window.open(src)} title="Open"
+              className="p-1.5 bg-black/50 text-white rounded-lg hover:bg-black/70 transition">
+              <Eye size={14} />
+            </button>
+            <button onClick={() => downloadFile(src, att.name)} title="Download"
+              className="p-1.5 bg-black/50 text-white rounded-lg hover:bg-black/70 transition">
+              <Download size={14} />
+            </button>
+          </div>
         </div>
       );
     }
@@ -757,16 +772,28 @@ export default function LawyerMessages() {
             {attachments.length > 0 && (
               <div className="px-3 sm:px-4 pt-2 pb-1 flex flex-wrap gap-2 border-t border-slate-100 bg-white">
                 {attachments.map((att, i) => (
-                  <div key={i} className="flex items-center gap-1.5 bg-slate-100 rounded-lg px-2.5 py-1.5 text-xs text-slate-600">
-                    {att.type?.startsWith('image/') ? <ImageIcon size={13} /> : <FileText size={13} />}
-                    <span className="truncate max-w-[90px] sm:max-w-[120px]">{att.name}</span>
-                    <button
-                      onClick={() => setAttachments(prev => prev.filter((_, j) => j !== i))}
-                      className="text-slate-400 hover:text-red-500 ml-1 transition-colors"
-                      aria-label="Remove attachment"
-                    >
-                      <X size={13} />
-                    </button>
+                  <div key={i} className="relative group">
+                    {att.type?.startsWith('image/') ? (
+                      <div className="relative">
+                        <img src={resolveUrl(att.url)} alt={att.name}
+                          className="w-[72px] h-[72px] rounded-xl object-cover border border-slate-200" />
+                        <button
+                          onClick={() => setAttachments(prev => prev.filter((_, j) => j !== i))}
+                          className="absolute -top-1.5 -right-1.5 p-0.5 bg-slate-700/80 text-white rounded-full hover:bg-red-500 transition"
+                          aria-label="Remove attachment"
+                        ><X size={12} /></button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 bg-slate-100 rounded-lg px-2.5 py-2 text-xs text-slate-600">
+                        {att.type === 'application/pdf' ? <FileText size={15} className="text-red-500" /> : <FileText size={15} className="text-slate-500" />}
+                        <span className="truncate max-w-[90px] sm:max-w-[120px]">{att.name}</span>
+                        <button
+                          onClick={() => setAttachments(prev => prev.filter((_, j) => j !== i))}
+                          className="text-slate-400 hover:text-red-500 ml-1 transition-colors"
+                          aria-label="Remove attachment"
+                        ><X size={13} /></button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

@@ -43,9 +43,7 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 lg:h-20">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-emerald-600 to-emerald-800 rounded-xl flex items-center justify-center shadow-lg">
-                <Scale className="w-6 h-6 text-white" />
-              </div>
+              <img src="/logo192.png" alt="Jinnah Legal" className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl object-cover shadow-lg" />
               <div>
                 <h1 className="font-serif font-bold text-xl text-slate-900">Jinnah Legal</h1>
                 <p className="text-[10px] text-emerald-600 font-medium -mt-1">AI-Powered Legal Platform</p>
@@ -260,7 +258,7 @@ export default function Landing() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <Scale className="text-amber-400" size={28} />
+                <img src="/logo192.png" alt="Jinnah Legal" className="w-9 h-9 rounded-lg object-cover" />
                 <span className="font-serif font-bold text-xl">Jinnah Legal</span>
               </div>
               <p className="text-slate-400">AI-powered legal management platform</p>

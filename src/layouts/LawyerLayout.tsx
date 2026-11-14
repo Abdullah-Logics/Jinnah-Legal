@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { avatarUrl } from '../utils/resolveUrl';
 import {
   LayoutDashboard, Briefcase, BookOpen, Search, FileText, Clock, Users,
-  Calendar, MessageSquare, User, UserPlus, Brain, Menu, X, LogOut, Bell, Scale, BarChart3, UsersRound, BookMarked, Phone, Wand2,
+  Calendar, MessageSquare, User, UserPlus, Brain, Menu, X, LogOut, Bell, BarChart3, UsersRound, BookMarked, Phone,
 } from 'lucide-react';
 
 const sidebarItems = [
@@ -22,9 +22,7 @@ const sidebarItems = [
   { path: '/lawyer/constitution', icon: BookMarked, label: 'Constitution' },
 
   { path: '/lawyer/call-logs', icon: Phone, label: 'Call Logs' },
-  { path: '/lawyer/research', icon: Search, label: 'AI Research' },
-  { path: '/lawyer/drafting', icon: Wand2, label: 'AI Drafter' },
-  { path: '/lawyer/citations', icon: Scale, label: 'Citations' },
+  { path: '/lawyer/research', icon: Search, label: 'Research & Citations' },
   { path: '/lawyer/time-tracking', icon: Clock, label: 'Time & Billing' },
   { path: '/lawyer/requests', icon: UserPlus, label: 'Network' },
   { path: '/lawyer/profile', icon: User, label: 'Profile' },
@@ -58,7 +56,7 @@ export default function LawyerLayout() {
           <Menu size={22} />
         </button>
         <div className="flex items-center gap-2">
-          <Scale size={20} className="text-emerald-300" />
+          <img src="/logo192.png" alt="Jinnah Legal" className="w-7 h-7 rounded-lg object-cover" />
           <span className="font-serif font-bold text-base">Jinnah Legal</span>
         </div>
         <button className="p-2 hover:bg-white/10 rounded-lg relative transition">
@@ -92,9 +90,7 @@ export default function LawyerLayout() {
       `}>
         <div className="flex-shrink-0 p-4 flex items-center justify-between border-b border-white/10">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-emerald-600 rounded-lg flex items-center justify-center">
-              <Scale size={22} className="text-white" />
-            </div>
+            <img src="/logo192.png" alt="Jinnah Legal" className="w-10 h-10 rounded-xl object-cover shadow-md" />
             <div>
               <h1 className="font-serif font-bold text-base">Jinnah Legal</h1>
               <p className="text-[10px] text-emerald-200">Lawyer Portal</p>
@@ -157,11 +153,11 @@ export default function LawyerLayout() {
 
       {/* Main Content */}
       {location.pathname.startsWith('/lawyer/messages') ? (
-        <main className="lg:ml-72 pt-14 lg:pt-0 flex flex-col min-h-0">
+        <main className="lg:ml-72 pt-14 lg:pt-0 flex flex-col min-h-0 overflow-x-hidden">
           <Outlet />
         </main>
       ) : (
-        <main className="lg:ml-72 pt-14 lg:pt-0 overflow-y-auto min-h-0 scroll-main">
+        <main className="lg:ml-72 pt-14 lg:pt-0 overflow-y-auto min-h-0 scroll-main overflow-x-hidden">
           <div className="p-3 lg:p-6" style={{ minHeight: 'calc(100vh + 2px)' }}>
             <Outlet />
           </div>

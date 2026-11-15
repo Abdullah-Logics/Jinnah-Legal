@@ -88,6 +88,7 @@ import AdminAnalytics from './pages/admin/Analytics';
 import AdminSettings from './pages/admin/Settings';
 import AdminTeam from './pages/admin/Team';
 import AdminBilling from './pages/admin/Billing';
+import AdminSiteControl from './pages/admin/Site';
 
 // Layouts
 import LawyerLayout from './layouts/LawyerLayout';
@@ -195,6 +196,7 @@ function App() {
             <Route path="subscriptions" element={<AdminSubscriptions />} />
             <Route path="analytics" element={<AdminAnalytics />} />
             <Route path="settings" element={<AdminSettings />} />
+            <Route path="site" element={<AdminSiteControl />} />
             <Route path="team" element={<AdminTeam />} />
             <Route path="billing" element={<AdminBilling />} />
           </Route>

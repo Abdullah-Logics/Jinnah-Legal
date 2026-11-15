@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useStore, UserRole, SubscriptionPlan } from '../../store/useStore';
+import { useSiteContent } from '../../context/SiteContentContext';
 import { Mail, Lock, User, Phone, MapPin, Eye, EyeOff, ArrowRight, Gavel, Users, Building, Upload, CheckCircle, Globe } from 'lucide-react';
 
 export default function Register() {
@@ -41,7 +42,13 @@ export default function Register() {
   const firmFileRef = useRef<HTMLInputElement>(null);
 
   const { register, registerFirm, firms, loadFirms } = useStore();
+  const { content } = useSiteContent();
   const navigate = useNavigate();
+
+  const planOptions = (role === 'lawyer'
+    ? content.home.plans.filter((p) => p.audience !== 'client')
+    : content.home.plans.filter((p) => p.audience !== 'lawyer')
+  ).map((p) => ({ value: p.value, name: p.name, price: p.price, period: p.period, features: p.features, popular: p.popular }));
 
   useEffect(() => {
     if (role === 'lawyer') loadFirms();
@@ -526,15 +533,7 @@ export default function Register() {
             <p className="text-sm text-slate-500 mb-2">Select a plan or skip to start with the free tier (you can upgrade later)</p>
             
             <div className="space-y-3">
-              {(role === 'lawyer' ? [
-                { value: 'student', name: 'Student', features: ['Basic Journal', 'Limited AI'], popular: false },
-                { value: 'starter', name: 'Starter', features: ['Full Journal', 'More AI', 'Case Hub'], popular: false },
-                { value: 'pro', name: 'Pro', features: ['Unlimited AI', 'All Features'], popular: true },
-                { value: 'firm', name: 'Firm', features: ['Multiple Lawyers', 'Admin Panel'], popular: false },
-              ] : [
-                { value: 'free', name: 'Free Trial', features: ['Limited AI', 'Basic Features'], popular: false },
-                { value: 'pro', name: 'Pro', features: ['Full AI', 'All Features'], popular: true },
-              ]).map(plan => (
+              {planOptions.map(plan => (
                 <button
                   key={plan.value}
                   type="button"
@@ -552,8 +551,9 @@ export default function Register() {
                       {formData.plan === plan.value && <CheckCircle size={14} className="text-white" />}
                     </div>
                     <div className="flex-1">
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="font-bold text-slate-900">{plan.name}</span>
+                        <span className="text-xs font-semibold text-emerald-700">{plan.price}{plan.period ? ` ${plan.period}` : ''}</span>
                         {plan.popular && (
                           <span className="px-2 py-0.5 bg-emerald-500 text-white text-xs rounded-full">Popular</span>
                         )}

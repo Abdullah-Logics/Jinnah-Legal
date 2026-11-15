@@ -403,7 +403,7 @@ interface AppState {
     name: string; email: string; password: string;
     phone?: string; city?: string; address?: string;
     description?: string; registrationNumber?: string;
-    adminName?: string; adminPhone?: string;
+    adminName?: string; adminPhone?: string; documentIds?: string[];
   }) => Promise<{ firm: Firm; user: User }>;
   verifyFirm: (firmId: string, status: VerificationStatus) => Promise<void>;
 }

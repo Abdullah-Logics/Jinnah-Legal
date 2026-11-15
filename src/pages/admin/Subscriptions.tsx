@@ -1,16 +1,17 @@
 import { useEffect } from 'react';
 import { useStore } from '../../store/useStore';
+import { useSiteContent } from '../../context/SiteContentContext';
 import { CreditCard, Users, TrendingUp } from 'lucide-react';
 
 export default function AdminSubscriptions() {
   const { users, invoices, loadInvoices } = useStore();
+  const { content } = useSiteContent();
   const lawyers = users.filter(u => u.role === 'lawyer');
   const clients = users.filter(u => u.role === 'client');
+  const lawyerPlans = content.home.plans.filter(p => p.audience !== 'client');
+  const clientPlans = content.home.plans.filter(p => p.audience !== 'lawyer');
 
   useEffect(() => { loadInvoices(); }, [loadInvoices]);
-
-  const lawyerPlans = { student: lawyers.filter(l => l.subscriptionPlan === 'student').length, starter: lawyers.filter(l => l.subscriptionPlan === 'starter').length, pro: lawyers.filter(l => l.subscriptionPlan === 'pro').length, firm: lawyers.filter(l => l.subscriptionPlan === 'firm').length };
-  const clientPlans = { free: clients.filter(c => c.subscriptionPlan === 'free').length, pro: clients.filter(c => c.subscriptionPlan === 'pro').length };
 
   const totalRevenue = invoices.reduce((s, i) => s + (i.amount || 0), 0);
   const paidRevenue = invoices.filter(i => i.status === 'paid').reduce((s, i) => s + (i.amount || 0), 0);
@@ -42,32 +43,32 @@ export default function AdminSubscriptions() {
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
           <h2 className="text-lg font-bold text-slate-900 mb-4">Lawyer Plans</h2>
           <div className="space-y-4">
-            {[
-              { name: 'Student (Free)', count: lawyerPlans.student, color: 'slate' },
-              { name: 'Starter (Rs 2.5K)', count: lawyerPlans.starter, color: 'teal' },
-              { name: 'Pro (Rs 6K)', count: lawyerPlans.pro, color: 'emerald' },
-              { name: 'Firm (Rs 18K)', count: lawyerPlans.firm, color: 'purple' }
-            ].map(plan => (
-              <div key={plan.name} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
-                <span className="font-medium text-slate-900">{plan.name}</span>
-                <span className={`px-3 py-1 rounded-lg text-sm font-medium ${plan.color === 'emerald' ? 'bg-emerald-100 text-emerald-700' : plan.color === 'teal' ? 'bg-teal-100 text-teal-700' : plan.color === 'purple' ? 'bg-purple-100 text-purple-700' : 'bg-slate-200 text-slate-700'}`}>{plan.count} users</span>
-              </div>
-            ))}
+            {lawyerPlans.map((plan, i) => {
+              const count = lawyers.filter(l => l.subscriptionPlan === plan.value).length;
+              const palette = ['bg-slate-200 text-slate-700', 'bg-teal-100 text-teal-700', 'bg-emerald-100 text-emerald-700', 'bg-purple-100 text-purple-700'];
+              return (
+                <div key={`${plan.value}-${i}`} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+                  <span className="font-medium text-slate-900">{plan.name} <span className="text-xs text-slate-400">({plan.price})</span></span>
+                  <span className={`px-3 py-1 rounded-lg text-sm font-medium ${palette[i % palette.length]}`}>{count} users</span>
+                </div>
+              );
+            })}
           </div>
         </div>
 
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
           <h2 className="text-lg font-bold text-slate-900 mb-4">Client Plans</h2>
           <div className="space-y-4">
-            {[
-              { name: 'Free Trial', count: clientPlans.free, color: 'slate' },
-              { name: 'Pro (Rs 5K)', count: clientPlans.pro, color: 'teal' }
-            ].map(plan => (
-              <div key={plan.name} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
-                <span className="font-medium text-slate-900">{plan.name}</span>
-                <span className={`px-3 py-1 rounded-lg text-sm font-medium ${plan.color === 'teal' ? 'bg-teal-100 text-teal-700' : 'bg-slate-200 text-slate-700'}`}>{plan.count} users</span>
-              </div>
-            ))}
+            {clientPlans.map((plan, i) => {
+              const count = clients.filter(c => c.subscriptionPlan === plan.value).length;
+              const palette = ['bg-slate-200 text-slate-700', 'bg-teal-100 text-teal-700', 'bg-emerald-100 text-emerald-700'];
+              return (
+                <div key={`${plan.value}-${i}`} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+                  <span className="font-medium text-slate-900">{plan.name} <span className="text-xs text-slate-400">({plan.price})</span></span>
+                  <span className={`px-3 py-1 rounded-lg text-sm font-medium ${palette[i % palette.length]}`}>{count} users</span>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>

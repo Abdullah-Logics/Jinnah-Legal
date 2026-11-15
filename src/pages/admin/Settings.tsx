@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Settings as SettingsIcon, Bell, Shield, Database, Mail, Globe, Save } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Bell, Shield, Globe, Save } from 'lucide-react';
 
 export default function AdminSettings() {
   const [settings, setSettings] = useState({
@@ -14,6 +15,14 @@ export default function AdminSettings() {
   return (
     <div className="space-y-6 max-w-3xl">
       <div><h1 className="text-2xl font-bold text-slate-900">Settings</h1><p className="text-slate-500">Platform configuration and preferences</p></div>
+
+      <Link to="/admin/site" className="flex items-center justify-between gap-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 hover:bg-emerald-100 transition">
+        <div>
+          <p className="font-bold text-emerald-900">Site Control is now live</p>
+          <p className="text-sm text-emerald-700">Edit the home page, pricing, verified firms, and lawyer/client portal layouts.</p>
+        </div>
+        <span className="shrink-0 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white">Open Site Control</span>
+      </Link>
 
       <div className="space-y-6">
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">

@@ -9,8 +9,6 @@ import {
 import { format } from 'date-fns';
 import { toDate } from '../../utils/dates';
 import { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Star } from 'lucide-react';
 import ShareDialog, { useShareDialog } from '../../components/ShareDialog';
 import { avatarUrl } from '../../utils/resolveUrl';
 

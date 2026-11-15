@@ -18,6 +18,7 @@ import { aiRouter } from './routes/ai.js';
 import { uploadRouter } from './routes/upload.js';
 import { reportsRouter } from './routes/reports.js';
 import { adminRouter } from './routes/admin.js';
+import { siteRouter } from './routes/site.js';
 import { groupsRouter } from './routes/groups.js';
 import { callLogsRouter } from './routes/call-logs.js';
 import { citationsRouter } from './routes/citations.js';
@@ -142,7 +143,7 @@ const app = express();
   app.use(cors({
     origin: corsOrigins,
     credentials: true,
-    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     maxAge: 86400,
   }));
@@ -187,6 +188,7 @@ const app = express();
   app.use('/api/upload',    uploadRouter);
   app.use('/api/reports',   reportsRouter);
   app.use('/api/admin',     adminRouter);
+  app.use('/api/site',      siteRouter);
   app.use('/api/groups',    groupsRouter);
   app.use('/api/call-logs', callLogsRouter);
   app.use('/api/citations', citationsRouter);

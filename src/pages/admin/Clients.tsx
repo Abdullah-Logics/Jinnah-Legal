@@ -97,7 +97,7 @@ export default function AdminClients() {
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px]">
+          <table className="w-full min-w-[760px] whitespace-nowrap">
             <thead className="bg-slate-50 border-b border-slate-100">
               <tr>
                 <th className="text-left p-4 text-sm font-medium text-slate-500">Client</th>

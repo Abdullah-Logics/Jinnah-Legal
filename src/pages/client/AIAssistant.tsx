@@ -175,7 +175,7 @@ export default function ClientAIAssistant() {
   };
 
   return (
-    <div className="h-full flex">
+    <div className="h-full flex min-w-0">
       {/* Mobile overlay */}
       <AnimatePresence>
         {sidebarOpen && (
@@ -319,8 +319,8 @@ export default function ClientAIAssistant() {
         </div>
 
         {/* Input */}
-        <div className="border-t border-slate-200 p-3 bg-white flex-shrink-0">
-          <div className="flex gap-2">
+        <div className="border-t border-slate-200 p-3 bg-white flex-shrink-0 min-w-0">
+          <div className="flex gap-2 min-w-0">
             <VoiceInput
               size={18}
               className="w-11"
@@ -338,7 +338,7 @@ export default function ClientAIAssistant() {
             <input value={input} onChange={e => { setInput(e.target.value); pendingSpokenRef.current.typed = e.target.value; }}
               onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
               placeholder="Ask a legal question..."
-              className="flex-1 bg-slate-50 rounded-xl px-4 py-3 text-sm outline-none border border-slate-200 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+              className="min-w-0 flex-1 bg-slate-50 rounded-xl px-4 py-3 text-sm outline-none border border-slate-200 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
             />
             <button onClick={() => handleSend()} disabled={!input.trim() || isTyping}
               className="w-12 h-12 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-40 text-white rounded-xl flex items-center justify-center transition-colors flex-shrink-0">

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -73,6 +73,12 @@ function VerifiedCompaniesMarquee() {
 
 export default function Landing() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMobileMenuOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [mobileMenuOpen]);
   const { content } = useSiteContent();
   const { brand, home } = content;
   const accent = brand.accent || '#059669';
@@ -84,11 +90,11 @@ export default function Landing() {
       <header className="fixed top-0 left-0 right-0 bg-white/90 backdrop-blur-md z-50 border-b border-slate-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 lg:h-20">
-            <Link to="/" className="flex items-center gap-3">
+            <Link to="/" className="flex min-w-0 items-center gap-3">
               <img src={brand.logoUrl || '/logo192.png'} alt={brand.name} className="w-10 h-10 lg:w-12 lg:h-12 rounded-xl object-cover shadow-lg" />
-              <div>
-                <h1 className="font-serif font-bold text-xl text-slate-900">{brand.name}</h1>
-                <p className="text-[10px] font-medium -mt-1" style={{ color: accent }}>{brand.tagline}</p>
+              <div className="min-w-0">
+                <h1 className="font-serif font-bold text-xl text-slate-900 truncate max-w-[52vw] sm:max-w-none">{brand.name}</h1>
+                <p className="text-[10px] font-medium -mt-1 truncate" style={{ color: accent }}>{brand.tagline}</p>
               </div>
             </Link>
 
@@ -107,7 +113,9 @@ export default function Landing() {
 
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 hover:bg-slate-100 rounded-lg transition"
+              aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={mobileMenuOpen}
+              className="lg:hidden p-2.5 hover:bg-slate-100 rounded-lg transition shrink-0"
             >
               {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
@@ -122,8 +130,8 @@ export default function Landing() {
               <nav className="flex flex-col gap-4">
                 <a href="#features" onClick={() => setMobileMenuOpen(false)} className="text-slate-600 font-medium py-2">Features</a>
                 <a href="#pricing" onClick={() => setMobileMenuOpen(false)} className="text-slate-600 font-medium py-2">Pricing</a>
-                <Link to="/login" className="text-slate-600 font-medium py-2">Login</Link>
-                <Link to="/register" className="text-white px-6 py-3 rounded-xl font-semibold text-center" style={{ background: accent }}>
+                <Link to="/login" onClick={() => setMobileMenuOpen(false)} className="text-slate-600 font-medium py-2">Login</Link>
+                <Link to="/register" onClick={() => setMobileMenuOpen(false)} className="text-white px-6 py-3 rounded-xl font-semibold text-center" style={{ background: accent }}>
                   Get Started
                 </Link>
               </nav>

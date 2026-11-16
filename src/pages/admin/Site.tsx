@@ -89,7 +89,7 @@ export default function AdminSiteControl() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-28 lg:pb-0 min-w-0">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
@@ -113,7 +113,7 @@ export default function AdminSiteControl() {
           <button
             onClick={() => void handleSave()}
             disabled={saving || !dirty}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="hidden lg:inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
             {saving ? 'Publishing…' : 'Save & publish'}
@@ -135,7 +135,7 @@ export default function AdminSiteControl() {
         ))}
       </div>
 
-      <div className="grid xl:grid-cols-[minmax(0,1fr)_350px] gap-6 items-start">
+      <div className="grid min-w-0 xl:grid-cols-[minmax(0,1fr)_350px] gap-6 items-start">
         <div className="space-y-6 min-w-0">
           {tab === 'home' && (
             <HomeEditor draft={draft} update={update} />
@@ -186,13 +186,35 @@ export default function AdminSiteControl() {
           )}
         </div>
 
-        <div className="xl:sticky xl:top-6 space-y-4">
+        <div className="xl:sticky xl:top-6 space-y-4 min-w-0">
           <PreviewCard tab={tab} draft={draft} portalKey={portalKey} />
           <div className="rounded-2xl border border-slate-200 bg-white p-4 text-xs text-slate-500 leading-relaxed">
             <p className="font-semibold text-slate-700 mb-1 flex items-center gap-1"><Eye size={13} /> What this controls</p>
             <p>Public home page, animated verified-firm taglines, pricing and process steps, brand/contact details, and the sidebar, labels, order, banner, density and accent of the lawyer &amp; client portals.</p>
           </div>
         </div>
+      </div>
+
+      <div
+        className="lg:hidden fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-slate-200 bg-white/95 px-3 py-3 shadow-[0_-6px_24px_rgba(15,23,42,0.08)] backdrop-blur"
+        style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0px))' }}
+      >
+        <div className="min-w-0 flex-1 text-xs">
+          {dirty ? (
+            <span className="font-medium text-amber-700">Unsaved changes</span>
+          ) : (
+            <span className="text-slate-500">All changes published</span>
+          )}
+          {error && <span className="block truncate text-red-600">{error}</span>}
+        </div>
+        <button
+          onClick={() => void handleSave()}
+          disabled={saving || !dirty}
+          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+          {saving ? 'Publishing…' : 'Save & publish'}
+        </button>
       </div>
     </div>
   );
@@ -528,7 +550,7 @@ function PreviewCard({ tab, draft, portalKey }: { tab: Tab; draft: SiteContent; 
     const accent = portal.accent || draft.brand.accent;
     const visible = portal.nav.filter((n) => !n.hidden).slice(0, 9);
     return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm min-w-0">
         <p className="text-xs font-semibold text-slate-500 mb-3 flex items-center gap-1"><Eye size={13} /> Live portal preview</p>
         <div className="rounded-xl overflow-hidden border border-slate-200">
           <div className="p-3 text-white" style={{ background: portalBackground(portal, draft.brand.accent) }}>
@@ -562,7 +584,7 @@ function PreviewCard({ tab, draft, portalKey }: { tab: Tab; draft: SiteContent; 
 
   const featured = draft.home.plans.find((p) => p.popular) || draft.home.plans[0];
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm min-w-0">
       <p className="text-xs font-semibold text-slate-500 mb-3 flex items-center gap-1"><Eye size={13} /> Live home preview</p>
       <div className="rounded-xl border border-slate-200 overflow-hidden">
         <div className="p-4 bg-gradient-to-br from-slate-50 via-white to-emerald-50">
@@ -610,7 +632,7 @@ function PreviewCard({ tab, draft, portalKey }: { tab: Tab; draft: SiteContent; 
         )}
       </div>
       <p className="text-[10px] text-slate-400 mt-2">{draft.home.stats.length} stats · {draft.home.features.length} features · {draft.home.plans.length} plans</p>
-      <Link to="/" target="_blank" className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 hover:underline">
+      <Link to="/" target="_blank" className="mt-2 inline-flex items-center gap-1 py-1 text-[11px] font-medium text-emerald-700 hover:underline">
         <ExternalLink size={11} /> Open the real page
       </Link>
     </div>
@@ -626,7 +648,7 @@ interface EditorProps {
 
 function Panel({ title, desc, actions, children }: { title: string; desc?: string; actions?: ReactNode; children: ReactNode }) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm min-w-0">
       <div className="flex flex-wrap items-start justify-between gap-2 mb-4">
         <div>
           <h2 className="font-bold text-slate-900">{title}</h2>
@@ -750,7 +772,7 @@ function Toggle({ title, desc, checked, onChange }: { title: string; desc?: stri
 
 function SmallBtn({ children, onClick }: { children: ReactNode; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50">
+    <button type="button" onClick={onClick} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50">
       {children}
     </button>
   );
@@ -758,7 +780,7 @@ function SmallBtn({ children, onClick }: { children: ReactNode; onClick: () => v
 
 function ArrowBtn({ children, onClick, disabled, label }: { children: ReactNode; onClick: () => void; disabled?: boolean; label: string }) {
   return (
-    <button type="button" aria-label={label} onClick={onClick} disabled={disabled} className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 disabled:opacity-30">
+    <button type="button" aria-label={label} onClick={onClick} disabled={disabled} className="w-9 h-9 inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 disabled:opacity-30">
       {children}
     </button>
   );
@@ -774,7 +796,7 @@ function RowCard({ children, index, total, onUp, onDown, onRemove }: {
         <div className="flex items-center gap-1">
           <ArrowBtn label="Move up" onClick={onUp} disabled={index === 0}><ArrowUp size={13} /></ArrowBtn>
           <ArrowBtn label="Move down" onClick={onDown} disabled={index === total - 1}><ArrowDown size={13} /></ArrowBtn>
-          <button type="button" onClick={onRemove} className="p-1.5 rounded-lg text-red-500 hover:bg-red-50" aria-label="Remove item"><Trash2 size={13} /></button>
+          <button type="button" onClick={onRemove} className="w-9 h-9 inline-flex items-center justify-center rounded-lg text-red-500 hover:bg-red-50" aria-label="Remove item"><Trash2 size={13} /></button>
         </div>
       </div>
       {children}

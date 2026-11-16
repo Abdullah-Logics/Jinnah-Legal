@@ -42,6 +42,18 @@ export default function ClientLayout() {
 
   useEffect(() => { loadUsers(); }, [loadUsers]);
   useEffect(() => { setAnnouncementOpen(true); }, [portal.announcement.text]);
+  useEffect(() => { setSidebarOpen(false); }, [location.pathname]);
+  useEffect(() => {
+    if (!sidebarOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setSidebarOpen(false); };
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = previous;
+    };
+  }, [sidebarOpen]);
 
   const unreadCount = messages.filter(m => m.receiverId === currentUser?.id && !m.read).length;
 
@@ -53,24 +65,24 @@ export default function ClientLayout() {
   return (
     <div className="h-dvh grid grid-rows-[1fr] bg-slate-50">
       <header
-        className="lg:hidden fixed top-0 left-0 right-0 h-14 text-white z-40 flex items-center justify-between px-4 shadow-lg"
+        className="lg:hidden mobile-header fixed top-0 left-0 right-0 text-white z-40 flex items-center justify-between px-4 shadow-lg"
         style={{ background: `linear-gradient(90deg, ${accent}, #064e3b)` }}
       >
-        <button onClick={() => setSidebarOpen(true)} className="p-2 hover:bg-white/10 rounded-lg transition">
+        <button onClick={() => setSidebarOpen(true)} aria-label="Open navigation" className="p-2.5 hover:bg-white/10 rounded-lg transition">
           <Menu size={22} />
         </button>
-        <div className="flex items-center gap-2">
-          <img src={content.brand.logoUrl || '/logo192.png'} alt={content.brand.name} className="w-7 h-7 rounded-lg object-cover" />
-          <span className="font-serif font-bold text-base">{content.brand.name}</span>
+        <div className="flex min-w-0 flex-1 items-center justify-center gap-2 px-2">
+          <img src={content.brand.logoUrl || '/logo192.png'} alt={content.brand.name} className="w-7 h-7 rounded-lg object-cover shrink-0" />
+          <span className="font-serif font-bold text-base truncate">{content.brand.name}</span>
         </div>
-        <button className="p-2 hover:bg-white/10 rounded-lg relative transition">
+        <Link to="/client/messages" aria-label="Messages" className="p-2.5 hover:bg-white/10 rounded-lg relative transition shrink-0">
           <Bell size={20} />
           {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center">
+            <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center">
               {unreadCount > 9 ? '9+' : unreadCount}
             </span>
           )}
-        </button>
+        </Link>
       </header>
 
       <AnimatePresence>
@@ -87,13 +99,13 @@ export default function ClientLayout() {
 
       <aside
         className={`
-        fixed top-0 left-0 h-full ${sidebarWidth} bg-gradient-to-b from-emerald-600 via-emerald-700 to-slate-900 text-white z-50
+        fixed top-0 left-0 h-full ${sidebarWidth} max-w-[85vw] bg-gradient-to-b from-emerald-600 via-emerald-700 to-slate-900 text-white z-50
         transform transition-transform duration-300 ease-in-out flex flex-col
         lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
       `}
         style={{ background: portalBackground(portal, content.brand.accent) }}
       >
-        <div className="flex-shrink-0 p-4 flex items-center justify-between border-b border-white/10">
+        <div className="mobile-safe-top flex-shrink-0 p-4 flex items-center justify-between border-b border-white/10">
           <div className="flex items-center gap-3">
             <img src={content.brand.logoUrl || '/logo192.png'} alt={content.brand.name} className="w-10 h-10 rounded-xl object-cover shadow-md" />
             <div>
@@ -101,7 +113,7 @@ export default function ClientLayout() {
               <p className="text-[10px] text-emerald-200">{portal.name}</p>
             </div>
           </div>
-          <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-2 hover:bg-white/10 rounded-lg">
+          <button onClick={() => setSidebarOpen(false)} aria-label="Close navigation" className="lg:hidden p-2.5 hover:bg-white/10 rounded-lg">
             <X size={20} />
           </button>
         </div>
@@ -163,7 +175,7 @@ export default function ClientLayout() {
       </aside>
 
       {location.pathname.startsWith('/client/messages') ? (
-        <main className={`${contentOffset} pt-14 lg:pt-0 flex flex-col min-h-0 overflow-x-hidden`}>
+        <main className={`${contentOffset} mobile-main flex flex-col min-h-0 overflow-x-hidden`}>
           <PortalAnnouncement
             enabled={announcementOpen && portal.announcement.enabled && !!portal.announcement.text}
             text={portal.announcement.text}
@@ -175,7 +187,7 @@ export default function ClientLayout() {
           <Outlet />
         </main>
       ) : (
-        <main className={`${contentOffset} pt-14 lg:pt-0 overflow-y-auto min-h-0 scroll-main overflow-x-hidden`}>
+        <main className={`${contentOffset} mobile-main overflow-y-auto min-h-0 scroll-main overflow-x-hidden`}>
           <PortalAnnouncement
             enabled={announcementOpen && portal.announcement.enabled && !!portal.announcement.text}
             text={portal.announcement.text}
@@ -184,7 +196,7 @@ export default function ClientLayout() {
             accent={accent}
             onClose={() => setAnnouncementOpen(false)}
           />
-          <div className="p-3 lg:p-6" style={{ minHeight: 'calc(100vh + 2px)' }}>
+          <div className="mobile-safe-bottom p-3 lg:p-6" style={{ minHeight: 'calc(100vh + 2px)' }}>
             <Outlet />
           </div>
         </main>
@@ -210,7 +222,7 @@ function PortalAnnouncement({ enabled, text, linkLabel, linkTo, accent, onClose 
           {linkLabel}
         </Link>
       )}
-      <button onClick={onClose} aria-label="Dismiss announcement" className="p-1 rounded hover:bg-white/20 shrink-0">
+      <button onClick={onClose} aria-label="Dismiss announcement" className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/20 shrink-0">
         <X size={16} />
       </button>
     </div>

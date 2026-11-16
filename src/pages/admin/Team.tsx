@@ -173,10 +173,10 @@ export default function Team() {
                       <div className="flex items-center justify-end gap-1">
                         {u.role === 'lawyer' && u.verification_status === 'pending' && (
                           <button onClick={async () => { try { await api.patch(`/api/admin/users/${u.id}`, { verification_status: 'approved' }); setUsers(prev => prev.map(x => x.id === u.id ? { ...x, verification_status: 'approved', is_verified: true } : x)); } catch {} }}
-                            title="Approve" className="p-1.5 hover:bg-emerald-50 rounded-lg text-emerald-600 transition"><CheckCircle2 size={15} /></button>
+                            title="Approve" className="p-2 hover:bg-emerald-50 rounded-lg text-emerald-600 transition"><CheckCircle2 size={15} /></button>
                         )}
                         {!isFirmAdmin && (
-                          <button onClick={() => blockUser(u)} title="Block" className="p-1.5 hover:bg-red-50 rounded-lg text-red-500 transition"><Ban size={15} /></button>
+                          <button onClick={() => blockUser(u)} title="Block" className="p-2 hover:bg-red-50 rounded-lg text-red-500 transition"><Ban size={15} /></button>
                         )}
                       </div>
                     </td>

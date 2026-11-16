@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { Outlet, NavLink, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useStore } from '../store/useStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -44,7 +44,19 @@ export default function AdminLayout() {
   const isFirmAdmin = currentUser?.role === 'firm_admin';
   const navItems = isFirmAdmin ? firmNav : platformNav;
 
-  useEffect(() => { loadUsers(); }, []);
+  useEffect(() => { loadUsers(); }, [loadUsers]);
+  useEffect(() => { setSidebarOpen(false); }, [location.pathname]);
+  useEffect(() => {
+    if (!sidebarOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setSidebarOpen(false); };
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = previous;
+    };
+  }, [sidebarOpen]);
 
   const pendingVerifications = users.filter(u => u.role === 'lawyer' && u.verificationStatus === 'pending').length;
 
@@ -61,22 +73,22 @@ export default function AdminLayout() {
   return (
     <div className="h-dvh grid grid-rows-[1fr] bg-slate-100">
       {/* Mobile Header */}
-      <header className={`lg:hidden fixed top-0 left-0 right-0 h-14 text-white z-40 flex items-center justify-between px-4 shadow-lg ${isFirmAdmin ? 'bg-gradient-to-r from-emerald-900 to-emerald-800' : 'bg-gradient-to-r from-emerald-950 to-emerald-900'}`}>
-        <button onClick={() => setSidebarOpen(true)} className="p-2 hover:bg-white/10 rounded-lg transition">
+      <header className={`lg:hidden mobile-header fixed top-0 left-0 right-0 text-white z-40 flex items-center justify-between px-4 shadow-lg ${isFirmAdmin ? 'bg-gradient-to-r from-emerald-900 to-emerald-800' : 'bg-gradient-to-r from-emerald-950 to-emerald-900'}`}>
+        <button onClick={() => setSidebarOpen(true)} aria-label="Open navigation" className="p-2.5 hover:bg-white/10 rounded-lg transition">
           <Menu size={22} />
         </button>
-        <div className="flex items-center gap-2">
-          <img src="/logo192.png" alt="Jinnah Legal" className="w-7 h-7 rounded-lg object-cover" />
-          <span className="font-serif font-bold text-base">{isFirmAdmin ? 'Firm Admin' : 'Jinnah Admin'}</span>
+        <div className="flex min-w-0 flex-1 items-center justify-center gap-2 px-2">
+          <img src="/logo192.png" alt="Jinnah Legal" className="w-7 h-7 rounded-lg object-cover shrink-0" />
+          <span className="font-serif font-bold text-base truncate">{isFirmAdmin ? 'Firm Admin' : 'Jinnah Admin'}</span>
         </div>
-        <button className="p-2 hover:bg-white/10 rounded-lg relative transition">
+        <Link to="/admin/messages" aria-label="Messages" className="p-2.5 hover:bg-white/10 rounded-lg relative transition shrink-0">
           <Bell size={20} />
           {pendingVerifications > 0 && (
-            <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center">
+            <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center">
               {pendingVerifications > 9 ? '9+' : pendingVerifications}
             </span>
           )}
-        </button>
+        </Link>
       </header>
 
       {/* Mobile Sidebar Overlay */}
@@ -94,12 +106,13 @@ export default function AdminLayout() {
 
       {/* Sidebar (Desktop) / Drawer (Mobile) */}
       <aside className={`
-        fixed top-0 left-0 h-full w-72 text-white z-50
+        fixed top-0 left-0 h-full w-72 max-w-[85vw] text-white z-50
+        flex flex-col overscroll-contain
         transform transition-transform duration-300 ease-in-out
         lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
         ${isFirmAdmin ? 'bg-gradient-to-b from-emerald-900 via-emerald-800 to-slate-900' : 'bg-gradient-to-b from-emerald-950 via-emerald-900 to-black'}
       `}>
-        <div className="p-4 flex items-center justify-between border-b border-white/10">
+        <div className="mobile-safe-top p-4 flex items-center justify-between border-b border-white/10">
           <div className="flex items-center gap-3">
             <img src="/logo192.png" alt="Jinnah Legal" className="w-10 h-10 rounded-xl object-cover shadow-md" />
             <div>
@@ -107,7 +120,7 @@ export default function AdminLayout() {
               <p className={`text-[10px] ${isFirmAdmin ? 'text-emerald-200' : 'text-slate-300'}`}>{isFirmAdmin ? 'Firm Admin Portal' : 'Admin Portal'}</p>
             </div>
           </div>
-          <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-2 hover:bg-white/10 rounded-lg">
+          <button onClick={() => setSidebarOpen(false)} aria-label="Close navigation" className="lg:hidden p-2.5 hover:bg-white/10 rounded-lg">
             <X size={20} />
           </button>
         </div>
@@ -127,7 +140,7 @@ export default function AdminLayout() {
           </div>
         </div>
 
-        <nav className="p-3 flex-1 overflow-y-auto h-[calc(100%-180px)]">
+        <nav className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-3">
           <ul className="space-y-1">
             {navItems.map(item => (
               <li key={item.path}>
@@ -153,7 +166,7 @@ export default function AdminLayout() {
           </ul>
         </nav>
 
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-white/10 bg-black/50">
+        <div className="mobile-safe-bottom flex-shrink-0 p-4 border-t border-white/10 bg-black/50">
           <button
             onClick={handleLogout}
             className="flex items-center gap-3 w-full px-4 py-2.5 text-red-300 hover:bg-red-500/20 rounded-xl transition text-sm"
@@ -165,8 +178,8 @@ export default function AdminLayout() {
       </aside>
 
       {/* Main Content */}
-      <main className="lg:ml-72 pt-14 lg:pt-0 overflow-y-auto min-h-0 scroll-main overflow-x-hidden">
-        <div className="p-3 lg:p-6" style={{ minHeight: 'calc(100vh + 2px)' }}>
+      <main className="lg:ml-72 mobile-main overflow-y-auto min-h-0 scroll-main overflow-x-hidden">
+        <div className="mobile-safe-bottom p-3 lg:p-6" style={{ minHeight: 'calc(100vh + 2px)' }}>
           <Outlet />
         </div>
       </main>

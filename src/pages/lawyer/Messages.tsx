@@ -157,13 +157,6 @@ export default function LawyerMessages() {
     }
   }, [selectedUser]);
 
-  useEffect(() => {
-    if (selectedUser && conversation.length > 0) {
-      const t = setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 60);
-      return () => clearTimeout(t);
-    }
-  }, [conversation.length, selectedUser]);
-
   const myClientIds = new Set(cases.filter(c => c.lawyerId === currentUser?.id).map(c => c.clientId));
   const connectedUserIds = new Set(connections.map(c => c.user1_id === currentUser?.id ? c.user2_id : c.user1_id));
   const allContactIds = new Set([...myClientIds, ...connectedUserIds]);
@@ -179,6 +172,13 @@ export default function LawyerMessages() {
     const db = b.timestamp ? new Date(b.timestamp).getTime() : 0;
     return da - db;
   }), [messages, selectedUser, currentUser?.id]);
+
+  useEffect(() => {
+    if (selectedUser && conversation.length > 0) {
+      const t = setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 60);
+      return () => clearTimeout(t);
+    }
+  }, [conversation.length, selectedUser]);
 
   useEffect(() => {
     if (selectedUser) {
@@ -822,7 +822,7 @@ export default function LawyerMessages() {
               )}
             </AnimatePresence>
 
-            <div className="px-2 sm:px-4 py-2.5 border-t border-slate-200 bg-white flex-shrink-0 shadow-[0_-1px_3px_rgba(0,0,0,0.05)]">
+            <div className="mobile-composer px-2 sm:px-4 pt-2.5 pb-2.5 border-t border-slate-200 bg-white flex-shrink-0 shadow-[0_-1px_3px_rgba(0,0,0,0.05)]">
               <div className="flex items-center gap-1 sm:gap-1.5">
                 <input type="file" ref={fileInputRef} onChange={handleFilePick} className="hidden" accept="image/*,.pdf,.doc,.docx,.txt,.mp3,.wav,.ogg,.webm,.mp4" />
                 <input type="file" ref={cameraInputRef} onChange={handleFilePick} className="hidden" accept="image/*" capture="environment" />

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   AlertTriangle, CheckCircle, XCircle, Search, Shield, UserX,
-  MessageSquareWarning, Gavel, Clock, ChevronDown, ChevronUp, Ban
+  MessageSquareWarning, MessageSquare, Gavel, Clock, ChevronDown, ChevronUp, Ban, X
 } from 'lucide-react';
 import api from '../../utils/api';
 
@@ -28,6 +28,8 @@ export default function AdminReports() {
   const [stats, setStats] = useState<any>({});
   const [sortBy, setSortBy] = useState<'severity' | 'newest'>('severity');
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [conversation, setConversation] = useState<any>(null);
+  const [conversationLoading, setConversationLoading] = useState(false);
 
   useEffect(() => { loadReports(); loadStats(); }, []);
 
@@ -43,6 +45,31 @@ export default function AdminReports() {
   }
 
   useEffect(() => { loadReports(); }, [filter]);
+
+  useEffect(() => {
+    if (!conversation) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setConversation(null); };
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = previous;
+    };
+  }, [conversation]);
+
+  async function viewConversation(report: any) {
+    setConversation({ report, messages: [] });
+    setConversationLoading(true);
+    try {
+      setConversation(await api.get(`/api/reports/${report.id}/conversation`));
+    } catch (err: any) {
+      alert(err.message || 'Could not load conversation');
+      setConversation(null);
+    } finally {
+      setConversationLoading(false);
+    }
+  }
 
   async function handleResolve(id: string, action: string) {
     try {
@@ -239,6 +266,16 @@ export default function AdminReports() {
                         </div>
                       </div>
                     </div>
+                    <div className="mt-4 pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-slate-700">Conversation</p>
+                        <p className="text-xs text-slate-500">Messages between the reporter and the reported user.</p>
+                      </div>
+                      <button type="button" onClick={() => viewConversation(r)}
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 transition">
+                        <MessageSquare size={15} /> View chat
+                      </button>
+                    </div>
                   </div>
                 )}
               </motion.div>
@@ -253,6 +290,55 @@ export default function AdminReports() {
           )}
         </div>
       </div>
+
+      {conversation && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setConversation(null)} />
+          <div className="relative w-full sm:max-w-2xl h-[90dvh] sm:h-auto sm:max-h-[85vh] bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col mobile-safe-bottom">
+            <div className="mobile-safe-top flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100 flex-shrink-0">
+              <div className="min-w-0">
+                <h3 className="font-bold text-slate-900 flex items-center gap-2"><MessageSquare size={18} /> Reported conversation</h3>
+                <p className="text-xs text-slate-500 truncate">
+                  {conversation.report?.reporter_name || 'Reporter'} ↔ {conversation.report?.reported_name || 'Reported user'}
+                </p>
+              </div>
+              <button type="button" onClick={() => setConversation(null)} aria-label="Close conversation"
+                className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-100 transition">
+                <X size={20} className="text-slate-500" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-3 bg-slate-50">
+              {conversationLoading ? (
+                <p className="text-center py-10 text-sm text-slate-400">Loading conversation…</p>
+              ) : conversation.messages?.length ? (
+                conversation.messages.map((m: any) => {
+                  const fromReported = m.sender_id === conversation.report?.reported_id;
+                  return (
+                    <div key={m.id} className={`max-w-[85%] p-3 rounded-xl ${fromReported ? 'ml-auto bg-blue-50' : 'mr-auto bg-white'} border border-slate-100`}>
+                      <p className="text-[11px] font-medium text-slate-500 mb-1">
+                        {m.sender_name || (fromReported ? 'Reported user' : 'Reporter')} → {m.receiver_name || 'Unknown'}
+                      </p>
+                      <p className="text-sm text-slate-800 whitespace-pre-wrap">{m.content || <span className="italic text-slate-400">(attachment)</span>}</p>
+                      {m.attachments && m.attachments !== '[]' && (
+                        <p className="text-[11px] text-blue-600 mt-1">Has attachments</p>
+                      )}
+                      <p className="text-[10px] text-slate-400 mt-1">
+                        {(() => { const d = new Date(m.created_at); return isNaN(d.getTime()) ? '' : d.toLocaleString(); })()}
+                      </p>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="text-center py-10 text-slate-400">
+                  <MessageSquare size={36} className="mx-auto mb-2 text-slate-300" />
+                  <p className="text-sm font-medium">No direct messages found</p>
+                  <p className="text-xs">There are no messages between these two users.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

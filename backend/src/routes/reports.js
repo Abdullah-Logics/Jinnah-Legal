@@ -56,11 +56,11 @@ reportsRouter.get('/', asyncHandler(async (req, res) => {
   const user = await queryOne('SELECT role FROM users WHERE id=?', [req.user.id]);
   if (!user || user.role !== 'admin') throw new AppError('Admin only', 403);
   let sql = `SELECT r.*,
-    (SELECT name FROM users WHERE id=r.reporter_id::uuid) as reporter_name,
-    (SELECT name FROM users WHERE id=r.reported_id::uuid) as reported_name,
-    (SELECT email FROM users WHERE id=r.reported_id::uuid) as reported_email,
-    (SELECT role FROM users WHERE id=r.reported_id::uuid) as reported_role,
-    (SELECT created_at FROM users WHERE id=r.reported_id::uuid) as reported_joined
+    (SELECT name FROM users u WHERE CAST(u.id AS TEXT)=CAST(r.reporter_id AS TEXT)) as reporter_name,
+    (SELECT name FROM users u WHERE CAST(u.id AS TEXT)=CAST(r.reported_id AS TEXT)) as reported_name,
+    (SELECT email FROM users u WHERE CAST(u.id AS TEXT)=CAST(r.reported_id AS TEXT)) as reported_email,
+    (SELECT role FROM users u WHERE CAST(u.id AS TEXT)=CAST(r.reported_id AS TEXT)) as reported_role,
+    (SELECT created_at FROM users u WHERE CAST(u.id AS TEXT)=CAST(r.reported_id AS TEXT)) as reported_joined
     FROM reports r`;
   const params = [];
   if (status) { sql += ' WHERE r.status=?'; params.push(status); }
@@ -71,6 +71,30 @@ reportsRouter.get('/', asyncHandler(async (req, res) => {
     return { ...r, ...rec };
   }));
   res.json(enriched);
+}));
+
+reportsRouter.get('/:id/conversation', asyncHandler(async (req, res) => {
+  const user = await queryOne('SELECT role FROM users WHERE id=?', [req.user.id]);
+  if (!user || user.role !== 'admin') throw new AppError('Admin only', 403);
+  const report = await queryOne(
+    `SELECT r.*,
+      (SELECT name FROM users u WHERE CAST(u.id AS TEXT)=CAST(r.reporter_id AS TEXT)) as reporter_name,
+      (SELECT name FROM users u WHERE CAST(u.id AS TEXT)=CAST(r.reported_id AS TEXT)) as reported_name
+     FROM reports r WHERE r.id=?`,
+    [req.params.id]
+  );
+  if (!report) throw new AppError('Report not found', 404);
+  const messages = await query(
+    `SELECT m.*,
+      (SELECT name FROM users u WHERE CAST(u.id AS TEXT)=CAST(m.sender_id AS TEXT)) as sender_name,
+      (SELECT name FROM users u WHERE CAST(u.id AS TEXT)=CAST(m.receiver_id AS TEXT)) as receiver_name
+     FROM messages m
+     WHERE (CAST(m.sender_id AS TEXT)=? AND CAST(m.receiver_id AS TEXT)=?)
+        OR (CAST(m.sender_id AS TEXT)=? AND CAST(m.receiver_id AS TEXT)=?)
+     ORDER BY m.created_at ASC`,
+    [report.reporter_id, report.reported_id, report.reported_id, report.reporter_id]
+  );
+  res.json({ report, messages });
 }));
 
 reportsRouter.patch('/:id/resolve', asyncHandler(async (req, res) => {

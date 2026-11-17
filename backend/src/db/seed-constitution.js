@@ -298,6 +298,8 @@ export const CONSTITUTION_ARTICLES = [
   { part: 'XII', part_title: 'Miscellaneous', chapter: '', chapter_title: '', article: '280', title: 'Short title and commencement', content: '(1) This Constitution shall be called the Constitution of the Islamic Republic of Pakistan, 1973.\\n(2) It shall come into force on the fourteenth day of August, 1973.', category: 'Constitutional' }
 ];
 
+import { v4 as uuid } from 'uuid';
+
 export async function seedConstitution(adapter) {
   const existing = await adapter.queryOne('SELECT COUNT(*) as c FROM constitution');
   const count = Number(existing?.c || 0);
@@ -314,8 +316,8 @@ export async function seedConstitution(adapter) {
   for (const art of CONSTITUTION_ARTICLES) {
     try {
       await adapter.run(
-        `INSERT INTO constitution (id, part, part_title, chapter, chapter_title, article, title, content, category) VALUES (gen_random_uuid(),?,?,?,?,?,?,?,?)`,
-        [art.part, art.part_title, art.chapter, art.chapter_title, art.article, art.title, art.content, art.category]
+        `INSERT INTO constitution (id, part, part_title, chapter, chapter_title, article, title, content, category) VALUES (?,?,?,?,?,?,?,?,?)`,
+        [uuid(), art.part, art.part_title, art.chapter, art.chapter_title, art.article, art.title, art.content, art.category]
       );
       inserted++;
     } catch (e) {

@@ -82,13 +82,17 @@ export class SqliteAdapter {
     writeFileSync(DB_FILE, Buffer.from(this.db.export()));
   }
 
+  _dialect(sql) {
+    return String(sql).replace(/\bILIKE\b/gi, 'LIKE');
+  }
+
   async run(sql, params = []) {
-    this.db.run(sql, params);
+    this.db.run(this._dialect(sql), params);
     this._save();
   }
 
   async query(sql, params = []) {
-    const stmt = this.db.prepare(sql);
+    const stmt = this.db.prepare(this._dialect(sql));
     stmt.bind(params);
     const rows = [];
     while (stmt.step()) rows.push(stmt.getAsObject());
@@ -317,6 +321,18 @@ export class SqliteAdapter {
         keywords TEXT,
         created_at TEXT DEFAULT (datetime('now'))
       );
+      CREATE TABLE IF NOT EXISTS constitution (
+        id TEXT PRIMARY KEY,
+        part TEXT NOT NULL,
+        part_title TEXT NOT NULL,
+        chapter TEXT DEFAULT '',
+        chapter_title TEXT DEFAULT '',
+        article TEXT NOT NULL,
+        title TEXT NOT NULL,
+        content TEXT NOT NULL,
+        category TEXT DEFAULT 'General',
+        created_at TEXT DEFAULT (datetime('now'))
+      );
       CREATE TABLE IF NOT EXISTS payment_methods (
         id TEXT PRIMARY KEY, user_id TEXT NOT NULL,
         type TEXT NOT NULL DEFAULT 'card', last_four TEXT,
@@ -343,5 +359,12 @@ export class SqliteAdapter {
     try { this.db.run("DELETE FROM ai_chat_history WHERE session_id LIKE 'doc-%' OR session_id LIKE 'research-%'"); } catch {}
     try { this.db.run("ALTER TABLE users ADD COLUMN bio TEXT"); } catch {}
     this._save();
+    try {
+      const { seedConstitution } = await import('./seed-constitution.js');
+      const result = await seedConstitution(this);
+      console.log('📜 Constitution seeding:', result.message);
+    } catch (e) {
+      console.warn('Constitution seeding:', e.message);
+    }
   }
 }

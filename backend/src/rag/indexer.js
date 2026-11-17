@@ -90,7 +90,7 @@ export async function indexConstitution(queryFn, { log = console.log } = {}) {
   const startTime = Date.now();
 
   const rows = await queryFn(
-    "SELECT id, part, part_title, chapter, chapter_title, article, title, content, category FROM constitution ORDER BY CAST(regexp_replace(article, '[^0-9]', '', 'g') AS INTEGER) ASC, article ASC"
+    "SELECT id, part, part_title, chapter, chapter_title, article, title, content, category FROM constitution ORDER BY article ASC"
   );
   if (!rows || rows.length === 0) return { total: 0, elapsed: 0 };
 

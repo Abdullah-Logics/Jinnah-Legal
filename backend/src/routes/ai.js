@@ -11,8 +11,12 @@ import { validateCitations } from '../rag/agent.js';
 export const aiRouter = Router();
 aiRouter.use(auth);
 
-const MODEL = process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
+const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 const MAX_TOOL_ROUNDS = 15;
+
+function textSearchSql(columns) {
+  return columns.map(c => `LOWER(COALESCE(${c},'')) LIKE LOWER(?)`).join(' OR ');
+}
 
 const LAWYER_SYSTEM = `You are an AI Legal Second Brain for Pakistani lawyers on the Jinnah Legal platform, specializing in Pakistani constitutional law, legal research, and document drafting. You have comprehensive knowledge of the Constitution of Pakistan 1973 (all 280+ articles across 12 Parts), Pakistan Penal Code (PPC), Code of Criminal Procedure (CrPC), Code of Civil Procedure (CPC), Qanun-e-Shahadat Order 1984, and all Pakistani case law.
 
@@ -265,19 +269,18 @@ async function executeTool(name, args, req) {
     case 'searchCitations': {
       const { query: q, category, year, court } = args;
       let sql, params = [];
+      const searchColumns = ['title', 'description', 'keywords', 'parties', 'relevant_statutes', 'citation'];
       if (q) {
-        sql = `SELECT id, title, citation, court, year, parties, category, description, relevant_statutes, keywords,
-               ts_rank(to_tsvector('english', coalesce(title,'') || ' ' || coalesce(description,'') || ' ' || coalesce(keywords,'') || ' ' || coalesce(parties,'') || ' ' || coalesce(relevant_statutes,'') || ' ' || coalesce(citation,'')), plainto_tsquery('english',?)) as rank
-               FROM citations
-               WHERE to_tsvector('english', coalesce(title,'') || ' ' || coalesce(description,'') || ' ' || coalesce(keywords,'') || ' ' || coalesce(parties,'') || ' ' || coalesce(relevant_statutes,'') || ' ' || coalesce(citation,'')) @@ plainto_tsquery('english',?)`;
-        params = [q, q];
+        sql = `SELECT id, title, citation, court, year, parties, category, description, relevant_statutes, keywords, 1 as rank
+               FROM citations WHERE ${textSearchSql(searchColumns)}`;
+        params = searchColumns.map(() => `%${q}%`);
       } else {
         sql = 'SELECT * FROM citations WHERE 1=1';
       }
       if (category) { sql += ' AND category=?'; params.push(category); }
       if (year) { sql += ' AND year=?'; params.push(Number(year)); }
-      if (court) { sql += ' AND court ILIKE ?'; params.push(`%${court}%`); }
-      if (q) sql += ' ORDER BY rank DESC';
+      if (court) { sql += ' AND LOWER(COALESCE(court,\'\')) LIKE LOWER(?)'; params.push(`%${court}%`); }
+      if (q) sql += ' ORDER BY rank DESC, year DESC';
       else sql += ' ORDER BY year DESC';
       sql += ' LIMIT 20';
       const results = await query(sql, params);
@@ -287,19 +290,17 @@ async function executeTool(name, args, req) {
 
     case 'suggestCitations': {
       const { query: q, context } = args;
+      const searchColumns = ['title', 'description', 'keywords', 'parties', 'relevant_statutes', 'citation'];
       const results = await query(
-        `SELECT id, title, citation, court, year, parties, category, description,
-         ts_rank(to_tsvector('english', coalesce(title,'') || ' ' || coalesce(description,'') || ' ' || coalesce(keywords,'') || ' ' || coalesce(parties,'') || ' ' || coalesce(citation,'')), plainto_tsquery('english',?)) as rank
-         FROM citations
-         WHERE to_tsvector('english', coalesce(title,'') || ' ' || coalesce(description,'') || ' ' || coalesce(keywords,'') || ' ' || coalesce(parties,'') || ' ' || coalesce(citation,'')) @@ plainto_tsquery('english',?)
-         ORDER BY rank DESC LIMIT 10`,
-        [q, q]
+        `SELECT id, title, citation, court, year, parties, category, description, 1 as rank
+         FROM citations WHERE ${textSearchSql(searchColumns)} ORDER BY year DESC LIMIT 10`,
+        searchColumns.map(() => `%${q}%`)
       );
       if (results.length === 0) {
-        const p = `%${q}%`;
+        const fallbackColumns = ['title', 'parties', 'keywords', 'category', 'description'];
         const fallback = await query(
-          `SELECT * FROM citations WHERE title ILIKE ? OR parties ILIKE ? OR keywords ILIKE ? OR category ILIKE ? OR description ILIKE ? ORDER BY year DESC LIMIT 5`,
-          [p, p, p, p, p]
+          `SELECT * FROM citations WHERE ${textSearchSql(fallbackColumns)} ORDER BY year DESC LIMIT 5`,
+          fallbackColumns.map(() => `%${q}%`)
         );
         if (fallback.length === 0) return { message: 'No similar citations found.', citations: [] };
         return { message: `Found ${fallback.length} similar citations`, citations: fallback.map(c => `${c.citation} - ${c.title} (${c.court}, ${c.year})`) };
@@ -314,8 +315,15 @@ async function executeTool(name, args, req) {
       if (q) { const p = `%${q}%`; sql += ' AND (title ILIKE ? OR content ILIKE ?)'; params.push(p, p); }
       if (cat) { sql += ' AND category=?'; params.push(cat); }
       if (art) { sql += ' AND article=?'; params.push(art); }
-      sql += " ORDER BY CAST(regexp_replace(article, '[^0-9]', '', 'g') AS INTEGER) ASC, article ASC LIMIT 15";
-      const results = await query(sql, params);
+      sql += " ORDER BY article ASC";
+      const allResults = await query(sql, params);
+      const articleNumber = (a) => {
+        const match = String(a.article || '').match(/\d+/);
+        return match ? Number(match[0]) : 9999;
+      };
+      const results = allResults
+        .sort((a, b) => articleNumber(a) - articleNumber(b) || String(a.article).localeCompare(String(b.article)))
+        .slice(0, 15);
       if (results.length === 0) return { message: 'No constitutional provisions found matching your query.', articles: [] };
       return {
         message: `Found ${results.length} constitutional provisions`,

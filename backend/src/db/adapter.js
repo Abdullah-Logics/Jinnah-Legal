@@ -6,20 +6,24 @@ import { seedCitations, seedLandmarkCases } from './seed-citations.js';
 let _adapter = null;
 
 async function seedDefaultAdmin() {
+  const email = process.env.BOOTSTRAP_ADMIN_EMAIL;
+  const password = process.env.BOOTSTRAP_ADMIN_PASSWORD;
+  if (!email || !password) return;
+
   try {
-    const exists = await queryOne("SELECT id FROM users WHERE email = 'viberider77@gmail.com'");
-    if (!exists) {
-      const id = uuid();
-      const hash = await bcrypt.hash('admin123', 10);
-      await _adapter.run(
-        `INSERT INTO users (id,email,password_hash,name,role,is_verified,verification_status)
-         VALUES (?,?,?,'Platform Admin','admin',1,'approved')`,
-        [id, 'viberider77@gmail.com', hash]
-      );
-      console.log('✅ Default platform admin created (viberider77@gmail.com / admin123)');
-    }
+    const exists = await queryOne('SELECT id FROM users WHERE email = ?', [email]);
+    if (exists) return;
+
+    const id = uuid();
+    const hash = await bcrypt.hash(password, 12);
+    await _adapter.run(
+      `INSERT INTO users (id,email,password_hash,name,role,is_verified,verification_status)
+       VALUES (?,?,?,'Platform Admin','admin',1,'approved')`,
+      [id, email, hash]
+    );
+    console.log('✅ Bootstrap platform admin created from environment');
   } catch (err) {
-    console.error('Failed to seed default admin:', err.message);
+    console.error('Failed to seed bootstrap admin:', err.message);
   }
 }
 

@@ -115,7 +115,7 @@ class PgVectorStore {
             AND (filter_category IS NULL OR c.category = filter_category)
             AND (filter_year_from IS NULL OR c.year >= filter_year_from)
             AND (filter_year_to IS NULL OR c.year <= filter_year_to)
-            AND (NOT trusted_only OR c.trusted = true)
+            AND (NOT trusted_only OR c.trusted = 1)
             AND 1 - (c.embedding <=> query_embedding) > min_score
           ORDER BY c.embedding <=> query_embedding ASC
           LIMIT LEAST(match_count, 100);
@@ -160,7 +160,7 @@ class PgVectorStore {
             AND (filter_category IS NULL OR c.category = filter_category)
             AND (filter_year_from IS NULL OR c.year >= filter_year_from)
             AND (filter_year_to IS NULL OR c.year <= filter_year_to)
-            AND (NOT trusted_only OR c.trusted = true)
+            AND (NOT trusted_only OR c.trusted = 1)
             AND (
               c.fts @@ tsq
               OR c.citation ILIKE '%' || query_text || '%'
@@ -206,7 +206,7 @@ class PgVectorStore {
       keywords: c.keywords || '',
       article: c.article || '',
       metadata: JSON.stringify(c.metadata || {}),
-      trusted: c.metadata?.trusted === true || c.trusted === true,
+      trusted: c.metadata?.trusted === true || c.trusted === true ? 1 : 0,
       embedding: (c.embedding || new Array(DIMENSION).fill(0)).slice(0, DIMENSION),
     }));
     return this.supabase
@@ -294,7 +294,7 @@ class PgVectorStore {
     if (filters.category) query = query.eq('category', filters.category);
     if (filters.yearFrom) query = query.gte('year', filters.yearFrom);
     if (filters.yearTo) query = query.lte('year', filters.yearTo);
-    if (filters.trustedOnly) query = query.eq('trusted', true);
+    if (filters.trustedOnly) query = query.eq('trusted', 1);
 
     const { data, error } = await query;
     if (error) {
@@ -362,7 +362,7 @@ class PgVectorStore {
     if (filters.category) q = q.eq('category', filters.category);
     if (filters.yearFrom) q = q.gte('year', filters.yearFrom);
     if (filters.yearTo) q = q.lte('year', filters.yearTo);
-    if (filters.trustedOnly) q = q.eq('trusted', true);
+    if (filters.trustedOnly) q = q.eq('trusted', 1);
 
     const { data, error } = await q;
     if (error) return [];

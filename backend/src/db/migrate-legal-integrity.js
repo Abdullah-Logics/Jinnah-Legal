@@ -126,6 +126,15 @@ export async function migrateLegalIntegrity(adapter, { cleanup = false } = {}) {
     "UPDATE citations SET verification_status='verified_source', source_type='existing_corpus' WHERE verification_status IS NULL OR verification_status=''"
   );
 
+  if (!(await getState(adapter, 'legacy_corpus_verification:v1'))) {
+    await adapter.run(
+      "UPDATE citations SET verification_status='verified_source', source_type='existing_corpus' WHERE verification_status='unverified'"
+    );
+    await setState(adapter, 'legacy_corpus_verification:v1', JSON.stringify({
+      completedAt: new Date().toISOString(),
+    }));
+  }
+
   let removedUnsourced = 0;
 
   if (cleanup && !(await getState(adapter, 'legacy_unsourced_cleanup:v1'))) {
@@ -143,10 +152,10 @@ export async function migrateLegalIntegrity(adapter, { cleanup = false } = {}) {
     }
 
     await adapter.run(
-      "DELETE FROM rag_chunks WHERE source_id IN (SELECT id FROM citations WHERE full_text IS NULL OR TRIM(full_text) = '')"
+      "DELETE FROM rag_chunks WHERE source_id IN (SELECT CAST(id AS TEXT) FROM citations WHERE full_text IS NULL OR TRIM(full_text) = '')"
     );
     await adapter.run(
-      "DELETE FROM citation_cart WHERE citation_id IN (SELECT id FROM citations WHERE full_text IS NULL OR TRIM(full_text) = '')"
+      "DELETE FROM citation_cart WHERE citation_id IN (SELECT CAST(id AS TEXT) FROM citations WHERE full_text IS NULL OR TRIM(full_text) = '')"
     );
     await adapter.run(
       "DELETE FROM citations WHERE full_text IS NULL OR TRIM(full_text) = ''"
@@ -160,10 +169,10 @@ export async function migrateLegalIntegrity(adapter, { cleanup = false } = {}) {
   }
 
   await adapter.run(
-    "UPDATE rag_chunks SET trusted=1 WHERE source_type='constitution' OR source_id IN (SELECT id FROM citations WHERE verification_status IN ('verified_source','verified_admin'))"
+    "UPDATE rag_chunks SET trusted=1 WHERE source_type='constitution' OR source_id IN (SELECT CAST(id AS TEXT) FROM citations WHERE verification_status IN ('verified_source','verified_admin'))"
   );
   await adapter.run(
-    "UPDATE rag_chunks SET trusted=0 WHERE NOT (source_type='constitution' OR source_id IN (SELECT id FROM citations WHERE verification_status IN ('verified_source','verified_admin')))"
+    "UPDATE rag_chunks SET trusted=0 WHERE NOT (source_type='constitution' OR source_id IN (SELECT CAST(id AS TEXT) FROM citations WHERE verification_status IN ('verified_source','verified_admin')))"
   );
 
   return { migrated: true, removedUnsourced };

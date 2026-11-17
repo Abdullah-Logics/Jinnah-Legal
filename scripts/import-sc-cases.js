@@ -1,3 +1,4 @@
+try { await import('dotenv/config'); } catch {}
 import https from 'https';
 import { readFileSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
@@ -8,7 +9,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT = path.resolve(__dirname, '..');
 
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZxdnlnbGpmcm9xemt4eXpwdmxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4Nzc4MTMsImV4cCI6MjA5NzQ1MzgxM30.Bve-HhJu-DQvkh2P56CrVQVNZRu7RQ0v3Vs8hQL9hFY';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+if (!SUPABASE_ANON_KEY) { console.error('SUPABASE_ANON_KEY environment variable is required'); process.exit(1); }
 
 function rpc(queryText) {
   return new Promise((resolve, reject) => {

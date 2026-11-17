@@ -59,7 +59,9 @@ function caseMeta(c) {
     relevantStatutes: c.relevant_statutes || '',
     description: c.description || '',
     pdfUrl: c.pdf_url || '',
+    sourceUrl: c.source_url || '',
     sourceRef: c.source_ref || '',
+    trusted: c.trusted === true || ['verified_source', 'verified_admin'].includes(c.verification_status),
   };
 }
 
@@ -168,6 +170,7 @@ export function chunkConstitutionArticle(a) {
       chunkKind: 'constitution',
       chunkIndex: i + 1,
       chunkTotal: windows.length,
+      trusted: true,
     },
   }));
   return chunks;
@@ -185,6 +188,6 @@ export function chunkLegalTopic(topic) {
     year: topic.year || 0,
     category: topic.category || '',
     keywords: topic.keywords || '',
-    metadata: { type: 'legal-topic' },
+    metadata: { type: 'legal-topic', trusted: topic.trusted === true },
   }];
 }

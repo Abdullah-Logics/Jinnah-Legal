@@ -7,7 +7,7 @@ services:
     buildCommand: cd backend && npm install
     startCommand: node backend/standalone-signaling.js
     envVars:
-      - key: CORS_ORIGIN
+      - key: CORS_ORIGINS
         value: https://ai-lawyer-blush.vercel.app
       - key: PORT
         value: "3002"
@@ -26,6 +26,12 @@ services:
         sync: false
       - key: FRONTEND_URL
         value: https://ai-lawyer-blush.vercel.app
+      - key: CORS_ORIGINS
+        value: https://ai-lawyer-blush.vercel.app
+      - key: LEGAL_SOURCE_DOMAINS
+        value: supremecourt.gov.pk,lhc.gov.pk,phc.gov.pk,shc.gov.pk,bhc.gov.pk,ihc.gov.pk,fsc.gov.pk,na.gov.pk,pakistancode.gov.pk
+      - key: AI_ENCRYPTION_KEY
+        sync: false
       - key: GEMINI_API_KEY
         sync: false
       - key: GEMINI_MODEL

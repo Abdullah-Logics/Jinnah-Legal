@@ -23,7 +23,7 @@ async function persistChunks(chunks, embeddings) {
       sourceType: c.sourceType, sourceId: c.sourceId, title: c.title,
       citation: c.citation, court: c.court, year: c.year, category: c.category,
       keywords: c.keywords, article: c.article, metadata: c.metadata,
-      chunkText: c.chunkText,
+      chunkText: c.chunkText, trusted: c.metadata?.trusted === true,
     });
   });
   return chunks.length;
@@ -63,7 +63,7 @@ export async function indexAllCases(queryFn, { log = console.log } = {}) {
 
   while (true) {
     const rows = await queryFn(
-      `SELECT id, title, citation, court, year, parties, category, description, keywords, relevant_statutes, full_text, pdf_url, metadata
+      `SELECT id, title, citation, court, year, parties, category, description, keywords, relevant_statutes, full_text, pdf_url, source_url, verification_status, metadata
        FROM citations ORDER BY created_at ASC LIMIT ${limit} OFFSET ${offset}`
     );
     if (!rows || rows.length === 0) break;
@@ -127,7 +127,7 @@ export async function indexAll(queryFn, { log = console.log } = {}) {
 /** Incremental re-index of one case (after edit/create). */
 export async function indexSingleCase(caseId, queryFn) {
   const row = await queryFn(
-    `SELECT id, title, citation, court, year, parties, category, description, keywords, relevant_statutes, full_text, pdf_url, metadata
+    `SELECT id, title, citation, court, year, parties, category, description, keywords, relevant_statutes, full_text, pdf_url, source_url, verification_status, metadata
      FROM citations WHERE id = '${String(caseId).replace(/'/g, "''")}'`
   );
   if (!row || row.length === 0) return { indexed: 0 };

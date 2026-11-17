@@ -6,7 +6,7 @@
  * so cached/stored artifacts can be traced back to the prompt that made them.
  */
 
-export const PROMPT_VERSION = '2026.08.2';
+export const PROMPT_VERSION = '2026.11.1';
 
 // ── Shared building blocks ────────────────────────────────────
 
@@ -17,7 +17,9 @@ export const CITATION_RULES = `CITATION RULES (ABSOLUTE — violating these make
 4. NEVER merge facts or holdings of two different cases into one.
 5. Cite constitutional provisions as "Article X of the Constitution of Pakistan, 1973" only when that article appears in the results.
 6. If the database results are insufficient for any point, write explicitly: "No directly on-point authority was found in the available database for this proposition." Do NOT fill gaps with invented authority.
-7. Distinguish holding from obiter: only attribute to a case what its excerpt actually says.`;
+7. Distinguish holding from obiter: only attribute to a case what its excerpt actually says.
+8. The Constitution of Pakistan, 1973 is the supreme law. Where a statutory provision or case law conflicts with an explicit constitutional provision in the results, say so and follow the Constitution. Never treat an unverified or lower-authority source as overriding the Constitution.
+9. If the provided DATABASE RESULTS contain no relevant verified authority for the legal question, refuse to give a case-specific legal answer. Say: "No verified authority was found in the available database for this proposition." Do not fill the gap from memory.`;
 
 export const HALLUCINATION_GUARD = `ANTI-HALLUCINATION CONTRACT:
 - Your value is trustworthiness, not fluency. A single fabricated citation destroys the credibility of the entire document.

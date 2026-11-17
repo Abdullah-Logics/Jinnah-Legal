@@ -3,13 +3,14 @@ import { v4 as uuid } from 'uuid';
 import { run, query, queryOne } from '../db/adapter.js';
 import { auth } from '../middleware/auth.js';
 import { AppError, asyncHandler } from '../middleware/errorHandler.js';
+import { resolveDbUser } from '../middleware/admin.js';
 
 export const adminRouter = Router();
 adminRouter.use(auth);
 
 async function requireAdmin(req) {
-  const user = await queryOne('SELECT * FROM users WHERE id=?', [req.user.id]);
-  if (!user || user.role !== 'admin') throw new AppError('Admin access required', 403);
+  const user = await resolveDbUser(req);
+  if (user.role !== 'admin') throw new AppError('Admin access required', 403);
   return user;
 }
 

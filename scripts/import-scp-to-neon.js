@@ -1,10 +1,12 @@
+try { await import('dotenv/config'); } catch {}
 import pg from 'pg';
 import { v4 as uuid } from 'uuid';
 import fs from 'fs';
 
-const DATABASE_URL = 'postgresql://neondb_owner:npg_y7Czlpdfs4EG@ep-muddy-morning-adsqi9v5-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require';
+const DATABASE_URL = process.env.DATABASE_URL;
+if (!DATABASE_URL) { console.error('DATABASE_URL environment variable is required'); process.exit(1); }
 
-const pool = new pg.Pool({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: false } });
+const pool = new pg.Pool({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: true } });
 
 async function main() {
   const cases = JSON.parse(fs.readFileSync('scp-2025-results.json', 'utf-8'));

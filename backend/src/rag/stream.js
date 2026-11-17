@@ -8,7 +8,7 @@ export async function streamRAGResponse(query, res, options = {}) {
   const { sourceType, category, court, yearFrom, yearTo, history = [] } = options;
 
   try {
-    const searchResults = await hybridSearch(query, { limit: 15, sourceType, category, court, yearFrom, yearTo });
+    const searchResults = await hybridSearch(query, { limit: 15, sourceType, category, court, yearFrom, yearTo, trustedOnly: true });
     const ragContext = buildRAGContext(searchResults);
 
     const sources = searchResults.results.map(r => ({

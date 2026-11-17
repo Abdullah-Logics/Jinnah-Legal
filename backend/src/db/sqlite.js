@@ -28,7 +28,7 @@ function backup() {
 let lastBackup = 0;
 
 export class SqliteAdapter {
-  constructor() { this.db = null; this.SQL = null; this._writeCount = 0; }
+  constructor() { this.db = null; this.SQL = null; this._writeCount = 0; this._backupTimer = null; }
 
   async connect() {
     this.SQL = await sqlInit();
@@ -63,12 +63,13 @@ export class SqliteAdapter {
 
     // Hourly auto-backup (skip on Vercel)
     if (!process.env.VERCEL) {
-      setInterval(() => {
+      this._backupTimer = setInterval(() => {
         if (this.db) {
           backup();
           console.log('⏰ Hourly backup saved');
         }
       }, 60 * 60 * 1000);
+      this._backupTimer.unref?.();
     }
   }
 
@@ -101,6 +102,10 @@ export class SqliteAdapter {
   }
 
   async close() {
+    if (this._backupTimer) {
+      clearInterval(this._backupTimer);
+      this._backupTimer = null;
+    }
     if (this.db) {
       this._save();
       this.db.close();

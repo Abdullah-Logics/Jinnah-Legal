@@ -8,6 +8,8 @@
     "start": "NODE_ENV=production node src/index.js",
     "signaling": "node standalone-signaling.js",
     "index-rag": "node scripts/index-rag.js",
+    "cleanup-legal-data": "node scripts/cleanup-legal-data.js",
+    "seed-verified-cases": "node scripts/seed-verified-cases.js",
     "lint": "node -e \"console.log('No linter configured')\""
   },
   "dependencies": {

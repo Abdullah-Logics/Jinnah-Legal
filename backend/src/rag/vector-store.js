@@ -28,7 +28,9 @@ class InMemoryVectorStore {
     const scored = this.vectors
       .map(v => {
         let pass = true;
+        if (filters.trustedOnly && v.metadata?.trusted !== true) return null;
         for (const [key, value] of Object.entries(filters)) {
+          if (key === 'trustedOnly') continue;
           if (value && v.metadata[key] !== value) { pass = false; break; }
         }
         if (!pass) return null;
@@ -96,6 +98,7 @@ class PgVectorStore {
           filter_category text DEFAULT NULL,
           filter_year_from int DEFAULT NULL,
           filter_year_to int DEFAULT NULL,
+          trusted_only boolean DEFAULT false,
           min_score float DEFAULT 0.0
         ) RETURNS TABLE (
           id text, source_type text, source_id text, title text, chunk_text text,
@@ -112,6 +115,7 @@ class PgVectorStore {
             AND (filter_category IS NULL OR c.category = filter_category)
             AND (filter_year_from IS NULL OR c.year >= filter_year_from)
             AND (filter_year_to IS NULL OR c.year <= filter_year_to)
+            AND (NOT trusted_only OR c.trusted = true)
             AND 1 - (c.embedding <=> query_embedding) > min_score
           ORDER BY c.embedding <=> query_embedding ASC
           LIMIT LEAST(match_count, 100);
@@ -125,7 +129,8 @@ class PgVectorStore {
           filter_court text DEFAULT NULL,
           filter_category text DEFAULT NULL,
           filter_year_from int DEFAULT NULL,
-          filter_year_to int DEFAULT NULL
+          filter_year_to int DEFAULT NULL,
+          trusted_only boolean DEFAULT false
         ) RETURNS TABLE (
           id text, source_type text, source_id text, title text, chunk_text text,
           citation text, court text, year int, category text, keywords text,
@@ -155,6 +160,7 @@ class PgVectorStore {
             AND (filter_category IS NULL OR c.category = filter_category)
             AND (filter_year_from IS NULL OR c.year >= filter_year_from)
             AND (filter_year_to IS NULL OR c.year <= filter_year_to)
+            AND (NOT trusted_only OR c.trusted = true)
             AND (
               c.fts @@ tsq
               OR c.citation ILIKE '%' || query_text || '%'
@@ -166,6 +172,9 @@ class PgVectorStore {
         END;
         $$;
       `);
+      try {
+        await this._exec(`ALTER TABLE rag_chunks ADD COLUMN IF NOT EXISTS trusted integer DEFAULT 0`);
+      } catch {}
       // Generated FTS column backing the lexical leg (fast, always in sync).
       try {
         await this._exec(`ALTER TABLE rag_chunks ADD COLUMN IF NOT EXISTS fts tsvector GENERATED ALWAYS AS (
@@ -197,6 +206,7 @@ class PgVectorStore {
       keywords: c.keywords || '',
       article: c.article || '',
       metadata: JSON.stringify(c.metadata || {}),
+      trusted: c.metadata?.trusted === true || c.trusted === true,
       embedding: (c.embedding || new Array(DIMENSION).fill(0)).slice(0, DIMENSION),
     }));
     return this.supabase
@@ -229,6 +239,7 @@ class PgVectorStore {
       keywords: r.keywords,
       article: r.article,
       metadata: meta || {},
+      trusted: r.trusted === true || r.trusted === 1,
       score: Number(r.score) || 0,
     };
   }
@@ -240,6 +251,7 @@ class PgVectorStore {
       filter_category: filters.category || null,
       filter_year_from: filters.yearFrom ? Number(filters.yearFrom) : null,
       filter_year_to: filters.yearTo ? Number(filters.yearTo) : null,
+      trusted_only: filters.trustedOnly === true,
     };
   }
 
@@ -274,7 +286,7 @@ class PgVectorStore {
     const CANDIDATE_CAP = 2000;
     let query = this.supabase
       .from('rag_chunks')
-      .select('id, source_type, source_id, title, chunk_text, citation, court, year, category, keywords, article, metadata')
+      .select('id, source_type, source_id, title, chunk_text, citation, court, year, category, keywords, article, metadata, trusted')
       .limit(CANDIDATE_CAP);
 
     if (filters.sourceType) query = query.eq('source_type', filters.sourceType);
@@ -282,6 +294,7 @@ class PgVectorStore {
     if (filters.category) query = query.eq('category', filters.category);
     if (filters.yearFrom) query = query.gte('year', filters.yearFrom);
     if (filters.yearTo) query = query.lte('year', filters.yearTo);
+    if (filters.trustedOnly) query = query.eq('trusted', true);
 
     const { data, error } = await query;
     if (error) {
@@ -340,7 +353,7 @@ class PgVectorStore {
     const p = `%${queryText.replace(/[%_]/g, '').slice(0, 120)}%`;
     let q = this.supabase
       .from('rag_chunks')
-      .select('id, source_type, source_id, title, chunk_text, citation, court, year, category, keywords, article, metadata')
+      .select('id, source_type, source_id, title, chunk_text, citation, court, year, category, keywords, article, metadata, trusted')
       .or(`citation.ilike.${p},title.ilike.${p},keywords.ilike.${p},chunk_text.ilike.${p}`)
       .limit(limit);
 
@@ -349,6 +362,7 @@ class PgVectorStore {
     if (filters.category) q = q.eq('category', filters.category);
     if (filters.yearFrom) q = q.gte('year', filters.yearFrom);
     if (filters.yearTo) q = q.lte('year', filters.yearTo);
+    if (filters.trustedOnly) q = q.eq('trusted', true);
 
     const { data, error } = await q;
     if (error) return [];
@@ -362,7 +376,7 @@ class PgVectorStore {
       const chunk = ids.slice(i, i + 100);
       const { data, error } = await this.supabase
         .from('rag_chunks')
-        .select('id, source_type, source_id, title, chunk_text, citation, court, year, category, keywords, article, metadata')
+        .select('id, source_type, source_id, title, chunk_text, citation, court, year, category, keywords, article, metadata, trusted')
         .in('id', chunk);
       if (!error && data) out.push(...data.map(r => this.rowToResult(r)));
     }
@@ -373,7 +387,7 @@ class PgVectorStore {
     if (!this.ready || !sourceId) return [];
     const { data, error } = await this.supabase
       .from('rag_chunks')
-      .select('id, source_type, source_id, title, chunk_text, citation, court, year, category, keywords, article, metadata')
+      .select('id, source_type, source_id, title, chunk_text, citation, court, year, category, keywords, article, metadata, trusted')
       .eq('source_id', sourceId);
     if (error) return [];
     return (data || []).map(r => this.rowToResult(r));

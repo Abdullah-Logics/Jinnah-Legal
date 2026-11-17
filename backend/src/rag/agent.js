@@ -192,7 +192,7 @@ export async function agentChat({ message, history = [], userId, userRole, sessi
 
   const groundedMessage = hasGrounding
     ? `User Question: ${message}\n\nDATABASE RESULTS:\n${initialContext}\n\nIf the question relates to legal research or case law, answer from the database results above (cite them). For case management questions (listing cases, client info, documents), use your available tools instead.`
-    : `User Question: ${message}\n\nNo relevant results found in the legal database. Search the database using searchLegalDatabase tool to find relevant cases. If no results exist after searching, honestly tell the user.`;
+    : `User Question: ${message}\n\nNo verified authorities were found in the legal database. Do not answer from memory. You may run ONE searchLegalDatabase refinement; if no verified authority is found, say exactly: "No verified authority was found in the available database for this proposition."`;
 
   const chat = model.startChat({ history: geminiHistory });
   let responseText = '';
@@ -348,7 +348,7 @@ async function executeAgentTool(name, args, userId) {
 
     case 'searchCitations': {
       const { query: q, category, year, court } = args;
-      let sql = `SELECT id, title, citation, court, year, parties, category, description, keywords FROM citations WHERE 1=1`;
+      let sql = `SELECT id, title, citation, court, year, parties, category, description, keywords FROM citations WHERE verification_status IN ('verified_source','verified_admin')`;
       const params = [];
       if (q) {
         const p = `%${q}%`;

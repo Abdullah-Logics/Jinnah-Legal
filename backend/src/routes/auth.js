@@ -59,6 +59,10 @@ authRouter.post('/login', validate(loginSchema), asyncHandler(async (req, res) =
 authRouter.post('/register', validate(registerSchema), asyncHandler(async (req, res) => {
   const { email, password, name, role, phone, city, specialization, barNumber, licenseNumber, experience, education, firmId, subscriptionPlan, documentIds } = req.body;
 
+  if (!['lawyer', 'client'].includes(role)) {
+    throw new AppError('Role cannot be self-assigned', 403);
+  }
+
   const exists = await queryOne('SELECT id FROM users WHERE email = ?', [email]);
   if (exists) {
     throw new AppError('Email already registered', 409);
@@ -115,19 +119,10 @@ authRouter.patch('/password', auth, asyncHandler(async (req, res) => {
   res.json({ ok: true, message: 'Password changed successfully' });
 }));
 
-authRouter.get('/me', asyncHandler(async (req, res) => {
-  const h = req.headers.authorization;
-  if (!h?.startsWith('Bearer ')) {
-    throw new AppError('No token provided', 401);
+authRouter.get('/me', auth, asyncHandler(async (req, res) => {
+  const user = await queryOne('SELECT * FROM users WHERE id = ?', [req.user.id]);
+  if (!user) {
+    throw new AppError('User not found', 404);
   }
-  try {
-    const payload = JSON.parse(Buffer.from(h.slice(7).split('.')[1], 'base64').toString());
-    const user = await queryOne('SELECT * FROM users WHERE id = ?', [payload.id]);
-    if (!user) {
-      throw new AppError('User not found', 404);
-    }
-    res.json({ user: toPublic(user) });
-  } catch {
-    throw new AppError('Invalid or expired token', 401);
-  }
+  res.json({ user: toPublic(user) });
 }));

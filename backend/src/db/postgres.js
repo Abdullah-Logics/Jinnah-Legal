@@ -1,5 +1,4 @@
 import pg from 'pg';
-import { lookup } from 'dns/promises';
 
 function buildPgQuery(sqlText, params = []) {
   let i = 0;
@@ -25,23 +24,7 @@ export class PostgresAdapter {
     let url = process.env.SUPABASE_URL || process.env.DATABASE_URL;
     if (!url) throw new Error('SUPABASE_URL or DATABASE_URL is required');
 
-    const parsed = new URL(url);
-    const hostname = parsed.hostname;
-    const port = parseInt(parsed.port) || 5432;
-
-    let ip = hostname;
-    try {
-      const { address } = await lookup(hostname, { family: 6 });
-      if (address) { ip = address; console.log(` Resolved ${hostname} → ${ip} (IPv6)`); }
-    } catch {
-      try {
-        const { address } = await lookup(hostname, { family: 4 });
-        if (address) { ip = address; console.log(` Resolved ${hostname} → ${ip} (IPv4)`); }
-      } catch {}
-    }
-    url = url.replace(hostname, ip);
-
-    this.pool = new pg.Pool({ connectionString: url, ssl: { rejectUnauthorized: false } });
+    this.pool = new pg.Pool({ connectionString: url, ssl: { rejectUnauthorized: true } });
     this.pool.on('error', err => console.error('PG pool error:', err.message));
 
     try {

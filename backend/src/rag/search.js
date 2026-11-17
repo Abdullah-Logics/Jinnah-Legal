@@ -102,7 +102,7 @@ function rrfScore(lists, id, k = 60) {
 }
 
 export async function semanticSearch(query, options = {}) {
-  const { limit = 20, sourceType, court, category, yearFrom, yearTo, maxWaitMs = Infinity } = options;
+  const { limit = 20, sourceType, court, category, yearFrom, yearTo, trustedOnly = true, maxWaitMs = Infinity } = options;
   // Interactive callers pass a small maxWaitMs so a quota-starved index
   // degrades to keyword-only search instantly instead of hanging the request.
   const embedding = await embedText(query, { taskType: 'RETRIEVAL_QUERY', maxWaitMs });
@@ -115,6 +115,7 @@ export async function semanticSearch(query, options = {}) {
   if (category) filters.category = category;
   if (yearFrom) filters.yearFrom = yearFrom;
   if (yearTo) filters.yearTo = yearTo;
+  filters.trustedOnly = trustedOnly;
 
   return vectorSearch(embedding, { limit, filters });
 }
@@ -137,6 +138,7 @@ export async function hybridSearch(query, options = {}) {
     yearTo,
     perCase = 2,
     expansion = true,
+    trustedOnly = true,
     maxWaitMs = Infinity,
   } = options;
 
@@ -146,6 +148,7 @@ export async function hybridSearch(query, options = {}) {
   if (category) filters.category = category;
   if (yearFrom) filters.yearFrom = yearFrom;
   if (yearTo) filters.yearTo = yearTo;
+  filters.trustedOnly = trustedOnly;
 
   const citedCases = detectCitations(query);
   const citedArticles = detectArticles(query);
@@ -165,11 +168,11 @@ export async function hybridSearch(query, options = {}) {
 
   // Direct lookups for citations mentioned verbatim in the question
   for (const cit of citedCases.slice(0, 4)) {
-    tasks.push(keywordSearch(cit, { limit: 6, filters: {} }));
+    tasks.push(keywordSearch(cit, { limit: 6, filters: { trustedOnly } }));
   }
   // Constitution articles referenced by number
   for (const art of citedArticles.slice(0, 4)) {
-    tasks.push(keywordSearch(`Article ${art}`, { limit: 4, filters: { sourceType: 'constitution' } }));
+    tasks.push(keywordSearch(`Article ${art}`, { limit: 4, filters: { sourceType: 'constitution', trustedOnly } }));
   }
 
   const settled = await Promise.allSettled(tasks);

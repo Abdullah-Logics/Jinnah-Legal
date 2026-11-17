@@ -9,6 +9,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { existsSync } from 'fs';
 import { getAdapter, closeAdapter } from './db/adapter.js';
+import { migrateLegalIntegrity } from './db/migrate-legal-integrity.js';
+import { seedVerifiedCases } from './db/seed-verified-cases.js';
 import { validateEnv, getCorsOrigin } from './config/env.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import { authRouter } from './routes/auth.js';
@@ -22,6 +24,7 @@ import { siteRouter } from './routes/site.js';
 import { groupsRouter } from './routes/groups.js';
 import { callLogsRouter } from './routes/call-logs.js';
 import { citationsRouter } from './routes/citations.js';
+import { legalSourcesRouter } from './routes/legal-sources.js';
 import { evidenceRouter } from './routes/evidence.js';
 import { constitutionRouter } from './routes/constitution.js';
 import { ragRouter } from './routes/rag.js';
@@ -38,6 +41,15 @@ export async function createApp() {
   const adapter = await getAdapter();
 
   try {
+    const result = await migrateLegalIntegrity(adapter, { cleanup: true });
+    if (result.removedUnsourced) {
+      console.log(`Removed ${result.removedUnsourced} unsourced case records`);
+    }
+  } catch (e) {
+    console.warn('Legal integrity migration failed:', e.message);
+  }
+
+  try {
     const supabaseClient = adapter.supabase || null;
     const storeType = await initVectorStore(
       supabaseClient,
@@ -47,6 +59,15 @@ export async function createApp() {
     console.log(`RAG vector store: ${storeType}`);
   } catch (e) {
     console.warn('Vector store init failed:', e.message);
+  }
+
+  try {
+    const seeded = await seedVerifiedCases(adapter);
+    if (seeded.inserted || seeded.indexed) {
+      console.log('Verified legal sources:', seeded);
+    }
+  } catch (e) {
+    console.warn('Verified legal source seeding failed:', e.message);
   }
 
   // Surface silent background failures instead of dying invisibly
@@ -160,23 +181,12 @@ const app = express();
     next();
   });
 
-  app.get('/api/health', async (_req, res) => {
-    let ipv6 = 'unknown';
-    try {
-      const { lookup } = await import('dns/promises');
-      const { address } = await lookup('db.vqvygljfroqzkxyzpvlo.supabase.co', { family: 6 });
-      ipv6 = address || 'none';
-    } catch { ipv6 = 'unreachable'; }
-
+  app.get('/api/health', (_req, res) => {
     res.json({
       status: 'ok',
       db: process.env.SUPABASE_URL || process.env.DATABASE_URL ? 'postgres' : process.env.MSSQL_SERVER ? 'mssql' : 'sqlite',
       ai: process.env.GEMINI_API_KEY ? 'gemini' : 'unavailable',
       environment: process.env.NODE_ENV || 'development',
-      supabase_ipv6: ipv6,
-      rest_fallback: process.env.SUPABASE_PROJECT_REF && process.env.SUPABASE_MANAGEMENT_KEY ? 'available' : 'unavailable',
-      anon_key_set: !!process.env.SUPABASE_ANON_KEY,
-      service_key_set: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
       time: new Date().toISOString(),
       uptime: process.uptime(),
     });
@@ -192,6 +202,7 @@ const app = express();
   app.use('/api/groups',    groupsRouter);
   app.use('/api/call-logs', callLogsRouter);
   app.use('/api/citations', citationsRouter);
+  app.use('/api/legal-sources/admin', legalSourcesRouter);
   app.use('/api/evidence',  evidenceRouter);
   app.use('/api/constitution', constitutionRouter);
   app.use('/api/rag', ragRouter);

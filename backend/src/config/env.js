@@ -1,7 +1,8 @@
 try { await import('dotenv/config'); } catch {}
 
 const REQUIRED_PROD = ['JWT_SECRET'];
-const OPTIONAL = ['PORT', 'FRONTEND_URL', 'GEMINI_API_KEY', 'GEMINI_MODEL',
+const OPTIONAL = ['PORT', 'FRONTEND_URL', 'CORS_ORIGINS', 'AI_ENCRYPTION_KEY',
+  'GEMINI_API_KEY', 'GEMINI_MODEL',
   'MSSQL_SERVER', 'MSSQL_DATABASE', 'MSSQL_USER', 'MSSQL_PASSWORD', 'MSSQL_PORT',
   'MSSQL_ENCRYPT', 'MSSQL_TRUST_CERT',
   'SUPABASE_PROJECT_REF', 'SUPABASE_MANAGEMENT_KEY', 'SUPABASE_SERVICE_ROLE_KEY', 'SUPABASE_ANON_KEY',
@@ -37,8 +38,12 @@ export function validateEnv() {
     errors.push('JWT_SECRET must be a strong random string in production');
   }
 
-  if (isProd && !process.env.FRONTEND_URL) {
-    console.warn('FRONTEND_URL not set — using default CORS origins');
+  if (isProd && !process.env.CORS_ORIGINS && !process.env.FRONTEND_URL) {
+    console.warn('CORS_ORIGINS not set — using default CORS origins');
+  }
+
+  if (isProd && !process.env.AI_ENCRYPTION_KEY) {
+    console.warn('AI_ENCRYPTION_KEY not set — admin audit payload encryption disabled');
   }
 
   if (errors.length > 0) {
@@ -49,15 +54,21 @@ export function validateEnv() {
 }
 
 export function getCorsOrigin() {
-  const url = process.env.FRONTEND_URL || defaults.FRONTEND_URL;
-  const origins = url.split(',').map(s => s.trim()).filter(Boolean);
+  const configured = process.env.CORS_ORIGINS || process.env.FRONTEND_URL || defaults.FRONTEND_URL;
+  const origins = configured.split(',').map(s => s.trim().replace(/\/$/, '')).filter(Boolean);
   if (process.env.NODE_ENV !== 'production') {
     origins.push('http://localhost:5173', 'http://localhost:3001');
   }
   origins.push('https://ai-lawyer-blush.vercel.app', 'https://ai-lawyer.vercel.app');
-  // CORS function: allow known origins + echo back request origin (handles preview deploys)
+
+  const allowed = new Set(origins);
+  const previewPattern = /^https:\/\/ai-lawyer-[a-z0-9-]+\.vercel\.app$/;
+
   return (origin, cb) => {
-    if (!origin || origins.includes(origin)) return cb(null, true);
-    return cb(null, origin);
+    if (!origin) return cb(null, true);
+    if (allowed.has(origin) || (process.env.NODE_ENV !== 'production' && previewPattern.test(origin))) {
+      return cb(null, true);
+    }
+    return cb(new Error('Origin not allowed by CORS'));
   };
 }

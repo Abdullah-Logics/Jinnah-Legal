@@ -1,10 +1,12 @@
 import { Router } from 'express';
 import { v4 as uuid } from 'uuid';
 import { auth } from '../middleware/auth.js';
+import { requirePlatformAdmin } from '../middleware/admin.js';
 import { AppError, asyncHandler } from '../middleware/errorHandler.js';
 import { run, query, queryOne } from '../db/adapter.js';
 import { hybridSearch, buildRAGContext, semanticSearch } from '../rag/search.js';
-import { agentChat, validateCitations } from '../rag/agent.js';
+import { validateCitations } from '../rag/agent.js';
+import { runHardenedRAGPipeline } from '../rag/pipeline.js';
 import { indexAll, getIndexStatus, indexConstitution, indexAllCases } from '../rag/indexer.js';
 import { streamRAGResponse } from '../rag/stream.js';
 import { PROMPT_VERSION } from '../rag/prompts.js';
@@ -20,7 +22,7 @@ ragRouter.get('/status', asyncHandler(async (req, res) => {
   res.json({ ...status, promptVersion: PROMPT_VERSION, lastIndexError });
 }));
 
-ragRouter.post('/index', asyncHandler(async (req, res) => {
+ragRouter.post('/index', requirePlatformAdmin, asyncHandler(async (req, res) => {
   if (indexing) throw new AppError('Indexing already in progress', 409);
   indexing = true;
   res.json({ success: true, status: 'started', message: 'Indexing started in background' });
@@ -34,7 +36,7 @@ ragRouter.post('/index', asyncHandler(async (req, res) => {
   }
 }));
 
-ragRouter.post('/index/constitution', asyncHandler(async (req, res) => {
+ragRouter.post('/index/constitution', requirePlatformAdmin, asyncHandler(async (req, res) => {
   if (indexing) throw new AppError('Indexing already in progress', 409);
   indexing = true;
   res.json({ success: true, status: 'started', message: 'Constitution indexing started in background' });
@@ -48,7 +50,7 @@ ragRouter.post('/index/constitution', asyncHandler(async (req, res) => {
   }
 }));
 
-ragRouter.post('/index/cases', asyncHandler(async (req, res) => {
+ragRouter.post('/index/cases', requirePlatformAdmin, asyncHandler(async (req, res) => {
   if (indexing) throw new AppError('Indexing already in progress', 409);
   indexing = true;
   res.json({ success: true, status: 'started', message: 'Cases indexing started in background' });
@@ -105,15 +107,15 @@ ragRouter.post('/ask', asyncHandler(async (req, res) => {
   const { message, history = [], sessionId } = req.body;
   if (!message) throw new AppError('Message required', 400);
 
-  const result = await agentChat({
+  const result = await runHardenedRAGPipeline({
     message,
     history,
     userId: req.user.id,
     userRole: req.user.role,
-    sessionId: sessionId || uuid(),
+    sessionId,
   });
 
-  const sid = sessionId || uuid();
+  const sid = sessionId || result.sessionId || uuid();
   try {
     const session = await queryOne('SELECT id FROM ai_sessions WHERE id=? AND user_id=?', [sid, req.user.id]);
     if (!session) {
@@ -138,6 +140,8 @@ ragRouter.post('/ask', asyncHandler(async (req, res) => {
     },
     grounded: result.grounded,
     promptVersion: result.promptVersion,
+    layers: result.layers,
+    retrieval: result.retrieval,
   });
 }));
 

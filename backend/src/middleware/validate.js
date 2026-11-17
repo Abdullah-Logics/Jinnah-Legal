@@ -35,7 +35,7 @@ export const registerSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters')
     .max(128, 'Password is too long'),
   name: z.string().min(1, 'Name is required').max(255),
-  role: z.enum(['lawyer', 'client', 'admin', 'firm_admin']),
+  role: z.enum(['lawyer', 'client']),
   phone: z.preprocess(emptyToNull, z.string().max(50).nullable()),
   city: z.preprocess(emptyToNull, z.string().max(100).nullable()),
   specialization: z.preprocess(emptyToNull, z.string().max(500).nullable()),

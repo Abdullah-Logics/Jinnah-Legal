@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { api } from '../../utils/api';
 import {
   Search, ChevronDown, ChevronRight, Menu, X, Loader, Clipboard,
   FileText, AlertCircle, Gavel, Shield, Scale, BookOpen, Heart,
@@ -10,11 +10,6 @@ interface Article {
   id: string; part: string; part_title: string; chapter: string;
   chapter_title: string; article: string; title: string; content: string; category: string;
 }
-
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL || 'https://vqvygljfroqzkxyzpvlo.supabase.co',
-  import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZxdnlnbGpmcm9xemt4eXpwdmxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4Nzc4MTMsImV4cCI6MjA5NzQ1MzgxM30.Bve-HhJu-DQvkh2P56CrVQVNZRu7RQ0v3Vs8hQL9hFY',
-);
 
 const CATEGORY_STYLES: Record<string, string> = {
   Fundamental: 'text-rose-700 bg-rose-50 border-rose-200',
@@ -149,17 +144,13 @@ export default function ConstitutionReader() {
   const catRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    supabase
-      .from('constitution')
-      .select('id, part, part_title, chapter, chapter_title, article, title, content, category')
-      .then(({ data, error: err }) => {
-        if (err) {
-          setError(err.message);
-        } else if (data) {
-          setArticles(data.sort((a, b) => sortKey(a.article) - sortKey(b.article)));
-        }
-        setLoading(false);
-      });
+    api.get<{ rows: Article[]; total: number }>('/api/constitution?limit=300')
+      .then(data => {
+        const rows = Array.isArray(data?.rows) ? data.rows : [];
+        setArticles(rows.sort((a, b) => sortKey(a.article) - sortKey(b.article)));
+      })
+      .catch(err => setError(err.message))
+      .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
